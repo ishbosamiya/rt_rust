@@ -1,20 +1,24 @@
-use nalgebra_glm as glm;
+use crate::math::{Scalar, Vec3};
 
 pub struct Ray {
-    origin: glm::DVec3,
-    direction: glm::DVec3,
+    origin: Vec3,
+    direction: Vec3,
 }
 
 impl Ray {
-    pub fn new(origin: glm::DVec3, direction: glm::DVec3) -> Self {
+    pub fn new(origin: Vec3, direction: Vec3) -> Self {
         return Self { origin, direction };
     }
 
-    pub fn get_origin(&self) -> &glm::DVec3 {
+    pub fn get_origin(&self) -> &Vec3 {
         return &self.origin;
     }
 
-    pub fn get_direction(&self) -> &glm::DVec3 {
+    pub fn get_direction(&self) -> &Vec3 {
         return &self.direction;
+    }
+
+    pub fn at(&self, t: Scalar) -> Vec3 {
+        return &self.origin + t * &self.direction;
     }
 }
