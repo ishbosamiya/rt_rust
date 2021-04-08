@@ -1,4 +1,4 @@
-use hp_rt::image::{Image, PPM};
+use rt::image::{Image, PPM};
 
 use nalgebra_glm as glm;
 
