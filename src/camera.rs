@@ -23,6 +23,18 @@ impl Camera {
         };
     }
 
+    pub fn get_origin(&self) -> &Vec3 {
+        return &self.origin;
+    }
+
+    pub fn get_horizontal(&self) -> &Vec3 {
+        return &self.horizontal;
+    }
+
+    pub fn get_vertical(&self) -> &Vec3 {
+        return &self.vertical;
+    }
+
     pub fn get_ray(&self, u: f64, v: f64) -> Ray {
         return Ray::new(
             self.origin,
