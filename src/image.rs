@@ -1,6 +1,8 @@
 use std::fs::File;
 use std::io::prelude::*;
 
+use nalgebra_glm as glm;
+
 use crate::math::Vec3;
 
 pub struct Image {
@@ -71,6 +73,7 @@ impl PPM<'_> {
 
         for i in self.image.get_pixels() {
             for j in i {
+                let j = glm::clamp(&j, 0.0, 1.0);
                 string_data.push_str(&((j[0] * 255.0) as i64 % 256).to_string());
                 string_data.push_str(" ");
                 string_data.push_str(&((j[1] * 255.0) as i64 % 256).to_string());
