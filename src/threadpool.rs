@@ -1,4 +1,4 @@
-use std::sync::mpsc;
+use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 
 struct Worker {
@@ -7,16 +7,30 @@ struct Worker {
 }
 
 impl Worker {
-    fn new(id: usize) -> Self {
-        return Self {
-            id,
-            join_handle: thread::spawn(|| {}),
-        };
+    fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<WorkerMessage>>>) -> Self {
+        let join_handle = thread::spawn(move || loop {
+            let message = receiver.lock().unwrap().recv().unwrap();
+
+            match message {
+                WorkerMessage::RunNewJob(job) => {
+                    job();
+                }
+                WorkerMessage::Terminate => {
+                    break;
+                }
+            }
+        });
+        return Self { id, join_handle };
     }
 }
 
 /// The job to be executed by one of the threads
 type Job = Box<dyn FnOnce() + Send + 'static>;
+
+enum WorkerMessage {
+    RunNewJob(Job),
+    Terminate,
+}
 
 /// A Threadpool consists of a pool of threads to which Jobs
 /// (functions) can be sent to execute on. The threads are 1:1 with
@@ -25,7 +39,7 @@ type Job = Box<dyn FnOnce() + Send + 'static>;
 pub struct ThreadPool {
     num_threads: usize,
     workers: Vec<Worker>,
-    sender: mpsc::Sender<Job>,
+    sender: mpsc::Sender<WorkerMessage>,
 }
 
 impl ThreadPool {
@@ -40,11 +54,12 @@ impl ThreadPool {
         assert_ne!(num_threads, 0);
 
         let (sender, receiver) = mpsc::channel();
+        let receiver = Arc::new(Mutex::new(receiver));
 
         let mut workers = Vec::with_capacity(num_threads);
 
         for id in 0..num_threads {
-            workers.push(Worker::new(id));
+            workers.push(Worker::new(id, receiver.clone()));
         }
 
         return Self {
