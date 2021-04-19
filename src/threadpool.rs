@@ -2,12 +2,11 @@ use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 
 struct Worker {
-    id: usize,
-    join_handle: thread::JoinHandle<()>,
+    join_handle: Option<thread::JoinHandle<()>>,
 }
 
 impl Worker {
-    fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<WorkerMessage>>>) -> Self {
+    fn new(receiver: Arc<Mutex<mpsc::Receiver<WorkerMessage>>>) -> Self {
         let join_handle = thread::spawn(move || loop {
             let message = receiver.lock().unwrap().recv().unwrap();
 
@@ -20,7 +19,9 @@ impl Worker {
                 }
             }
         });
-        return Self { id, join_handle };
+        return Self {
+            join_handle: Some(join_handle),
+        };
     }
 }
 
@@ -58,8 +59,8 @@ impl ThreadPool {
 
         let mut workers = Vec::with_capacity(num_threads);
 
-        for id in 0..num_threads {
-            workers.push(Worker::new(id, receiver.clone()));
+        for _ in 0..num_threads {
+            workers.push(Worker::new(receiver.clone()));
         }
 
         return Self {
@@ -86,5 +87,19 @@ impl ThreadPool {
 
     pub fn get_num_threads(&self) -> usize {
         return self.num_threads;
+    }
+}
+
+impl Drop for ThreadPool {
+    fn drop(&mut self) {
+        self.workers
+            .iter()
+            .for_each(|_| self.sender.send(WorkerMessage::Terminate).unwrap());
+
+        self.workers.iter_mut().for_each(|worker| {
+            if let Some(join_handle) = worker.join_handle.take() {
+                join_handle.join().unwrap();
+            }
+        })
     }
 }
