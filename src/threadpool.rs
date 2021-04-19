@@ -69,11 +69,19 @@ impl ThreadPool {
         };
     }
 
+    /// Execute the given job `f`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal communication pipeline closes which may
+    /// happen if one of the currently running jobs panics
     pub fn execute<F>(&self, f: F)
     where
         F: FnOnce() + Send + 'static,
     {
-        // TODO(ish)
+        let job = Box::new(f);
+
+        self.sender.send(WorkerMessage::RunNewJob(job)).unwrap();
     }
 
     pub fn get_num_threads(&self) -> usize {
