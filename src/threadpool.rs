@@ -103,3 +103,25 @@ impl Drop for ThreadPool {
         })
     }
 }
+
+mod tests {
+    #[test]
+    fn threadpool_test() {
+        let num_threads = 5;
+        let pool = super::ThreadPool::new(num_threads);
+
+        let (tx, rx) = super::mpsc::channel();
+
+        for _ in 0..pool.get_num_threads() {
+            let tx = tx.clone();
+            pool.execute(move || {
+                tx.send(1).unwrap();
+            });
+        }
+
+        assert_eq!(
+            rx.iter().take(pool.get_num_threads()).fold(0, |a, b| a + b),
+            pool.get_num_threads()
+        );
+    }
+}
