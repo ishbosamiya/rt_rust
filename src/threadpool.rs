@@ -1,21 +1,39 @@
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 
+#[derive(Debug)]
 struct Worker {
     join_handle: Option<thread::JoinHandle<()>>,
 }
 
 impl Worker {
     fn new(receiver: Arc<Mutex<mpsc::Receiver<WorkerMessage>>>) -> Self {
+        let mut scoped = false;
         let join_handle = thread::spawn(move || loop {
+            println!("scoped: {}", scoped);
             let message = receiver.lock().unwrap().recv().unwrap();
 
             match message {
                 WorkerMessage::RunNewJob(job) => {
+                    scoped = false;
                     job();
+                }
+                WorkerMessage::RunNewScopedJob(job) => {
+                    scoped = true;
+                    println!("started job");
+                    job();
+                    println!("ended job");
                 }
                 WorkerMessage::Terminate => {
                     break;
+                }
+                WorkerMessage::TerminateScoped => {
+                    if scoped {
+                        break;
+                    } else {
+                        println!("called terminate scoped, but scoped was false");
+                        break;
+                    }
                 }
             }
         });
@@ -25,18 +43,50 @@ impl Worker {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct Scope<'a> {
+    pool: &'a ThreadPool,
+}
+
+impl<'a> Scope<'a> {
+    fn new(pool: &'a mut ThreadPool) -> Self {
+        Self { pool }
+    }
+
+    pub fn execute<'scope, F>(&self, f: F)
+    where
+        F: FnOnce() + Send + 'scope,
+    {
+        let job;
+        unsafe {
+            job = std::mem::transmute::<
+                Box<dyn FnOnce() + Send + 'scope>,
+                Box<dyn FnOnce() + Send + 'static>,
+            >(Box::new(f));
+        }
+
+        self.pool
+            .sender
+            .send(WorkerMessage::RunNewScopedJob(job))
+            .unwrap();
+    }
+}
+
 /// The job to be executed by one of the threads
 type Job = Box<dyn FnOnce() + Send + 'static>;
 
 enum WorkerMessage {
     RunNewJob(Job),
+    RunNewScopedJob(Job),
     Terminate,
+    TerminateScoped,
 }
 
 /// A Threadpool consists of a pool of threads to which Jobs
 /// (functions) can be sent to execute on. The threads are 1:1 with
 /// the operating system threads. A job can be sent to be executed and
 /// a free thread picks up the job to complete.
+#[derive(Debug)]
 pub struct ThreadPool {
     num_threads: usize,
     workers: Vec<Worker>,
@@ -85,6 +135,29 @@ impl ThreadPool {
         self.sender.send(WorkerMessage::RunNewJob(job)).unwrap();
     }
 
+    pub fn scoped<'scope, F>(&mut self, f: F)
+    where
+        F: FnOnce(Scope) + Send + 'scope,
+    {
+        let scope = Scope::new(self);
+
+        f(scope);
+
+        self.workers
+            .iter()
+            .for_each(|_| self.sender.send(WorkerMessage::TerminateScoped).unwrap());
+
+        self.workers.iter_mut().for_each(|worker| {
+            if let Some(join_handle) = worker.join_handle.take() {
+                join_handle.join().unwrap();
+            }
+        });
+
+        self.workers.clear(); // TODO(ish): remove this
+
+        // TODO(ish): need to spawn back those many threads
+    }
+
     pub fn get_num_threads(&self) -> usize {
         return self.num_threads;
     }
@@ -104,13 +177,16 @@ impl Drop for ThreadPool {
     }
 }
 
+#[cfg(test)]
 mod tests {
+    use super::*;
+
     #[test]
     fn threadpool_test() {
         let num_threads = 5;
-        let pool = super::ThreadPool::new(num_threads);
+        let pool = ThreadPool::new(num_threads);
 
-        let (tx, rx) = super::mpsc::channel();
+        let (tx, rx) = mpsc::channel();
 
         for _ in 0..pool.get_num_threads() {
             let tx = tx.clone();
@@ -123,5 +199,39 @@ mod tests {
             rx.iter().take(pool.get_num_threads()).fold(0, |a, b| a + b),
             pool.get_num_threads()
         );
+    }
+
+    #[test]
+    fn threadpool_scoped() {
+        let num_threads = 5;
+        let mut pool = ThreadPool::new(num_threads);
+
+        // let v = vec![1, 2, 3, 4, 5, 6];
+
+        // let num_jobs = v.len();
+
+        // let (tx, rx) = mpsc::channel();
+        // pool.scoped(move |scope| {
+        //     for i in 0..num_jobs {
+        //         let tx = tx.clone();
+        //         scope.execute(move || {
+        //             tx.send(v[i]).unwrap();
+        //         });
+        //     }
+        // });
+
+        // assert_eq!(
+        //     rx.iter().take(num_jobs).fold(0, |a, b| a + b),
+        //     v.iter().fold(0, |a, b| a + b)
+        // );
+
+        let mut buf = vec![1, 2, 3, 4, 5, 6];
+        pool.scoped(|scope| {
+            for i in &mut buf {
+                scope.execute(move || *i += 1);
+            }
+        });
+
+        assert_eq!(buf, vec![2, 3, 4, 5, 6, 7]);
     }
 }
