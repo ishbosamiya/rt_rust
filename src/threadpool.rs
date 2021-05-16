@@ -206,24 +206,23 @@ mod tests {
         let num_threads = 5;
         let mut pool = ThreadPool::new(num_threads);
 
-        // let v = vec![1, 2, 3, 4, 5, 6];
+        let v = vec![1, 2, 3, 4, 5, 6];
+        let v_ref = &v;
+        let num_jobs = v.len();
+        let (tx, rx) = mpsc::channel();
+        pool.scoped(move |scope| {
+            for i in 0..num_jobs {
+                let tx = tx.clone();
+                scope.execute(move || {
+                    tx.send(v_ref[i]).unwrap();
+                });
+            }
+        });
 
-        // let num_jobs = v.len();
-
-        // let (tx, rx) = mpsc::channel();
-        // pool.scoped(move |scope| {
-        //     for i in 0..num_jobs {
-        //         let tx = tx.clone();
-        //         scope.execute(move || {
-        //             tx.send(v[i]).unwrap();
-        //         });
-        //     }
-        // });
-
-        // assert_eq!(
-        //     rx.iter().take(num_jobs).fold(0, |a, b| a + b),
-        //     v.iter().fold(0, |a, b| a + b)
-        // );
+        assert_eq!(
+            rx.iter().take(num_jobs).fold(0, |a, b| a + b),
+            v.iter().fold(0, |a, b| a + b)
+        );
 
         // let mut buf = vec![1, 2, 3, 4, 5, 6];
         // pool.scoped(|scope| {
@@ -233,16 +232,14 @@ mod tests {
         // });
         // assert_eq!(buf, vec![2, 3, 4, 5, 6, 7]);
 
-        let buf = vec![1, 2, 3, 4, 5, 6];
-
-        pool.scoped(|scope| {
-            for _ in 0..10 {
-                scope.execute(|| {
-                    println!("buf: {:?}", buf);
-                })
-            }
-        });
-
-        println!("buf: {:?}", buf);
+        // let buf = vec![1, 2, 3, 4, 5, 6];
+        // pool.scoped(|scope| {
+        //     for _ in 0..10 {
+        //         scope.execute(|| {
+        //             println!("buf: {:?}", buf);
+        //         })
+        //     }
+        // });
+        // println!("buf: {:?}", buf);
     }
 }
