@@ -225,13 +225,24 @@ mod tests {
         //     v.iter().fold(0, |a, b| a + b)
         // );
 
-        let mut buf = vec![1, 2, 3, 4, 5, 6];
+        // let mut buf = vec![1, 2, 3, 4, 5, 6];
+        // pool.scoped(|scope| {
+        //     for i in &mut buf {
+        //         scope.execute(move || *i += 1);
+        //     }
+        // });
+        // assert_eq!(buf, vec![2, 3, 4, 5, 6, 7]);
+
+        let buf = vec![1, 2, 3, 4, 5, 6];
+
         pool.scoped(|scope| {
-            for i in &mut buf {
-                scope.execute(move || *i += 1);
+            for _ in 0..10 {
+                scope.execute(|| {
+                    println!("buf: {:?}", buf);
+                })
             }
         });
 
-        assert_eq!(buf, vec![2, 3, 4, 5, 6, 7]);
+        println!("buf: {:?}", buf);
     }
 }
