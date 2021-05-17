@@ -3,45 +3,26 @@ use std::thread;
 
 #[derive(Debug)]
 struct Worker {
-    id: usize,
+    _id: usize,
     join_handle: Option<thread::JoinHandle<()>>,
 }
 
 impl Worker {
     fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<WorkerMessage>>>) -> Self {
-        let mut scoped = false;
         let join_handle = thread::spawn(move || loop {
-            println!("scoped: {}", scoped);
             let message = receiver.lock().unwrap().recv().unwrap();
-
-            println!("on worker: {}", id);
 
             match message {
                 WorkerMessage::RunNewJob(job) => {
-                    scoped = false;
                     job();
-                }
-                WorkerMessage::RunNewScopedJob(job) => {
-                    scoped = true;
-                    println!("started job");
-                    job();
-                    println!("ended job");
                 }
                 WorkerMessage::Terminate => {
                     break;
                 }
-                WorkerMessage::TerminateScoped => {
-                    if scoped {
-                        break;
-                    } else {
-                        println!("called terminate scoped, but scoped was false");
-                        break;
-                    }
-                }
             }
         });
         return Self {
-            id,
+            _id: id,
             join_handle: Some(join_handle),
         };
     }
@@ -53,7 +34,7 @@ pub struct Scope<'a> {
 }
 
 impl<'a> Scope<'a> {
-    fn new(pool: &'a mut ThreadPool) -> Self {
+    fn new(pool: &'a ThreadPool) -> Self {
         Self { pool }
     }
 
@@ -71,7 +52,7 @@ impl<'a> Scope<'a> {
 
         self.pool
             .sender
-            .send(WorkerMessage::RunNewScopedJob(job))
+            .send(WorkerMessage::RunNewJob(job))
             .unwrap();
     }
 }
@@ -81,9 +62,7 @@ type Job = Box<dyn FnOnce() + Send + 'static>;
 
 enum WorkerMessage {
     RunNewJob(Job),
-    RunNewScopedJob(Job),
     Terminate,
-    TerminateScoped,
 }
 
 /// A Threadpool consists of a pool of threads to which Jobs
@@ -139,27 +118,19 @@ impl ThreadPool {
         self.sender.send(WorkerMessage::RunNewJob(job)).unwrap();
     }
 
-    pub fn scoped<'scope, F>(&mut self, f: F)
+    /// Create new scoped threadpool with `num_threads` number of threads
+    ///
+    /// Use Scope to execute the threads
+    ///
+    /// When `scoped` is dropped, the main thread will be blocked
+    /// until all the spawned threads join back
+    pub fn scoped<'scope, F>(num_threads: usize, f: F)
     where
         F: FnOnce(Scope) + Send + 'scope,
     {
-        let scope = Scope::new(self);
-
+        let pool = Self::new(num_threads);
+        let scope = Scope::new(&pool);
         f(scope);
-
-        self.workers
-            .iter()
-            .for_each(|_| self.sender.send(WorkerMessage::TerminateScoped).unwrap());
-
-        self.workers.iter_mut().for_each(|worker| {
-            if let Some(join_handle) = worker.join_handle.take() {
-                join_handle.join().unwrap();
-            }
-        });
-
-        self.workers.clear(); // TODO(ish): remove this
-
-        // TODO(ish): need to spawn back those many threads
     }
 
     pub fn get_num_threads(&self) -> usize {
@@ -208,13 +179,12 @@ mod tests {
     #[test]
     fn threadpool_scoped() {
         let num_threads = 5;
-        let mut pool = ThreadPool::new(num_threads);
 
         let v = vec![1, 2, 3, 4, 5, 6];
         let v_ref = &v;
         let num_jobs = v.len();
         let (tx, rx) = mpsc::channel();
-        pool.scoped(move |scope| {
+        ThreadPool::scoped(num_threads, move |scope| {
             for i in 0..num_jobs {
                 let tx = tx.clone();
                 scope.execute(move || {
@@ -227,23 +197,5 @@ mod tests {
             rx.iter().take(num_jobs).fold(0, |a, b| a + b),
             v.iter().fold(0, |a, b| a + b)
         );
-
-        // let mut buf = vec![1, 2, 3, 4, 5, 6];
-        // pool.scoped(|scope| {
-        //     for i in &mut buf {
-        //         scope.execute(move || *i += 1);
-        //     }
-        // });
-        // assert_eq!(buf, vec![2, 3, 4, 5, 6, 7]);
-
-        // let buf = vec![1, 2, 3, 4, 5, 6];
-        // pool.scoped(|scope| {
-        //     for _ in 0..10 {
-        //         scope.execute(|| {
-        //             println!("buf: {:?}", buf);
-        //         })
-        //     }
-        // });
-        // println!("buf: {:?}", buf);
     }
 }
