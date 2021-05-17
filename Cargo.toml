@@ -16,3 +16,6 @@ criterion = "0.3.4"
 [[bench]]
 name = "ray_collision_bench"
 harness = false
+
+[profile.bench]
+debug = true
