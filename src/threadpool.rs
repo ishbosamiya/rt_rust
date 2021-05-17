@@ -3,15 +3,18 @@ use std::thread;
 
 #[derive(Debug)]
 struct Worker {
+    id: usize,
     join_handle: Option<thread::JoinHandle<()>>,
 }
 
 impl Worker {
-    fn new(receiver: Arc<Mutex<mpsc::Receiver<WorkerMessage>>>) -> Self {
+    fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<WorkerMessage>>>) -> Self {
         let mut scoped = false;
         let join_handle = thread::spawn(move || loop {
             println!("scoped: {}", scoped);
             let message = receiver.lock().unwrap().recv().unwrap();
+
+            println!("on worker: {}", id);
 
             match message {
                 WorkerMessage::RunNewJob(job) => {
@@ -38,6 +41,7 @@ impl Worker {
             }
         });
         return Self {
+            id,
             join_handle: Some(join_handle),
         };
     }
@@ -109,8 +113,8 @@ impl ThreadPool {
 
         let mut workers = Vec::with_capacity(num_threads);
 
-        for _ in 0..num_threads {
-            workers.push(Worker::new(receiver.clone()));
+        for i in 0..num_threads {
+            workers.push(Worker::new(i, receiver.clone()));
         }
 
         return Self {
