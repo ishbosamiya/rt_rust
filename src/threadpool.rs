@@ -8,17 +8,31 @@ struct Worker {
 }
 
 impl Worker {
-    fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<WorkerMessage>>>) -> Self {
+    fn new(
+        id: usize,
+        receiver: Arc<Mutex<mpsc::Receiver<WorkerMessage>>>,
+        scope_receiver: Arc<Mutex<mpsc::Receiver<ScopeMessage>>>,
+        scope_sender: mpsc::Sender<ScopeMessage>,
+    ) -> Self {
         let join_handle = thread::spawn(move || loop {
-            println!("before message id: {}", id);
+            // println!("before message id: {}", id);
             let message = receiver.lock().unwrap().recv().unwrap();
-            println!("after message id: {}, message: {:?}", id, message);
+            // println!("after message id: {}, message: {:?}", id, message);
 
             match message {
                 WorkerMessage::RunNewJob(job) => {
                     job.0();
                 }
-                WorkerMessage::TerminateScoped => {}
+                WorkerMessage::TerminateScoped => {
+                    scope_sender.send(ScopeMessage::ReceivedTerminate).unwrap();
+                    // println!("id: {} waiting for scope message", id);
+                    let scope_message = scope_receiver.lock().unwrap().recv().unwrap();
+                    // println!("id: {} got scope message: {:?}", id, scope_message);
+                    match scope_message {
+                        ScopeMessage::AllTerminated => {}
+                        _ => {}
+                    }
+                }
                 WorkerMessage::Terminate => {
                     break;
                 }
@@ -76,6 +90,12 @@ enum WorkerMessage {
     Terminate,
 }
 
+#[derive(Debug)]
+enum ScopeMessage {
+    ReceivedTerminate,
+    AllTerminated,
+}
+
 /// A Threadpool consists of a pool of threads to which Jobs
 /// (functions) can be sent to execute on. The threads are 1:1 with
 /// the operating system threads. A job can be sent to be executed and
@@ -85,6 +105,8 @@ pub struct ThreadPool {
     num_threads: usize,
     workers: Vec<Worker>,
     sender: mpsc::Sender<WorkerMessage>,
+    scope_sender: mpsc::Sender<ScopeMessage>,
+    scope_receiver: mpsc::Receiver<ScopeMessage>,
 }
 
 impl ThreadPool {
@@ -100,17 +122,27 @@ impl ThreadPool {
 
         let (sender, receiver) = mpsc::channel();
         let receiver = Arc::new(Mutex::new(receiver));
+        let (scope_sender, scope_receiver) = mpsc::channel();
+        let scope_receiver = Arc::new(Mutex::new(scope_receiver));
+        let (scope_sender_2, scope_receiver_2) = mpsc::channel();
 
         let mut workers = Vec::with_capacity(num_threads);
 
         for i in 0..num_threads {
-            workers.push(Worker::new(i, receiver.clone()));
+            workers.push(Worker::new(
+                i,
+                receiver.clone(),
+                scope_receiver.clone(),
+                scope_sender_2.clone(),
+            ));
         }
 
         return Self {
             num_threads,
             workers,
             sender,
+            scope_sender,
+            scope_receiver: scope_receiver_2,
         };
     }
 
@@ -161,6 +193,16 @@ impl ThreadPool {
         self.workers
             .iter()
             .for_each(|_| self.sender.send(WorkerMessage::TerminateScoped).unwrap());
+
+        let _all_termintated: Vec<_> = self
+            .scope_receiver
+            .iter()
+            .take(self.workers.len())
+            .collect();
+
+        self.workers
+            .iter()
+            .for_each(|_| self.scope_sender.send(ScopeMessage::AllTerminated).unwrap());
     }
 
     pub fn get_num_threads(&self) -> usize {
