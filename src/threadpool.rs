@@ -18,6 +18,7 @@ impl Worker {
                 WorkerMessage::RunNewJob(job) => {
                     job.0();
                 }
+                WorkerMessage::TerminateScoped => {}
                 WorkerMessage::Terminate => {
                     break;
                 }
@@ -71,6 +72,7 @@ impl std::fmt::Debug for Job {
 #[derive(Debug)]
 enum WorkerMessage {
     RunNewJob(Job),
+    TerminateScoped,
     Terminate,
 }
 
@@ -144,6 +146,23 @@ impl ThreadPool {
         f(scope);
     }
 
+    /// Give a scoped region to be able to spawn functions
+    ///
+    /// Before exiting `scoped`, all functions ever run need to
+    /// complete, so better to create a threadpool utilized only for
+    /// scoped function execution
+    pub fn scoped<'scope, F>(&self, f: F)
+    where
+        F: FnOnce(Scope) + Send + 'scope,
+    {
+        let scope = Scope::new(self);
+        f(scope);
+
+        self.workers
+            .iter()
+            .for_each(|_| self.sender.send(WorkerMessage::TerminateScoped).unwrap());
+    }
+
     pub fn get_num_threads(&self) -> usize {
         return self.num_threads;
     }
@@ -207,7 +226,7 @@ mod tests {
     }
 
     #[test]
-    fn threadpool_scoped() {
+    fn threadpool_new_scoped() {
         let num_threads = 5;
 
         let v = vec![1, 2, 3, 4, 5, 6];
@@ -215,6 +234,30 @@ mod tests {
         let num_jobs = v.len();
         let (tx, rx) = mpsc::channel();
         ThreadPool::new_scoped(num_threads, move |scope| {
+            for i in 0..num_jobs {
+                let tx = tx.clone();
+                scope.execute(move || {
+                    tx.send(v_ref[i]).unwrap();
+                });
+            }
+        });
+
+        assert_eq!(
+            rx.iter().take(num_jobs).fold(0, |a, b| a + b),
+            v.iter().fold(0, |a, b| a + b)
+        );
+    }
+
+    #[test]
+    fn threadpool_scoped() {
+        let num_threads = 5;
+        let pool = ThreadPool::new(num_threads);
+
+        let v = vec![1, 2, 3, 4, 5, 6];
+        let v_ref = &v;
+        let num_jobs = v.len();
+        let (tx, rx) = mpsc::channel();
+        pool.scoped(move |scope| {
             for i in 0..num_jobs {
                 let tx = tx.clone();
                 scope.execute(move || {
