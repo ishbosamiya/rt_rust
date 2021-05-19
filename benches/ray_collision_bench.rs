@@ -61,11 +61,11 @@ fn scene_collision_mt_2(scene_collision_params: &SceneCollisionParams, pool: &Th
     let t_min = scene_collision_params.t_min;
     let t_max = scene_collision_params.t_max;
     pool.scoped(|scope| {
-        scene.iter().for_each(|object| {
-            scope.execute(|| {
+        scope.execute(|| {
+            scene.iter().for_each(|object| {
                 object.hit(ray, t_min, t_max);
-            });
-        })
+            })
+        });
     });
 }
 
