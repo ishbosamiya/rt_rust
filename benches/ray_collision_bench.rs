@@ -55,6 +55,20 @@ fn scene_collision_mt(scene_collision_params: &SceneCollisionParams) {
     });
 }
 
+fn scene_collision_mt_2(scene_collision_params: &SceneCollisionParams, pool: &ThreadPool) {
+    let ray = scene_collision_params.ray;
+    let scene = scene_collision_params.scene;
+    let t_min = scene_collision_params.t_min;
+    let t_max = scene_collision_params.t_max;
+    pool.scoped(|scope| {
+        scene.iter().for_each(|object| {
+            scope.execute(|| {
+                object.hit(ray, t_min, t_max);
+            });
+        })
+    });
+}
+
 fn rng_scaled(rng: &mut ThreadRng, scale_factor: f64) -> f64 {
     return (rng.gen::<f64>() - 0.5) * 2.0 * scale_factor;
 }
@@ -90,10 +104,18 @@ fn bench_scene_collision(c: &mut Criterion) {
         },
     );
     group.bench_with_input(
-        BenchmarkId::new("multi_threaded", 2),
+        BenchmarkId::new("multi_threaded", 1),
         &scene_collision_params,
         |b, scene_collision_params| {
             b.iter(|| scene_collision_mt(black_box(scene_collision_params)));
+        },
+    );
+    let pool = ThreadPool::new(12);
+    group.bench_with_input(
+        BenchmarkId::new("multi_threaded", 2),
+        &scene_collision_params,
+        |b, scene_collision_params| {
+            b.iter(|| scene_collision_mt_2(black_box(scene_collision_params), &pool));
         },
     );
     group.finish();
