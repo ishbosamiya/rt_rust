@@ -46,7 +46,7 @@ fn scene_collision_mt(scene_collision_params: &SceneCollisionParams) {
     let scene = scene_collision_params.scene;
     let t_min = scene_collision_params.t_min;
     let t_max = scene_collision_params.t_max;
-    ThreadPool::scoped(12, |scope| {
+    ThreadPool::new_scoped(12, |scope| {
         scene.iter().for_each(|object| {
             scope.execute(|| {
                 object.hit(ray, t_min, t_max);

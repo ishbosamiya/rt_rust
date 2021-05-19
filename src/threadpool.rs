@@ -124,7 +124,7 @@ impl ThreadPool {
     ///
     /// When `scoped` is dropped, the main thread will be blocked
     /// until all the spawned threads join back
-    pub fn scoped<'scope, F>(num_threads: usize, f: F)
+    pub fn new_scoped<'scope, F>(num_threads: usize, f: F)
     where
         F: FnOnce(Scope) + Send + 'scope,
     {
@@ -184,7 +184,7 @@ mod tests {
         let v_ref = &v;
         let num_jobs = v.len();
         let (tx, rx) = mpsc::channel();
-        ThreadPool::scoped(num_threads, move |scope| {
+        ThreadPool::new_scoped(num_threads, move |scope| {
             for i in 0..num_jobs {
                 let tx = tx.clone();
                 scope.execute(move || {
