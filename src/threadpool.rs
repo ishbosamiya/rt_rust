@@ -10,11 +10,13 @@ struct Worker {
 impl Worker {
     fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<WorkerMessage>>>) -> Self {
         let join_handle = thread::spawn(move || loop {
+            println!("before message id: {}", id);
             let message = receiver.lock().unwrap().recv().unwrap();
+            println!("after message id: {}, message: {:?}", id, message);
 
             match message {
                 WorkerMessage::RunNewJob(job) => {
-                    job();
+                    job.0();
                 }
                 WorkerMessage::Terminate => {
                     break;
@@ -52,14 +54,21 @@ impl<'a> Scope<'a> {
 
         self.pool
             .sender
-            .send(WorkerMessage::RunNewJob(job))
+            .send(WorkerMessage::RunNewJob(Job(job)))
             .unwrap();
     }
 }
 
 /// The job to be executed by one of the threads
-type Job = Box<dyn FnOnce() + Send + 'static>;
+struct Job(Box<dyn FnOnce() + Send + 'static>);
 
+impl std::fmt::Debug for Job {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("job")
+    }
+}
+
+#[derive(Debug)]
 enum WorkerMessage {
     RunNewJob(Job),
     Terminate,
@@ -115,7 +124,9 @@ impl ThreadPool {
     {
         let job = Box::new(f);
 
-        self.sender.send(WorkerMessage::RunNewJob(job)).unwrap();
+        self.sender
+            .send(WorkerMessage::RunNewJob(Job(job)))
+            .unwrap();
     }
 
     /// Create new scoped threadpool with `num_threads` number of threads
@@ -174,6 +185,25 @@ mod tests {
             rx.iter().take(pool.get_num_threads()).fold(0, |a, b| a + b),
             pool.get_num_threads()
         );
+    }
+
+    #[test]
+    fn threadpool_test_2() {
+        let num_threads = 200;
+        let (tx, rx) = mpsc::channel();
+        let num = 500;
+
+        {
+            let pool = ThreadPool::new(num_threads);
+            for _ in 0..num {
+                let tx = tx.clone();
+                pool.execute(move || {
+                    tx.send(1).unwrap();
+                });
+            }
+        }
+
+        assert_eq!(rx.iter().take(num).fold(0, |a, b| a + b), num);
     }
 
     #[test]
