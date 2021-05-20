@@ -69,6 +69,26 @@ fn scene_collision_mt_2(scene_collision_params: &SceneCollisionParams, pool: &Th
     });
 }
 
+fn scene_collision_mt_3(scene_collision_params: &SceneCollisionParams, pool: &ThreadPool) {
+    let ray = scene_collision_params.ray;
+    let scene = scene_collision_params.scene;
+    let t_min = scene_collision_params.t_min;
+    let t_max = scene_collision_params.t_max;
+    let mut chunk_size = scene.len() / pool.get_num_threads();
+    if chunk_size == 0 {
+        chunk_size = 1;
+    }
+    pool.scoped(|scope| {
+        for objects in scene.chunks(chunk_size) {
+            scope.execute(|| {
+                objects.iter().for_each(|object| {
+                    object.hit(ray, t_min, t_max);
+                })
+            });
+        }
+    });
+}
+
 fn rng_scaled(rng: &mut ThreadRng, scale_factor: f64) -> f64 {
     return (rng.gen::<f64>() - 0.5) * 2.0 * scale_factor;
 }
@@ -85,7 +105,7 @@ fn bench_scene_collision(c: &mut Criterion) {
     let mut scene: Vec<Box<dyn Intersectable + Send + Sync>> =
         vec![Box::new(Sphere::new(glm::vec3(0.0, 0.0, -2.0), 1.5))];
     let mut rng = rand::thread_rng();
-    let num_objects = 10000;
+    let num_objects = 12 * 1000 - 1;
     let scale_factor = 5.0;
     for _ in 0..num_objects {
         scene.push(Box::new(Sphere::new(
@@ -116,6 +136,13 @@ fn bench_scene_collision(c: &mut Criterion) {
         &scene_collision_params,
         |b, scene_collision_params| {
             b.iter(|| scene_collision_mt_2(black_box(scene_collision_params), &pool));
+        },
+    );
+    group.bench_with_input(
+        BenchmarkId::new("multi_threaded", 3),
+        &scene_collision_params,
+        |b, scene_collision_params| {
+            b.iter(|| scene_collision_mt_3(black_box(scene_collision_params), &pool));
         },
     );
     group.finish();
