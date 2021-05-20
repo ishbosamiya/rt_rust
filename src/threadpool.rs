@@ -1,4 +1,5 @@
-use std::sync::{mpsc, Arc, Mutex};
+use crossbeam_channel::{bounded, Receiver, Sender};
+
 use std::thread;
 
 #[derive(Debug)]
@@ -10,13 +11,13 @@ struct Worker {
 impl Worker {
     fn new(
         id: usize,
-        receiver: Arc<Mutex<mpsc::Receiver<WorkerMessage>>>,
-        scope_receiver: Arc<Mutex<mpsc::Receiver<ScopeMessage>>>,
-        scope_sender: mpsc::Sender<ScopeMessage>,
+        receiver: Receiver<WorkerMessage>,
+        scope_receiver: Receiver<ScopeMessage>,
+        scope_sender: Sender<ScopeMessage>,
     ) -> Self {
         let join_handle = thread::spawn(move || loop {
             // println!("before message id: {}", id);
-            let message = receiver.lock().unwrap().recv().unwrap();
+            let message = receiver.recv().unwrap();
             // println!("after message id: {}, message: {:?}", id, message);
 
             match message {
@@ -26,7 +27,7 @@ impl Worker {
                 WorkerMessage::TerminateScoped => {
                     scope_sender.send(ScopeMessage::ReceivedTerminate).unwrap();
                     // println!("id: {} waiting for scope message", id);
-                    let scope_message = scope_receiver.lock().unwrap().recv().unwrap();
+                    let scope_message = scope_receiver.recv().unwrap();
                     // println!("id: {} got scope message: {:?}", id, scope_message);
                     match scope_message {
                         ScopeMessage::AllTerminated => {}
@@ -104,9 +105,9 @@ enum ScopeMessage {
 pub struct ThreadPool {
     num_threads: usize,
     workers: Vec<Worker>,
-    sender: mpsc::Sender<WorkerMessage>,
-    scope_sender: mpsc::Sender<ScopeMessage>,
-    scope_receiver: mpsc::Receiver<ScopeMessage>,
+    sender: Sender<WorkerMessage>,
+    scope_sender: Sender<ScopeMessage>,
+    scope_receiver: Receiver<ScopeMessage>,
 }
 
 impl ThreadPool {
@@ -120,11 +121,9 @@ impl ThreadPool {
     pub fn new(num_threads: usize) -> Self {
         assert_ne!(num_threads, 0);
 
-        let (sender, receiver) = mpsc::channel();
-        let receiver = Arc::new(Mutex::new(receiver));
-        let (scope_sender, scope_receiver) = mpsc::channel();
-        let scope_receiver = Arc::new(Mutex::new(scope_receiver));
-        let (scope_sender_2, scope_receiver_2) = mpsc::channel();
+        let (sender, receiver) = bounded(num_threads * 2);
+        let (scope_sender, scope_receiver) = bounded(num_threads * 2);
+        let (scope_sender_2, scope_receiver_2) = bounded(num_threads * 2);
 
         let mut workers = Vec::with_capacity(num_threads);
 
@@ -227,6 +226,7 @@ impl Drop for ThreadPool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::mpsc;
 
     #[test]
     fn threadpool_test() {
