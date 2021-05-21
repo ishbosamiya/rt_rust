@@ -1,5 +1,6 @@
 use crossbeam_channel::{bounded, Receiver, Sender};
 
+use std::marker::PhantomData;
 use std::thread;
 
 #[derive(Debug)]
@@ -47,13 +48,17 @@ impl Worker {
 }
 
 #[derive(Debug, Clone)]
-pub struct Scope<'a> {
-    pool: &'a ThreadPool,
+pub struct Scope<'env> {
+    pool: &'env ThreadPool,
+    _marker: PhantomData<&'env mut &'env ()>,
 }
 
-impl<'a> Scope<'a> {
-    fn new(pool: &'a ThreadPool) -> Self {
-        Self { pool }
+impl<'env> Scope<'env> {
+    fn new(pool: &'env ThreadPool) -> Self {
+        Self {
+            pool,
+            _marker: PhantomData,
+        }
     }
 
     pub fn execute<'scope, F>(&self, f: F)
