@@ -308,4 +308,41 @@ mod tests {
             v.iter().fold(0, |a, b| a + b)
         );
     }
+
+    #[test]
+    fn threadpool_scoped_2() {
+        trait Bar {
+            fn get_data(&self) -> usize;
+        }
+        #[derive(Debug, Copy, Clone)]
+        struct Foo(usize);
+        impl Bar for Foo {
+            fn get_data(&self) -> usize {
+                return self.0;
+            }
+        }
+        let num_threads = 12;
+        let pool = ThreadPool::new(num_threads);
+
+        let num_jobs = 12000;
+        let mut v: Vec<Box<dyn Bar + Send + Sync>> = Vec::new();
+        for i in 0..num_jobs {
+            v.push(Box::new(Foo(i)));
+        }
+        let v_ref = &v;
+        let (tx, rx) = mpsc::channel();
+        pool.scoped(move |scope| {
+            for i in 0..num_jobs {
+                let tx = tx.clone();
+                scope.execute(move || {
+                    tx.send(v_ref[i].get_data()).unwrap();
+                });
+            }
+        });
+
+        assert_eq!(
+            rx.iter().take(num_jobs).fold(0, |a, b| a + b),
+            v_ref.iter().take(num_jobs).fold(0, |a, b| a + b.get_data())
+        );
+    }
 }
