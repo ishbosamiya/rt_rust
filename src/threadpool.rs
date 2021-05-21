@@ -60,13 +60,8 @@ impl<'a> Scope<'a> {
     where
         F: FnOnce() + Send + 'scope,
     {
-        let job;
-        unsafe {
-            job = std::mem::transmute::<
-                Box<dyn FnOnce() + Send + 'scope>,
-                Box<dyn FnOnce() + Send + 'static>,
-            >(Box::new(f));
-        }
+        let job: Box<dyn FnOnce() + Send + 'scope> = Box::new(f);
+        let job: Box<dyn FnOnce() + Send + 'static> = unsafe { std::mem::transmute(job) };
 
         self.pool
             .sender
