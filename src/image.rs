@@ -58,7 +58,7 @@ impl Image {
             slabs.push(Slab::new(i * width, 0, width, height));
         }
         let last_slab_width = self.width % num_slabs;
-        let last_slab_height = self.width;
+        let last_slab_height = self.height;
         slabs.push(Slab::new(
             num_slabs * width,
             0,
@@ -70,6 +70,7 @@ impl Image {
     }
 }
 
+#[derive(Debug)]
 pub struct Slab {
     pub x_start: usize,
     pub y_start: usize,
