@@ -3,6 +3,7 @@ pub mod image;
 pub mod intersectable;
 pub mod math;
 pub mod ray;
+pub mod scene;
 pub mod sphere;
 pub mod threadpool;
 

@@ -3,6 +3,7 @@ use rt::image::{Image, PPM};
 use rt::intersectable::Intersectable;
 use rt::math::{Scalar, Vec3};
 use rt::ray::Ray;
+use rt::scene::Scene;
 use rt::sphere::Sphere;
 
 use nalgebra_glm as glm;
@@ -18,8 +19,12 @@ fn main() {
     let origin = glm::vec3(0.0, 0.0, 0.0);
     let camera = Camera::new(viewport_height, aspect_ratio, focal_length, origin);
 
-    let scene: Vec<Box<dyn Intersectable>> =
-        vec![Box::new(Sphere::new(glm::vec3(0.0, 0.0, -2.0), 1.5))];
+    let mut scene = Scene::new();
+    scene.add_object(Box::new(Sphere::new(glm::vec3(0.0, 0.0, -2.0), 1.5)));
+    scene.add_object(Box::new(Sphere::new(glm::vec3(0.0, 1.0, -2.0), 1.5)));
+    scene.add_object(Box::new(Sphere::new(glm::vec3(0.0, -1.0, -2.0), 1.5)));
+    scene.add_object(Box::new(Sphere::new(glm::vec3(1.0, 0.0, -2.0), 1.5)));
+    scene.add_object(Box::new(Sphere::new(glm::vec3(-1.0, 0.0, -2.0), 1.5)));
 
     for (j, row) in image.get_pixels_mut().iter_mut().enumerate() {
         for (i, pixel) in row.iter_mut().enumerate() {
@@ -59,14 +64,12 @@ fn get_background_color(ray: &Ray, camera: &Camera) -> Vec3 {
 // e: intensity of emitted light by x_prime reaching x
 // i: intensity of light from x_prime to x
 // p: intensity of light scattered from x_prime_prime to x by a patch on surface at x_prime
-fn trace_ray(ray: &Ray, camera: &Camera, scene: &Vec<Box<dyn Intersectable>>) -> Vec3 {
-    let mut val = glm::zero();
-    scene.iter().for_each(|object| {
-        if let Some(_) = object.hit(ray, 0.01, 1000.0) {
-            val = glm::vec3(1.0, 1.0, 0.0);
-        } else {
-            val = get_background_color(ray, camera);
-        }
-    });
+fn trace_ray(ray: &Ray, camera: &Camera, scene: &Scene) -> Vec3 {
+    let val;
+    if let Some(_) = scene.hit(ray, 0.01, 1000.0) {
+        val = glm::vec3(1.0, 1.0, 0.0);
+    } else {
+        val = get_background_color(ray, camera);
+    }
     return val;
 }
