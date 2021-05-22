@@ -1,5 +1,6 @@
 use crate::math::{Scalar, Vec3};
 
+#[derive(Debug, Copy, Clone)]
 pub struct Ray {
     origin: Vec3,
     direction: Vec3,

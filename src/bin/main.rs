@@ -1,6 +1,5 @@
 use rt::camera::Camera;
 use rt::image::{Image, PPM};
-use rt::intersectable::Intersectable;
 use rt::math;
 use rt::math::{Scalar, Vec3};
 use rt::ray::Ray;
@@ -8,10 +7,24 @@ use rt::scene::Scene;
 use rt::sphere::Sphere;
 
 use nalgebra_glm as glm;
+extern crate lazy_static;
+use lazy_static::lazy_static;
+
+lazy_static! {
+    static ref SCENE: Scene = {
+        let mut scene = Scene::new(12);
+        scene.add_object(Box::new(Sphere::new(glm::vec3(0.0, 0.0, -2.0), 1.5)));
+        scene.add_object(Box::new(Sphere::new(glm::vec3(0.0, 1.0, -2.0), 1.5)));
+        scene.add_object(Box::new(Sphere::new(glm::vec3(0.0, -1.0, -2.0), 1.5)));
+        scene.add_object(Box::new(Sphere::new(glm::vec3(1.0, 0.0, -2.0), 1.5)));
+        scene.add_object(Box::new(Sphere::new(glm::vec3(-1.0, 0.0, -2.0), 1.5)));
+        scene
+    };
+}
 
 fn main() {
-    let width = 1280;
-    let height = 720;
+    let width = 128;
+    let height = 72;
     let mut image = Image::new(width, height);
 
     let viewport_height = 2.0;
@@ -19,13 +32,6 @@ fn main() {
     let focal_length = 1.0;
     let origin = glm::vec3(0.0, 0.0, 0.0);
     let camera = Camera::new(viewport_height, aspect_ratio, focal_length, origin);
-
-    let mut scene = Scene::new();
-    scene.add_object(Box::new(Sphere::new(glm::vec3(0.0, 0.0, -2.0), 1.5)));
-    scene.add_object(Box::new(Sphere::new(glm::vec3(0.0, 1.0, -2.0), 1.5)));
-    scene.add_object(Box::new(Sphere::new(glm::vec3(0.0, -1.0, -2.0), 1.5)));
-    scene.add_object(Box::new(Sphere::new(glm::vec3(1.0, 0.0, -2.0), 1.5)));
-    scene.add_object(Box::new(Sphere::new(glm::vec3(-1.0, 0.0, -2.0), 1.5)));
 
     for (j, row) in image.get_pixels_mut().iter_mut().enumerate() {
         for (i, pixel) in row.iter_mut().enumerate() {
@@ -38,7 +44,7 @@ fn main() {
 
             let ray = camera.get_ray(u, v);
 
-            *pixel = trace_ray(&ray, &camera, &scene, 1000);
+            *pixel = trace_ray(&ray, &camera, &SCENE, 2);
         }
     }
 
@@ -65,7 +71,7 @@ fn get_background_color(ray: &Ray, camera: &Camera) -> Vec3 {
 // e: intensity of emitted light by x_prime reaching x
 // i: intensity of light from x_prime to x
 // p: intensity of light scattered from x_prime_prime to x by a patch on surface at x_prime
-fn trace_ray(ray: &Ray, camera: &Camera, scene: &Scene, depth: usize) -> Vec3 {
+fn trace_ray(ray: &Ray, camera: &Camera, scene: &'static Scene, depth: usize) -> Vec3 {
     if depth <= 0 {
         return glm::zero();
     }
