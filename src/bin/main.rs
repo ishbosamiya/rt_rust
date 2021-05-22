@@ -25,8 +25,8 @@ lazy_static! {
 }
 
 fn main() {
-    let width = 128;
-    let height = 72;
+    let width = 1000;
+    let height = 1000;
     let mut image = Image::new(width, height);
 
     let viewport_height = 2.0;
@@ -40,6 +40,8 @@ fn main() {
         let num_threads = 12;
         let mut slabs = image.get_slabs(num_threads);
 
+        println!("slabs: {:?}", slabs);
+
         thread::scope(|s| {
             let mut handles = Vec::new();
 
@@ -50,7 +52,7 @@ fn main() {
                         let mut pixels_inner = Vec::new();
                         for j in 0..slab.height {
                             let j = j + slab.y_start;
-                            let j = height - j - 1;
+                            let j = height - j;
                             let i = i + slab.x_start;
 
                             // use opengl coords, (0.0, 0.0) is center; (1.0, 1.0) is
