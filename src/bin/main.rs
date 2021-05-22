@@ -9,6 +9,7 @@ use rt::sphere::Sphere;
 
 use nalgebra_glm as glm;
 extern crate lazy_static;
+use crossbeam::thread;
 use lazy_static::lazy_static;
 
 lazy_static! {
@@ -33,21 +34,77 @@ fn main() {
     let focal_length = 1.0;
     let origin = glm::vec3(0.0, 0.0, 0.0);
     let camera = Camera::new(viewport_height, aspect_ratio, focal_length, origin);
+    let camera = &camera;
 
-    for (j, row) in image.get_pixels_mut().iter_mut().enumerate() {
-        for (i, pixel) in row.iter_mut().enumerate() {
-            let j = height - j - 1;
+    {
+        let num_threads = 12;
+        let mut slabs = image.get_slabs(num_threads);
 
-            // use opengl coords, (0.0, 0.0) is center; (1.0, 1.0) is
-            // top right; (-1.0, -1.0) is bottom left
-            let u = ((i as Scalar / (width - 1) as Scalar) - 0.5) * 2.0;
-            let v = ((j as Scalar / (height - 1) as Scalar) - 0.5) * 2.0;
+        thread::scope(|s| {
+            let mut handles = Vec::new();
 
-            let ray = camera.get_ray(u, v);
+            for slab in &mut slabs {
+                let handle = s.spawn(move |_| {
+                    let mut pixels = Vec::new();
+                    for i in 0..slab.width {
+                        let mut pixels_inner = Vec::new();
+                        for j in 0..slab.height {
+                            let j = j + slab.y_start;
+                            let j = height - j - 1;
+                            let i = i + slab.x_start;
 
-            *pixel = trace_ray(&ray, &camera, &SCENE, 2);
+                            // use opengl coords, (0.0, 0.0) is center; (1.0, 1.0) is
+                            // top right; (-1.0, -1.0) is bottom left
+                            let u = ((i as Scalar / (width - 1) as Scalar) - 0.5) * 2.0;
+                            let v = ((j as Scalar / (height - 1) as Scalar) - 0.5) * 2.0;
+
+                            let ray = camera.get_ray(u, v);
+
+                            let pixel = trace_ray(&ray, &camera, &SCENE, 2);
+                            pixels_inner.push(pixel);
+                        }
+                        pixels.push(pixels_inner);
+                    }
+
+                    slab.set_pixels(pixels);
+                });
+
+                handles.push(handle);
+            }
+
+            for handle in handles {
+                handle.join().unwrap();
+            }
+        })
+        .unwrap();
+
+        for slab in slabs {
+            for i in 0..slab.width {
+                for j in 0..slab.height {
+                    let pixel = slab.get_pixels()[i][j];
+                    let j = j + slab.y_start;
+                    let i = i + slab.x_start;
+
+                    image.set_pixel(i, j, pixel);
+                }
+            }
         }
     }
+
+    // for (j, row) in image.get_pixels_mut().iter_mut().enumerate() {
+    //     for (i, pixel) in row.iter_mut().enumerate() {
+    //         let j = height - j - 1;
+
+    //         // use opengl coords, (0.0, 0.0) is center; (1.0, 1.0) is
+    //         // top right; (-1.0, -1.0) is bottom left
+    //         let u = ((i as Scalar / (width - 1) as Scalar) - 0.5) * 2.0;
+    //         let v = ((j as Scalar / (height - 1) as Scalar) - 0.5) * 2.0;
+
+    //         let ray = camera.get_ray(u, v);
+
+    //         *pixel = trace_ray(&ray, &camera, &SCENE, 2);
+    //     }
+    // }
 
     let ppm = PPM::new(&image);
     ppm.write_to_file("image.ppm").unwrap();
