@@ -7,6 +7,54 @@ pub mod scene;
 pub mod sphere;
 pub mod threadpool;
 
+use nalgebra_glm as glm;
+
+use crate::camera::Camera;
+use crate::intersectable::Intersectable;
+use crate::math::Vec3;
+use crate::ray::Ray;
+use crate::scene::Scene;
+
+fn get_background_color(ray: &Ray, camera: &Camera) -> Vec3 {
+    let color_1 = glm::vec3(0.8, 0.8, 0.8);
+    let color_2 = glm::vec3(0.2, 0.2, 0.8);
+
+    let camera_origin_y = camera.get_origin()[1];
+    let camera_vertical_range = camera.get_vertical()[1];
+    let y_val = (camera_origin_y + ray.get_direction()[1]) / camera_vertical_range;
+    let y_val = (y_val + 1.0) / 2.0;
+
+    return glm::lerp(&color_1, &color_2, y_val);
+}
+
+// x: current point
+// x_prime: previous point
+// x_prime_prime: previous's previous point
+// g: geometry term, 1/(r^2) where r is distance of x_prime to x
+// e: intensity of emitted light by x_prime reaching x
+// i: intensity of light from x_prime to x
+// p: intensity of light scattered from x_prime_prime to x by a patch on surface at x_prime
+pub fn trace_ray(ray: &Ray, camera: &Camera, scene: &'static Scene, depth: usize) -> Vec3 {
+    if depth <= 0 {
+        return glm::zero();
+    }
+    let val;
+    if let Some(info) = scene.hit(ray, 0.01, 1000.0) {
+        // diffuse shader
+        let target = info.get_point() + info.get_normal().unwrap() + math::random_in_unit_sphere();
+        val = 0.5
+            * trace_ray(
+                &Ray::new(*info.get_point(), target - info.get_point()),
+                camera,
+                scene,
+                depth - 1,
+            );
+    } else {
+        val = get_background_color(ray, camera);
+    }
+    return val;
+}
+
 #[cfg(test)]
 mod tests {
     #[test]
