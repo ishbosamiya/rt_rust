@@ -1,150 +1,132 @@
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use nalgebra_glm as glm;
-use rand::prelude::*;
+extern crate lazy_static;
+use crossbeam::thread;
+use lazy_static::lazy_static;
 
-use rt::intersectable::Intersectable;
+use rt::camera::Camera;
+use rt::image::Image;
 use rt::math::Scalar;
-use rt::ray::Ray;
+use rt::scene::Scene;
 use rt::sphere::Sphere;
-use rt::threadpool::ThreadPool;
+use rt::trace_ray;
 
-struct SceneCollisionParams<'a> {
-    ray: &'a Ray,
-    scene: &'a Vec<Box<dyn Intersectable + Send + Sync>>,
-    t_min: Scalar,
-    t_max: Scalar,
+lazy_static! {
+    static ref SCENE: Scene = {
+        let mut scene = Scene::new();
+        scene.add_object(Box::new(Sphere::new(glm::vec3(0.0, 0.0, -2.0), 1.5)));
+        scene.add_object(Box::new(Sphere::new(glm::vec3(0.0, 1.0, -2.0), 1.5)));
+        scene.add_object(Box::new(Sphere::new(glm::vec3(0.0, -1.0, -2.0), 1.5)));
+        scene.add_object(Box::new(Sphere::new(glm::vec3(1.0, 0.0, -2.0), 1.5)));
+        scene.add_object(Box::new(Sphere::new(glm::vec3(-1.0, 0.0, -2.0), 1.5)));
+        scene
+    };
 }
 
-impl<'a> SceneCollisionParams<'a> {
-    fn new(
-        ray: &'a Ray,
-        scene: &'a Vec<Box<dyn Intersectable + Send + Sync>>,
-        t_min: Scalar,
-        t_max: Scalar,
-    ) -> Self {
-        return Self {
-            ray,
-            scene,
-            t_min,
-            t_max,
-        };
-    }
-}
+fn multi_threaded() {
+    let width = 1000;
+    let height = 1000;
+    let mut image = Image::new(width, height);
 
-fn scene_collision_st(scene_collision_params: &SceneCollisionParams) {
-    let ray = scene_collision_params.ray;
-    let scene = scene_collision_params.scene;
-    let t_min = scene_collision_params.t_min;
-    let t_max = scene_collision_params.t_max;
-    scene.iter().for_each(|object| {
-        object.hit(ray, t_min, t_max);
-    });
-}
+    let viewport_height = 2.0;
+    let aspect_ratio = width as f64 / height as f64;
+    let focal_length = 1.0;
+    let origin = glm::vec3(0.0, 0.0, 0.0);
+    let camera = Camera::new(viewport_height, aspect_ratio, focal_length, origin);
+    let camera = &camera;
 
-fn scene_collision_mt(scene_collision_params: &SceneCollisionParams) {
-    let ray = scene_collision_params.ray;
-    let scene = scene_collision_params.scene;
-    let t_min = scene_collision_params.t_min;
-    let t_max = scene_collision_params.t_max;
-    ThreadPool::new_scoped(12, |scope| {
-        scene.iter().for_each(|object| {
-            scope.execute(|| {
-                object.hit(ray, t_min, t_max);
-            });
+    {
+        let num_threads = 12;
+        let mut slabs = image.get_slabs(num_threads);
+
+        thread::scope(|s| {
+            let mut handles = Vec::new();
+
+            for slab in &mut slabs {
+                let handle = s.spawn(move |_| {
+                    let mut pixels = Vec::new();
+                    for i in 0..slab.width {
+                        let mut pixels_inner = Vec::new();
+                        for j in 0..slab.height {
+                            let j = j + slab.y_start;
+                            let j = height - j;
+                            let i = i + slab.x_start;
+
+                            // use opengl coords, (0.0, 0.0) is center; (1.0, 1.0) is
+                            // top right; (-1.0, -1.0) is bottom left
+                            let u = ((i as Scalar / (width - 1) as Scalar) - 0.5) * 2.0;
+                            let v = ((j as Scalar / (height - 1) as Scalar) - 0.5) * 2.0;
+
+                            let ray = camera.get_ray(u, v);
+
+                            let pixel = trace_ray(&ray, &camera, &SCENE, 2);
+                            pixels_inner.push(pixel);
+                        }
+                        pixels.push(pixels_inner);
+                    }
+
+                    slab.set_pixels(pixels);
+                });
+
+                handles.push(handle);
+            }
+
+            for handle in handles {
+                handle.join().unwrap();
+            }
         })
-    });
-}
+        .unwrap();
 
-fn scene_collision_mt_2(scene_collision_params: &SceneCollisionParams, pool: &ThreadPool) {
-    let ray = scene_collision_params.ray;
-    let scene = scene_collision_params.scene;
-    let t_min = scene_collision_params.t_min;
-    let t_max = scene_collision_params.t_max;
-    pool.scoped(|scope| {
-        scope.execute(|| {
-            scene.iter().for_each(|object| {
-                object.hit(ray, t_min, t_max);
-            })
-        });
-    });
-}
+        for slab in slabs {
+            for i in 0..slab.width {
+                for j in 0..slab.height {
+                    let pixel = slab.get_pixels()[i][j];
+                    let j = j + slab.y_start;
+                    let i = i + slab.x_start;
 
-fn scene_collision_mt_3(scene_collision_params: &SceneCollisionParams, pool: &ThreadPool) {
-    let ray = scene_collision_params.ray;
-    let scene = scene_collision_params.scene;
-    let t_min = scene_collision_params.t_min;
-    let t_max = scene_collision_params.t_max;
-    let mut chunk_size = scene.len() / pool.get_num_threads();
-    if chunk_size == 0 {
-        chunk_size = 1;
-    }
-    pool.scoped(|scope| {
-        for objects in scene.chunks(chunk_size) {
-            scope.execute(|| {
-                objects.iter().for_each(|object| {
-                    object.hit(ray, t_min, t_max);
-                })
-            });
+                    image.set_pixel(i, j, pixel);
+                }
+            }
         }
-    });
+    }
 }
 
-fn rng_scaled(rng: &mut ThreadRng, scale_factor: f64) -> f64 {
-    return (rng.gen::<f64>() - 0.5) * 2.0 * scale_factor;
-}
+fn single_threaded() {
+    let width = 1000;
+    let height = 1000;
+    let mut image = Image::new(width, height);
 
-fn random_vec3(rng: &mut ThreadRng, scale_factor: f64) -> glm::DVec3 {
-    let x = rng_scaled(rng, scale_factor);
-    let y = rng_scaled(rng, scale_factor);
-    let z = rng_scaled(rng, scale_factor);
-    return glm::vec3(x, y, z);
+    let viewport_height = 2.0;
+    let aspect_ratio = width as f64 / height as f64;
+    let focal_length = 1.0;
+    let origin = glm::vec3(0.0, 0.0, 0.0);
+    let camera = Camera::new(viewport_height, aspect_ratio, focal_length, origin);
+    let camera = &camera;
+
+    for (j, row) in image.get_pixels_mut().iter_mut().enumerate() {
+        for (i, pixel) in row.iter_mut().enumerate() {
+            let j = height - j - 1;
+
+            // use opengl coords, (0.0, 0.0) is center; (1.0, 1.0) is
+            // top right; (-1.0, -1.0) is bottom left
+            let u = ((i as Scalar / (width - 1) as Scalar) - 0.5) * 2.0;
+            let v = ((j as Scalar / (height - 1) as Scalar) - 0.5) * 2.0;
+
+            let ray = camera.get_ray(u, v);
+
+            *pixel = trace_ray(&ray, &camera, &SCENE, 2);
+        }
+    }
 }
 
 fn bench_scene_collision(c: &mut Criterion) {
-    let ray = Ray::new(glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 0.0, -1.0));
-    let mut scene: Vec<Box<dyn Intersectable + Send + Sync>> =
-        vec![Box::new(Sphere::new(glm::vec3(0.0, 0.0, -2.0), 1.5))];
-    let mut rng = rand::thread_rng();
-    let num_objects = 12 * 1000 - 1;
-    let scale_factor = 5.0;
-    for _ in 0..num_objects {
-        scene.push(Box::new(Sphere::new(
-            random_vec3(&mut rng, scale_factor),
-            rng_scaled(&mut rng, scale_factor),
-        )));
-    }
-    let (t_min, t_max) = (0.01, 1000.0);
-    let scene_collision_params = SceneCollisionParams::new(&ray, &scene, t_min, t_max);
     let mut group = c.benchmark_group("SceneCollision");
-    group.bench_with_input(
-        BenchmarkId::new("single_threaded", 1),
-        &scene_collision_params,
-        |b, scene_collision_params| {
-            b.iter(|| scene_collision_st(black_box(scene_collision_params)));
-        },
-    );
-    group.bench_with_input(
-        BenchmarkId::new("multi_threaded", 1),
-        &scene_collision_params,
-        |b, scene_collision_params| {
-            b.iter(|| scene_collision_mt(black_box(scene_collision_params)));
-        },
-    );
-    let pool = ThreadPool::new(12);
-    group.bench_with_input(
-        BenchmarkId::new("multi_threaded", 2),
-        &scene_collision_params,
-        |b, scene_collision_params| {
-            b.iter(|| scene_collision_mt_2(black_box(scene_collision_params), &pool));
-        },
-    );
-    group.bench_with_input(
-        BenchmarkId::new("multi_threaded", 3),
-        &scene_collision_params,
-        |b, scene_collision_params| {
-            b.iter(|| scene_collision_mt_3(black_box(scene_collision_params), &pool));
-        },
-    );
+    group.bench_with_input(BenchmarkId::new("single_threaded", 1), &1, |b, _| {
+        b.iter(|| single_threaded());
+    });
+    group.bench_with_input(BenchmarkId::new("multi_threaded", 1), &1, |b, _| {
+        b.iter(|| multi_threaded());
+    });
     group.finish();
 }
 
