@@ -1,5 +1,6 @@
 use rt::camera::Camera;
 use rt::image::{Image, PPM};
+use rt::intersectable::Intersectable;
 use rt::math;
 use rt::math::{Scalar, Vec3};
 use rt::ray::Ray;
@@ -12,7 +13,7 @@ use lazy_static::lazy_static;
 
 lazy_static! {
     static ref SCENE: Scene = {
-        let mut scene = Scene::new(12);
+        let mut scene = Scene::new();
         scene.add_object(Box::new(Sphere::new(glm::vec3(0.0, 0.0, -2.0), 1.5)));
         scene.add_object(Box::new(Sphere::new(glm::vec3(0.0, 1.0, -2.0), 1.5)));
         scene.add_object(Box::new(Sphere::new(glm::vec3(0.0, -1.0, -2.0), 1.5)));
