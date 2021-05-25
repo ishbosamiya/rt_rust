@@ -48,6 +48,55 @@ impl Image {
     pub fn get_pixels(&self) -> &Vec<Vec<Vec3>> {
         return &self.pixels;
     }
+
+    pub fn get_slabs(&self, num_slabs: usize) -> Vec<Slab> {
+        let width = self.width / num_slabs;
+        let height = self.height;
+
+        let mut slabs = Vec::new();
+        for i in 0..num_slabs {
+            slabs.push(Slab::new(i * width, 0, width, height));
+        }
+        let last_slab_width = self.width % num_slabs;
+        let last_slab_height = self.height;
+        slabs.push(Slab::new(
+            num_slabs * width,
+            0,
+            last_slab_width,
+            last_slab_height,
+        ));
+
+        return slabs;
+    }
+}
+
+#[derive(Debug)]
+pub struct Slab {
+    pub x_start: usize,
+    pub y_start: usize,
+    pub width: usize,
+    pub height: usize,
+    pixels: Vec<Vec<Vec3>>,
+}
+
+impl Slab {
+    pub fn new(x_start: usize, y_start: usize, width: usize, height: usize) -> Self {
+        return Self {
+            x_start,
+            y_start,
+            width,
+            height,
+            pixels: Vec::new(),
+        };
+    }
+
+    pub fn set_pixels(&mut self, pixels: Vec<Vec<Vec3>>) {
+        self.pixels = pixels;
+    }
+
+    pub fn get_pixels(&self) -> &Vec<Vec<Vec3>> {
+        return &self.pixels;
+    }
 }
 
 pub struct PPM<'a> {

@@ -1,6 +1,7 @@
 use crate::math::{Scalar, Vec3};
 use crate::ray::Ray;
 
+#[derive(Debug, Copy, Clone)]
 pub struct IntersectInfo {
     t: Scalar,
     point: Vec3,
