@@ -1,11 +1,65 @@
 use generational_arena::{Arena, Index};
 use lazy_static::lazy_static;
 use nalgebra_glm as glm;
+use num_traits::cast::FromPrimitive;
+use num_traits::float::Float;
+
+use std::cmp::PartialOrd;
+use std::fmt::Debug;
+use std::ops::{Add, AddAssign, Mul, MulAssign, Sub, SubAssign};
 
 const MAX_TREETYPE: u8 = 32;
 
+pub trait ScalarTrait:
+    Float
+    + Debug
+    + glm::Number
+    + 'static
+    + Add
+    + AddAssign
+    + Mul
+    + MulAssign
+    + Sub
+    + SubAssign
+    + PartialOrd
+    + FromPrimitive
+    + AxesTrait
+{
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+struct BVHNodeIndex(pub Index);
+
+impl BVHNodeIndex {
+    fn unknown() -> Self {
+        return Self(Index::from_raw_parts(usize::MAX, u64::MAX));
+    }
+}
+
+struct BVHNode<T, Scalar>
+where
+    T: Copy,
+    Scalar: ScalarTrait,
+    f64: Into<Scalar>,
+{
+    children: Vec<BVHNodeIndex>,  // Indices of the child nodes
+    parent: Option<BVHNodeIndex>, // Parent index
+
+    bv: Vec<Scalar>,       // Bounding volume axis data
+    elem_index: Option<T>, // Index of element stored in the node
+    totnode: u8,           // How many nodes are used, used for speedup
+    main_axis: u8,         // Axis used to split this node
+}
+
+// Reference: https://internals.rust-lang.org/t/how-about-generic-global-variables/8351
+// It is not possible to have generic global variables so need to do this hacky way
+// If user needs to use something other than f64 or f32, then they need to define those axes
+pub trait AxesTrait: Debug + Copy + PartialEq {
+    fn get_axes() -> &'static Vec<glm::TVec3<Self>>;
+}
+
 lazy_static! {
-    static ref BVHTREE_KDOP_AXES: Vec<glm::TVec3<Scalar>> = {
+    static ref BVHTREE_KDOP_AXES_F64: Vec<glm::TVec3<f64>> = {
         let mut v = Vec::with_capacity(13);
         v.push(glm::vec3(1.0, 0.0, 0.0));
         v.push(glm::vec3(0.0, 1.0, 0.0));
@@ -24,34 +78,45 @@ lazy_static! {
         v
     };
 }
-
-type Scalar = f64;
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-struct BVHNodeIndex(pub Index);
-
-impl BVHNodeIndex {
-    fn unknown() -> Self {
-        return Self(Index::from_raw_parts(usize::MAX, u64::MAX));
+impl ScalarTrait for f64 {}
+impl AxesTrait for f64 {
+    fn get_axes() -> &'static Vec<glm::TVec3<f64>> {
+        return &BVHTREE_KDOP_AXES_F64;
     }
 }
 
-struct BVHNode<T>
-where
-    T: Copy,
-{
-    children: Vec<BVHNodeIndex>,  // Indices of the child nodes
-    parent: Option<BVHNodeIndex>, // Parent index
-
-    bv: Vec<Scalar>,       // Bounding volume axis data
-    elem_index: Option<T>, // Index of element stored in the node
-    totnode: u8,           // How many nodes are used, used for speedup
-    main_axis: u8,         // Axis used to split this node
+lazy_static! {
+    static ref BVHTREE_KDOP_AXES_F32: Vec<glm::TVec3<f32>> = {
+        let mut v = Vec::with_capacity(13);
+        v.push(glm::vec3(1.0, 0.0, 0.0));
+        v.push(glm::vec3(0.0, 1.0, 0.0));
+        v.push(glm::vec3(0.0, 0.0, 1.0));
+        v.push(glm::vec3(1.0, 1.0, 1.0));
+        v.push(glm::vec3(1.0, -1.0, 1.0));
+        v.push(glm::vec3(1.0, 1.0, -1.0));
+        v.push(glm::vec3(1.0, -1.0, -1.0));
+        v.push(glm::vec3(1.0, 1.0, 0.0));
+        v.push(glm::vec3(1.0, 0.0, 1.0));
+        v.push(glm::vec3(0.0, 1.0, 1.0));
+        v.push(glm::vec3(1.0, -1.0, 0.0));
+        v.push(glm::vec3(1.0, 0.0, -1.0));
+        v.push(glm::vec3(0.0, 1.0, -1.0));
+        assert_eq!(v.len(), 13);
+        v
+    };
+}
+impl ScalarTrait for f32 {}
+impl AxesTrait for f32 {
+    fn get_axes() -> &'static Vec<glm::TVec3<f32>> {
+        return &BVHTREE_KDOP_AXES_F32;
+    }
 }
 
-impl<T> BVHNode<T>
+impl<T, Scalar> BVHNode<T, Scalar>
 where
     T: Copy,
+    Scalar: ScalarTrait,
+    f64: Into<Scalar>,
 {
     fn new() -> Self {
         return Self {
@@ -68,8 +133,8 @@ where
     fn min_max_init(&mut self, start_axis: u8, stop_axis: u8) {
         let bv = &mut self.bv;
         for axis_iter in start_axis..stop_axis {
-            bv[((2 * axis_iter) + 0) as usize] = Scalar::MAX;
-            bv[((2 * axis_iter) + 1) as usize] = -Scalar::MAX;
+            bv[((2 * axis_iter) + 0) as usize] = Float::max_value();
+            bv[((2 * axis_iter) + 1) as usize] = Float::min_value();
         }
     }
 
@@ -89,7 +154,7 @@ where
         for co in co_many {
             for axis_iter in start_axis..stop_axis {
                 let axis_iter = axis_iter as usize;
-                let new_min_max = glm::dot(&co, &BVHTREE_KDOP_AXES[axis_iter]);
+                let new_min_max = glm::dot(&co, &Scalar::get_axes()[axis_iter]);
                 if new_min_max < bv[2 * axis_iter] {
                     bv[2 * axis_iter] = new_min_max;
                 }
@@ -100,7 +165,7 @@ where
         }
     }
 
-    fn overlap_test(&self, other: &BVHNode<T>, start_axis: u8, stop_axis: u8) -> bool {
+    fn overlap_test(&self, other: &BVHNode<T, Scalar>, start_axis: u8, stop_axis: u8) -> bool {
         let bv1 = &self.bv;
         let bv2 = &other.bv;
         for axis_iter in start_axis..stop_axis {
@@ -133,12 +198,14 @@ impl std::fmt::Display for BVHError {
 
 impl std::error::Error for BVHError {}
 
-pub struct BVHTree<T>
+pub struct BVHTree<T, Scalar>
 where
     T: Copy,
+    Scalar: ScalarTrait,
+    f64: Into<Scalar>,
 {
     nodes: Vec<BVHNodeIndex>,
-    node_array: Arena<BVHNode<T>>, // Where the actual nodes are stored
+    node_array: Arena<BVHNode<T, Scalar>>, // Where the actual nodes are stored
 
     epsilon: Scalar, // Epsilon for inflation of the kdop
     totleaf: usize,
@@ -231,9 +298,11 @@ where
     }
 }
 
-impl<T> BVHTree<T>
+impl<T, Scalar> BVHTree<T, Scalar>
 where
     T: Copy,
+    Scalar: ScalarTrait,
+    f64: Into<Scalar>,
 {
     pub fn new(max_size: usize, epsilon: Scalar, tree_type: u8, axis: u8) -> Self {
         assert!(
@@ -243,7 +312,7 @@ where
         );
 
         // epsilon must be >= Scalar::EPSILON so that tangent rays can still hit a bounding volume
-        let epsilon = epsilon.max(Scalar::EPSILON);
+        let epsilon = epsilon.max(Scalar::epsilon());
 
         let start_axis;
         let stop_axis;
@@ -280,7 +349,7 @@ where
 
         for i in 0..numnodes {
             let node = node_array.get_unknown_gen_mut(i).unwrap().0;
-            node.bv.resize(axis.into(), 0.0);
+            node.bv.resize(axis.into(), 0.0.into());
             node.children
                 .resize(tree_type.into(), BVHNodeIndex::unknown());
         }
@@ -713,7 +782,7 @@ where
 
     fn overlap_traverse_callback<F>(
         &self,
-        other: &BVHTree<T>,
+        other: &BVHTree<T, Scalar>,
         node_1_index: BVHNodeIndex,
         node_2_index: BVHNodeIndex,
         start_axis: u8,
@@ -782,7 +851,7 @@ where
 
     fn overlap_traverse(
         &self,
-        other: &BVHTree<T>,
+        other: &BVHTree<T, Scalar>,
         node_1_index: BVHNodeIndex,
         node_2_index: BVHNodeIndex,
         start_axis: u8,
@@ -841,7 +910,7 @@ where
 
     pub fn overlap<F>(
         &self,
-        other: &BVHTree<T>,
+        other: &BVHTree<T, Scalar>,
         callback: Option<&F>,
     ) -> Option<Vec<BVHTreeOverlap<T>>>
     where
@@ -914,7 +983,7 @@ fn implicit_needed_branches(tree_type: u8, leafs: usize) -> usize {
     return 1.max(leafs + tree_type as usize - 3) / (tree_type - 1) as usize;
 }
 
-fn get_largest_axis(bv: &Vec<Scalar>) -> u8 {
+fn get_largest_axis<Scalar: ScalarTrait>(bv: &Vec<Scalar>) -> u8 {
     let middle_point_x = bv[1] - bv[0]; // x axis
     let middle_point_y = bv[3] - bv[2]; // y axis
     let middle_point_z = bv[5] - bv[4]; // z axis
