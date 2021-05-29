@@ -1,3 +1,4 @@
+pub mod bvh;
 pub mod camera;
 pub mod image;
 pub mod intersectable;
