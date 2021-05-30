@@ -40,7 +40,6 @@ struct BVHNode<T, Scalar>
 where
     T: Copy,
     Scalar: ScalarTrait,
-    f64: Into<Scalar>,
 {
     children: Vec<BVHNodeIndex>,  // Indices of the child nodes
     parent: Option<BVHNodeIndex>, // Parent index
@@ -116,7 +115,6 @@ impl<T, Scalar> BVHNode<T, Scalar>
 where
     T: Copy,
     Scalar: ScalarTrait,
-    f64: Into<Scalar>,
 {
     fn new() -> Self {
         return Self {
@@ -295,6 +293,83 @@ where
 {
     fn new(index_1: T, index_2: T) -> Self {
         return Self { index_1, index_2 };
+    }
+}
+
+pub struct RayHitData<T, Scalar>
+where
+    T: Copy,
+    Scalar: ScalarTrait,
+{
+    pub index: T,
+    pub co: glm::TVec3<Scalar>,
+    pub normal: glm::TVec3<Scalar>,
+    pub dist: Scalar,
+}
+
+impl<T, Scalar> RayHitData<T, Scalar>
+where
+    T: Copy,
+    Scalar: ScalarTrait,
+{
+    pub fn new(index: T, co: glm::TVec3<Scalar>, normal: glm::TVec3<Scalar>, dist: Scalar) -> Self {
+        Self {
+            index,
+            co,
+            normal,
+            dist,
+        }
+    }
+}
+
+struct RayCastData<Scalar>
+where
+    Scalar: ScalarTrait,
+{
+    co: glm::TVec3<Scalar>,
+    dir: glm::TVec3<Scalar>,
+
+    ray_dot_axis: [Scalar; 13],
+    idot_axis: [Scalar; 13],
+    index: [usize; 6],
+}
+
+impl<Scalar> RayCastData<Scalar>
+where
+    Scalar: ScalarTrait,
+    f64: Into<Scalar>,
+{
+    fn new(co: glm::TVec3<Scalar>, dir: glm::TVec3<Scalar>) -> Self {
+        let mut ray_dot_axis: [Scalar; 13] = [Scalar::zero(); 13];
+        let mut idot_axis: [Scalar; 13] = [Scalar::zero(); 13];
+        let mut index: [usize; 6] = [0; 6];
+        for i in 0..3 {
+            ray_dot_axis[i] = glm::dot(&dir, &Scalar::get_axes()[i]);
+
+            if ray_dot_axis[i].abs() < Scalar::epsilon() {
+                ray_dot_axis[i] = 0.0.into();
+                idot_axis[i] = Float::max_value();
+            } else {
+                idot_axis[i] = 1.0.into() / ray_dot_axis[i];
+            }
+
+            if idot_axis[i] < 0.0.into() {
+                index[2 * i] = 1;
+            } else {
+                index[2 * i] = 0;
+            }
+            index[2 * i + 1] = 1 - index[2 * i];
+            index[2 * i] += 2 * i;
+            index[2 * i + 1] += 2 * i;
+        }
+
+        Self {
+            co,
+            dir,
+            ray_dot_axis,
+            idot_axis,
+            index,
+        }
     }
 }
 
@@ -976,6 +1051,19 @@ where
                 return Some(overlap_pairs);
             }
         }
+    }
+
+    pub fn ray_cast(
+        &self,
+        co: glm::TVec3<Scalar>,
+        dir: glm::TVec3<Scalar>,
+    ) -> Option<RayHitData<T, Scalar>> {
+        let root_index = self.nodes[self.totleaf];
+        let _root = self.node_array.get(root_index.0).unwrap();
+
+        let _data = RayCastData::new(co, dir);
+
+        todo!("traverse bvh for the ray cast");
     }
 }
 
