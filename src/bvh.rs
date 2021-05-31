@@ -421,6 +421,20 @@ where
     Scalar: ScalarTrait,
     f64: Into<Scalar>,
 {
+    /// Create new BVH
+    ///
+    /// `max_size` is the maximum number of elements which will be stored in the tree, needed for optimization reasons
+    ///
+    /// `epsilon` is the value by which the BV should be inflated
+    ///
+    /// `tree_type` is the number of children per node in the tree, must be >= 2 and <= `MAX_TREETYPE`
+    ///
+    /// `axis` is the number of axis to be considered for the BV, (can be 26 or 18 or 14 or 8 or 6)
+    ///
+    /// # panics
+    /// * When invalid `axis` is given.
+    ///
+    /// * When invalid `tree_type` is given.
     pub fn new(max_size: usize, epsilon: Scalar, tree_type: u8, axis: u8) -> Self {
         assert!(
             tree_type >= 2 && tree_type <= MAX_TREETYPE,
@@ -485,6 +499,13 @@ where
         };
     }
 
+    /// Insert new node
+    ///
+    /// `index` is an identifier for the element stored in the node,
+    /// used for communicating between user and BVH, eg: `ray_cast()`
+    /// will return `index` stored in the node that has closest hit
+    ///
+    /// `co_many` contains list of points to form the new BV around
     pub fn insert(&mut self, index: T, co_many: Vec<glm::TVec3<Scalar>>) {
         assert!(self.totbranch <= 0);
 
@@ -804,8 +825,11 @@ where
         }
     }
 
-    /// Call balance() after inserting the nodes using insert()
+    /// Call `balance()` after inserting the nodes using `insert()`
     /// This function should be called only once
+    ///
+    /// # panics
+    /// * When function called more than once
     pub fn balance(&mut self) {
         assert_eq!(self.totbranch, 0);
 
@@ -818,6 +842,13 @@ where
         }
     }
 
+    /// Update the given node
+    ///
+    /// `co_many` contains list of points to form the new BV around
+    ///
+    /// `co_moving_many` can be length 0 or equal to `co_many.len()`,
+    /// when it contains some values, the BV is considerd over
+    /// `co_many` and `co_moving_many`
     pub fn update_node(
         &mut self,
         node_index: usize,
@@ -882,6 +913,9 @@ where
         }
     }
 
+    /// After updating the leaf nodes of the tree using
+    /// `update_node()`, `update_tree()` updates the other nodes of
+    /// the tree.
     pub fn update_tree(&mut self) {
         let root_start = self.totleaf;
         let mut index = self.totleaf + self.totbranch - 1;
@@ -1025,6 +1059,12 @@ where
         }
     }
 
+    /// Tests for overlap between the 2 BVH with an optional callback
+    /// to decide if that overlap of the BVs should be considered.
+    ///
+    /// `callback` is given the indices of the 2 elements of the
+    /// overlapping BVs, must return if the overlap should be
+    /// considered.
     pub fn overlap<F>(
         &self,
         other: &BVHTree<T, Scalar>,
@@ -1153,7 +1193,7 @@ where
     }
 
     /// Casts a ray starting at `co` in the direction `dir` and can
-    /// have a callback function
+    /// have an optional callback function
     ///
     /// `callback` takes arguments as `((co, dir), elem_index)`
     ///
