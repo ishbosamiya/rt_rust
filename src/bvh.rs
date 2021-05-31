@@ -177,6 +177,27 @@ where
 
         return true;
     }
+
+    fn ray_hit(&self, data: &RayCastData<Scalar>, r_dist: &mut Scalar) -> bool {
+        let bv = &self.bv;
+
+        let t1x = (bv[data.index[0]] - data.co[0]) * data.idot_axis[0];
+        let t2x = (bv[data.index[1]] - data.co[0]) * data.idot_axis[0];
+        let t1y = (bv[data.index[2]] - data.co[1]) * data.idot_axis[1];
+        let t2y = (bv[data.index[3]] - data.co[1]) * data.idot_axis[1];
+        let t1z = (bv[data.index[4]] - data.co[2]) * data.idot_axis[2];
+        let t2z = (bv[data.index[5]] - data.co[2]) * data.idot_axis[2];
+
+        if (t1x > t2y || t2x < t1y || t1x > t2z || t2x < t1z || t1y > t2z || t2y < t1z)
+            || (t2x < Scalar::zero() || t2y < Scalar::zero() || t2z < Scalar::zero())
+            || (t1x > *r_dist || t1y > *r_dist || t1z > *r_dist)
+        {
+            return false;
+        }
+
+        *r_dist = t1x.max(t1y).max(t1z);
+        return true;
+    }
 }
 
 #[derive(Debug)]
@@ -296,14 +317,32 @@ where
     }
 }
 
+pub struct RayHitOptionalData<T, Scalar>
+where
+    T: Copy,
+    Scalar: ScalarTrait,
+{
+    pub elem_index: T,
+    pub co: glm::TVec3<Scalar>,
+}
+
+impl<T, Scalar> RayHitOptionalData<T, Scalar>
+where
+    T: Copy,
+    Scalar: ScalarTrait,
+{
+    pub fn new(elem_index: T, co: glm::TVec3<Scalar>) -> Self {
+        Self { elem_index, co }
+    }
+}
+
 pub struct RayHitData<T, Scalar>
 where
     T: Copy,
     Scalar: ScalarTrait,
 {
-    pub index: T,
-    pub co: glm::TVec3<Scalar>,
-    pub normal: glm::TVec3<Scalar>,
+    pub data: Option<RayHitOptionalData<T, Scalar>>,
+    pub normal: Option<glm::TVec3<Scalar>>,
     pub dist: Scalar,
 }
 
@@ -312,13 +351,16 @@ where
     T: Copy,
     Scalar: ScalarTrait,
 {
-    pub fn new(index: T, co: glm::TVec3<Scalar>, normal: glm::TVec3<Scalar>, dist: Scalar) -> Self {
+    pub fn new(dist: Scalar) -> Self {
         Self {
-            index,
-            co,
-            normal,
+            data: None,
+            normal: None,
             dist,
         }
+    }
+
+    fn set_data(&mut self, data: RayHitOptionalData<T, Scalar>) {
+        self.data = Some(data);
     }
 }
 
@@ -1053,17 +1095,58 @@ where
         }
     }
 
+    fn ray_cast_traverse(
+        &self,
+        node_index: BVHNodeIndex,
+        data: &RayCastData<Scalar>,
+        r_hit_data: &mut RayHitData<T, Scalar>,
+    ) {
+        let mut dist = r_hit_data.dist;
+        let node = self.node_array.get(node_index.0).unwrap();
+        if node.ray_hit(data, &mut dist) {
+            if dist >= r_hit_data.dist {
+                return;
+            }
+
+            if node.totnode == 0 {
+                let optional_data =
+                    RayHitOptionalData::new(node.elem_index.unwrap(), data.co + data.dir * dist);
+                r_hit_data.set_data(optional_data);
+                r_hit_data.dist = dist;
+            } else {
+                if data.ray_dot_axis[node.main_axis as usize] > Scalar::zero() {
+                    for i in 0..node.totnode {
+                        self.ray_cast_traverse(node.children[i as usize], data, r_hit_data);
+                    }
+                } else {
+                    for i in (node.totnode - 1)..0 {
+                        self.ray_cast_traverse(node.children[i as usize], data, r_hit_data);
+                    }
+                }
+            }
+        } else {
+            return;
+        }
+    }
+
     pub fn ray_cast(
         &self,
         co: glm::TVec3<Scalar>,
         dir: glm::TVec3<Scalar>,
     ) -> Option<RayHitData<T, Scalar>> {
         let root_index = self.nodes[self.totleaf];
-        let _root = self.node_array.get(root_index.0).unwrap();
 
-        let _data = RayCastData::new(co, dir);
+        let data = RayCastData::new(co, dir);
 
-        todo!("traverse bvh for the ray cast");
+        let mut hit_data = RayHitData::new(Float::max_value());
+
+        self.ray_cast_traverse(root_index, &data, &mut hit_data);
+
+        if let Some(_) = hit_data.data {
+            return Some(hit_data);
+        } else {
+            return None;
+        }
     }
 }
 
