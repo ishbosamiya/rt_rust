@@ -1274,3 +1274,51 @@ impl<T> ArenaFunctions for Arena<T> {
         return self.get_unknown_gen_mut(i).unwrap().0;
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn bvh_insert() {
+        use super::ArenaFunctions;
+        use nalgebra_glm as glm;
+        let mut bvh = super::BVHTree::<usize, _>::new(1, 0.001, 3, 6);
+        bvh.insert(0, vec![glm::vec3(-1.0, 0.0, 0.0), glm::vec3(1.0, 0.0, 0.0)]);
+        bvh.balance();
+        assert_eq!(bvh.nodes.len(), bvh.node_array.len());
+        assert_eq!(bvh.nodes.len(), 4);
+        assert_eq!(bvh.node_array.get_unknown(0).bv.len(), 6);
+        assert_eq!(
+            bvh.node_array.get_unknown(0).bv,
+            vec![-1.001, 1.001, -0.001, 0.001, -0.001, 0.001]
+        );
+    }
+
+    #[test]
+    fn bvh_insert_2() {
+        use super::ArenaFunctions;
+        use nalgebra_glm as glm;
+        let mut bvh = super::BVHTree::new(5, 0.001, 4, 6);
+        bvh.insert(0, vec![glm::vec3(-1.0, 0.0, 0.0), glm::vec3(1.0, 0.0, 0.0)]);
+        bvh.insert(1, vec![glm::vec3(0.0, -1.0, 0.0), glm::vec3(0.0, 1.0, 0.0)]);
+        bvh.insert(2, vec![glm::vec3(0.0, 0.0, -1.0), glm::vec3(0.0, 0.0, 1.0)]);
+        bvh.balance();
+        assert_eq!(bvh.nodes.len(), bvh.node_array.len());
+        assert_eq!(bvh.nodes.len(), 11);
+        assert_eq!(bvh.node_array.get_unknown(0).bv.len(), 6);
+        let root_index = bvh.nodes[bvh.totleaf];
+        let root = bvh.node_array.get(root_index.0).unwrap();
+        assert_eq!(root.bv, vec![-1.001, 1.001, -1.001, 1.001, -1.001, 1.001]);
+        assert_eq!(
+            bvh.node_array.get(root.children[0].0).unwrap().bv,
+            vec![-1.001, 1.001, -0.001, 0.001, -0.001, 0.001]
+        );
+        assert_eq!(
+            bvh.node_array.get(root.children[1].0).unwrap().bv,
+            vec![-0.001, 0.001, -1.001, 1.001, -0.001, 0.001]
+        );
+        assert_eq!(
+            bvh.node_array.get(root.children[2].0).unwrap().bv,
+            vec![-0.001, 0.001, -0.001, 0.001, -1.001, 1.001]
+        );
+    }
+}
