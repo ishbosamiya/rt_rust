@@ -3,10 +3,23 @@ use crate::math::{Scalar,Vec3};
 use crate::ray::Ray;
 use crate::bsdf::{Material, BSDFData, GeomData};
 
-pub struct Diffuse{
+pub struct Diffuse {
     alpha : f64,
     alpha_squared : f64,
     diffuse_reflectance : glm::vec3,
+    data : &GeomData
+}
+
+pub struct GlossyReflection {
+    data : &GeomData
+}
+
+pub struct MirrorReflection {
+    alpha : f64,
+    data : &GeomData
+}
+
+pub struct Refraction {
     data : &GeomData
 }
 
