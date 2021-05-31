@@ -45,7 +45,7 @@ pub trait BSDFData {
 
     pub fn init_data(&mut self);
 
-    pub fn scatter_ray(inward_ray : &Vec3, outward_ray : &Vec3, throughput : &Vec3, material : &Material, backfacing : bool) -> Vec3;
+    pub fn scatter_ray(&mut self, inward_ray : &Vec3, outward_ray : &Vec3, throughput : &Vec3, material : &Material, backfacing : bool) -> Vec3;
 
     pub fn eval(&mut self, backfacing : bool) -> Vec3;
 }

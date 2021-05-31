@@ -27,18 +27,27 @@ pub struct Diffuse {
 }
 
 /*
-pub struct GlossyReflection {
-    data : &GeomData
-}
-
-pub struct MirrorReflection {
+pub struct Reflection {
     alpha : f64,
+    alpha_squared : f64,
+    material : Material,
     data : &GeomData
 }
 
-pub struct Refraction {
+pub struct Glossy {
+    alpha : f64,
+    alpha_squared : f64,
+    material : Material,
     data : &GeomData
 }
+
+pub struct Transparent {
+    alpha : f64,
+    alpha_squared : f64,
+    material : Material,
+    data : &GeomData
+}
+
 */
 
 impl BSDFData for Diffuse {
@@ -76,13 +85,46 @@ impl BSDFData for Diffuse {
         return diff_weight;
     }
 
+    /// Evaluates eval and pdf for scatter ray
+    fn eval_sample(diffuse : &Vec3, pdf : &Vec3, eval : &Vec3, outward : &Ray) {
+
+    }
+
     /// Returns the ray
     /// Function will also call the eval function and evaluate the throughput
-    pub fn scatter_ray(inward_ray : &Ray, outward_ray : &Ray, throughput : &Vec3, backfacing : bool) -> (Ray,Vec3) {
+    pub fn scatter_ray(&mut self, inward_ray : &Ray, outward_ray : &Ray, throughput : &Vec3, backfacing : bool) -> (Ray,Vec3) {
         /// Call the eval function
         let mut diffuse = eval(backfacing);
+        let mut pdf = Vec3::new(0.0, 0.0, 0.0);
+        let mut eval = Vec3::new(0.0, 0.0, 0.0);
+
+        /// TODO COMPLETE THIS FUNCTION
+        self.eval_sample(diffuse, pdf, eval, outward_ray);
+
+        if (pdf != glm::vec3(0.0, 0.0, 0.0)) {
+            /// Evaluating diffuse weight multiplied by the eval from above function
+            eval = eval * diffuse;
+        }
 
         /// Calculate the outward ray that is required
+        throughput = throughput * eval;
+
         return (outward_ray, throughput);
     }
+}
+
+/// TBD : FINISH THE FOLLOWING TRAITS
+/// MINOR CHANGES REQUIRED FROM THE ABOVE
+/// TEST DIFFUSE SHADER FOR ERRORS (WILL BE PRESENT)
+
+impl BSDFData for Reflection {
+
+}
+
+impl BSDFData for Glossy {
+
+}
+
+impl BSDFData for Transparent {
+
 }
