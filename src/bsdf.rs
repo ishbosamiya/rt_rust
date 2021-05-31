@@ -7,11 +7,11 @@ use nalgebra_glm as glm;
 /// Geometric Data for normals and dot products
 /// Removed front and back facing as it is already present in intersect info
 pub struct GeomData {
-    F : Vec3,
+    F : Option<Vec3>,
     V : Vec3,
     N : Vec3,
     H : Vec3,
-    L : Vec3,
+    L : Vec3,                   /// L = I or incident light direction
     NdotL : f64,
     NdotV : f64,
     LdotH : f64,
@@ -20,7 +20,7 @@ pub struct GeomData {
 }
 
 impl GeomData {
-    pub fun calc_dots(&self) {
+    pub fun calc_dots(&mut self) {
         self.NdotL = N.dot(L);
         self.NdotV = N.dot(V);
         self.LdotH = L.dot(H);
@@ -41,9 +41,11 @@ pub struct Material {
 
 /// Main trait for implementing the BSDF
 pub trait BSDFData {
-    pub fn init_shaders(&self);
+    pub fn new(material : &Material, data : &GeomData, alpha : f64, alpha_squared : f64) -> Self;
 
-    pub fn scatter_ray(inward_ray : &Vec3, outward_ray : &Vec3, throughput : &Vec3, material : &Material) -> Vec3;
+    pub fn init_data(&mut self);
 
-    pub fn eval(N : &Vec3, L : &Vec3, V : &Vec3, H : &Vec3) -> Vec3;
+    pub fn scatter_ray(inward_ray : &Vec3, outward_ray : &Vec3, throughput : &Vec3, material : &Material, backfacing : bool) -> Vec3;
+
+    pub fn eval(&mut self, backfacing : bool) -> Vec3;
 }
