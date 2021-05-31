@@ -1095,12 +1095,15 @@ where
         }
     }
 
-    fn ray_cast_traverse(
+    fn ray_cast_traverse<F>(
         &self,
         node_index: BVHNodeIndex,
         data: &RayCastData<Scalar>,
+        callback: Option<&F>,
         r_hit_data: &mut RayHitData<T, Scalar>,
-    ) {
+    ) where
+        F: Fn((&glm::TVec3<Scalar>, &glm::TVec3<Scalar>), T) -> Option<RayHitData<T, Scalar>>,
+    {
         let mut dist = r_hit_data.dist;
         let node = self.node_array.get(node_index.0).unwrap();
         if node.ray_hit(data, &mut dist) {
@@ -1109,18 +1112,38 @@ where
             }
 
             if node.totnode == 0 {
-                let optional_data =
-                    RayHitOptionalData::new(node.elem_index.unwrap(), data.co + data.dir * dist);
-                r_hit_data.set_data(optional_data);
-                r_hit_data.dist = dist;
+                if let Some(callback) = callback {
+                    if let Some(hit_data) =
+                        callback((&data.co, &data.dir), node.elem_index.unwrap())
+                    {
+                        *r_hit_data = hit_data;
+                    }
+                } else {
+                    let optional_data = RayHitOptionalData::new(
+                        node.elem_index.unwrap(),
+                        data.co + data.dir * dist,
+                    );
+                    r_hit_data.set_data(optional_data);
+                    r_hit_data.dist = dist;
+                }
             } else {
                 if data.ray_dot_axis[node.main_axis as usize] > Scalar::zero() {
                     for i in 0..node.totnode {
-                        self.ray_cast_traverse(node.children[i as usize], data, r_hit_data);
+                        self.ray_cast_traverse(
+                            node.children[i as usize],
+                            data,
+                            callback,
+                            r_hit_data,
+                        );
                     }
                 } else {
                     for i in (node.totnode - 1)..0 {
-                        self.ray_cast_traverse(node.children[i as usize], data, r_hit_data);
+                        self.ray_cast_traverse(
+                            node.children[i as usize],
+                            data,
+                            callback,
+                            r_hit_data,
+                        );
                     }
                 }
             }
@@ -1129,18 +1152,29 @@ where
         }
     }
 
-    pub fn ray_cast(
+    /// Casts a ray starting at `co` in the direction `dir` and can
+    /// have a callback function
+    ///
+    /// `callback` takes arguments as `((co, dir), elem_index)`
+    ///
+    /// Returns `None` if `ray_cast` didn't hit the BVH, return
+    /// `Some(RayHitData)` if it hit the BVH (and callback returned `Some`)
+    pub fn ray_cast<F>(
         &self,
         co: glm::TVec3<Scalar>,
         dir: glm::TVec3<Scalar>,
-    ) -> Option<RayHitData<T, Scalar>> {
+        callback: Option<&F>,
+    ) -> Option<RayHitData<T, Scalar>>
+    where
+        F: Fn((&glm::TVec3<Scalar>, &glm::TVec3<Scalar>), T) -> Option<RayHitData<T, Scalar>>,
+    {
         let root_index = self.nodes[self.totleaf];
 
         let data = RayCastData::new(co, dir);
 
         let mut hit_data = RayHitData::new(Float::max_value());
 
-        self.ray_cast_traverse(root_index, &data, &mut hit_data);
+        self.ray_cast_traverse(root_index, &data, callback, &mut hit_data);
 
         if let Some(_) = hit_data.data {
             return Some(hit_data);
