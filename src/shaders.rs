@@ -106,8 +106,8 @@ impl BSDFData for Diffuse {
             eval = eval * diffuse;
         }
 
-        /// Calculate the outward ray that is required
-        throughput = throughput * eval;
+        /// Modify Throughput
+        /// bsdf_bounce()
 
         return (outward_ray, throughput);
     }
