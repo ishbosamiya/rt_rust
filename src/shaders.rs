@@ -61,7 +61,7 @@ impl BSDFData for Diffuse {
     }
 
 
-    /// Function that evaluates the throughput for said shader
+    /// Function that evaluates the weight for said shader
     fn eval(&mut self, backfacing : bool) -> Vec3 {
         let eta = 1e-5_f64;
         let weight = Vec3::new(1.0, 1.0, 1.0);
