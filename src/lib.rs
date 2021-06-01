@@ -1,11 +1,14 @@
 pub mod camera;
+pub mod gpu_immediate;
 pub mod image;
 pub mod intersectable;
 pub mod math;
 pub mod ray;
 pub mod scene;
+pub mod shader;
 pub mod sphere;
 pub mod threadpool;
+pub mod util;
 
 use nalgebra_glm as glm;
 
