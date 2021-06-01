@@ -1,4 +1,5 @@
 pub mod camera;
+pub mod gpu_immediate;
 pub mod image;
 pub mod intersectable;
 pub mod math;
