@@ -60,10 +60,6 @@ impl BSDFData for Diffuse {
         } 
     }
 
-    /// Setting up all the dot products before hand
-    pub fn init_data(&mut self) {
-        self.data.calc_dots();
-    }
 
     /// Function that evaluates the throughput for said shader
     fn eval(&mut self, backfacing : bool) -> Vec3 {
