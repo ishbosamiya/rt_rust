@@ -43,11 +43,8 @@ pub struct Material {
 pub trait BSDFData {
     pub fn new(material : &Material, data : &GeomData, alpha : f64, alpha_squared : f64) -> Self;
 
-<<<<<<< HEAD
     fn eval_sample(&mut self, diffuse : &Vec3, pdf : &Vec3, eval : &Vec3, inward : &Ray);
 
-=======
->>>>>>> 990055249be78b0ffd165786b4c39a6634e33ef3
     pub fn scatter_ray(&mut self, inward_ray : &Vec3, outward_ray : &Vec3, throughput : &Vec3, material : &Material, backfacing : bool) -> Vec3;
 
     pub fn eval(&mut self, backfacing : bool) -> Vec3;

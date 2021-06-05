@@ -77,10 +77,6 @@ impl BSDFData for Diffuse {
         } 
     }
 
-<<<<<<< HEAD
-=======
-
->>>>>>> 990055249be78b0ffd165786b4c39a6634e33ef3
     /// Function that evaluates the throughput for said shader
     fn eval(&mut self, backfacing : bool) -> Vec3 {
         let eta = 1e-5_f64;
