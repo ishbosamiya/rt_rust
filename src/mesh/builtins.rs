@@ -11,7 +11,9 @@ macro_rules! load_builtin_mesh {
                 let file = $get_str_name();
                 let lines: Vec<&str> = file.split('\n').collect();
                 let reader = MeshIO::from_lines(&lines).unwrap();
-                Mesh::read(&reader).unwrap()
+                let mut mesh = Mesh::read(&reader).unwrap();
+                mesh.build_bvh(0.01);
+                mesh
             };
         }
 
