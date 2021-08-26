@@ -132,8 +132,9 @@ impl Mesh {
             .map(|face| {
                 face.iter()
                     .map(|_| {
+                        let vertex_index = vertex_counter;
                         vertex_counter += 1;
-                        vertex_counter
+                        vertex_index
                     })
                     .collect()
             })
