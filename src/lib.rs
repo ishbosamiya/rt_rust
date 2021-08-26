@@ -1,3 +1,4 @@
+pub mod bvh;
 pub mod camera;
 pub mod gl_camera;
 pub mod gpu_immediate;
