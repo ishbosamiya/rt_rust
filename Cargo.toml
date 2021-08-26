@@ -15,6 +15,7 @@ lazy_static = "1.4.0"
 gl = "0.14.0"
 paste = "1.0"
 generational-arena = "0.2.8"
+itertools = "0.10"
 
 [dev-dependencies]
 criterion = { version = "0.3.4", features = ["html_reports"]}

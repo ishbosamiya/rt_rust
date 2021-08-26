@@ -1,10 +1,12 @@
 pub mod bvh;
 pub mod camera;
+pub mod drawable;
 pub mod gl_camera;
 pub mod gpu_immediate;
 pub mod image;
 pub mod intersectable;
 pub mod math;
+pub mod mesh;
 pub mod meshio;
 pub mod ray;
 pub mod scene;

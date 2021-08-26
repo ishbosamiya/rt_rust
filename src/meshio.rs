@@ -15,16 +15,16 @@ pub struct MeshIO {
     pub line_indices: Vec<Vec<usize>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MeshIOError {
-    Io(std::io::Error),
+    Io(String),
     InvalidFile,
     Unknown,
 }
 
 impl From<std::io::Error> for MeshIOError {
     fn from(err: std::io::Error) -> MeshIOError {
-        MeshIOError::Io(err)
+        MeshIOError::Io(err.to_string())
     }
 }
 
