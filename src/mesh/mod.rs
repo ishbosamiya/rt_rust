@@ -1,3 +1,5 @@
+pub mod builtins;
+
 use std::fmt::Display;
 use std::path::Path;
 
@@ -98,12 +100,7 @@ pub struct Mesh {
 }
 
 impl Mesh {
-    pub fn read<P>(path: P) -> Result<Self, Error>
-    where
-        P: AsRef<Path>,
-    {
-        let meshio = MeshIO::read(path.as_ref())?;
-
+    pub fn read(meshio: &MeshIO) -> Result<Self, Error> {
         let vertices = meshio
             .face_indices
             .iter()
@@ -143,6 +140,15 @@ impl Mesh {
             .collect();
 
         Ok(Self { vertices, indices })
+    }
+
+    pub fn read_from_file<P>(path: P) -> Result<Self, Error>
+    where
+        P: AsRef<Path>,
+    {
+        let meshio = MeshIO::read(path.as_ref())?;
+
+        Mesh::read(&meshio)
     }
 
     fn draw_directional_light_shader(
