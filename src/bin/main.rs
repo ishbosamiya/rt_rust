@@ -288,24 +288,24 @@ fn main() {
         .unwrap();
 
         // Keep meshes that have shaders that need alpha channel
-        // (blending) bellow this and handle it properly
+        // (blending) below this and handle it properly
         {
             unsafe {
                 gl::Enable(gl::BLEND);
                 gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
             }
-        }
 
-        // GUI starts
-        {
-            egui.begin_frame(&window, &mut glfw);
-            egui::Window::new("Hello world!").show(egui.get_egui_ctx(), |ui| {
-                ui.label("Hello RT Rust!");
-                ui.label(format!("fps: {:.2}", fps.update_and_get(Some(60.0))));
-            });
-            let _output = egui.end_frame(glm::vec2(window_width as _, window_height as _));
+            // GUI starts
+            {
+                egui.begin_frame(&window, &mut glfw);
+                egui::Window::new("Hello world!").show(egui.get_egui_ctx(), |ui| {
+                    ui.label("Hello RT Rust!");
+                    ui.label(format!("fps: {:.2}", fps.update_and_get(Some(60.0))));
+                });
+                let _output = egui.end_frame(glm::vec2(window_width as _, window_height as _));
+            }
+            // GUI ends
         }
-        // GUI ends
 
         // Swap front and back buffers
         window.swap_buffers();
