@@ -12,7 +12,7 @@ struct BVHNodeIndex(pub Index);
 
 impl BVHNodeIndex {
     fn unknown() -> Self {
-        return Self(Index::from_raw_parts(usize::MAX, u64::MAX));
+        Self(Index::from_raw_parts(usize::MAX, u64::MAX))
     }
 }
 
@@ -31,20 +31,21 @@ where
 
 lazy_static! {
     static ref BVHTREE_KDOP_AXES: Vec<glm::DVec3> = {
-        let mut v = Vec::with_capacity(13);
-        v.push(glm::vec3(1.0, 0.0, 0.0));
-        v.push(glm::vec3(0.0, 1.0, 0.0));
-        v.push(glm::vec3(0.0, 0.0, 1.0));
-        v.push(glm::vec3(1.0, 1.0, 1.0));
-        v.push(glm::vec3(1.0, -1.0, 1.0));
-        v.push(glm::vec3(1.0, 1.0, -1.0));
-        v.push(glm::vec3(1.0, -1.0, -1.0));
-        v.push(glm::vec3(1.0, 1.0, 0.0));
-        v.push(glm::vec3(1.0, 0.0, 1.0));
-        v.push(glm::vec3(0.0, 1.0, 1.0));
-        v.push(glm::vec3(1.0, -1.0, 0.0));
-        v.push(glm::vec3(1.0, 0.0, -1.0));
-        v.push(glm::vec3(0.0, 1.0, -1.0));
+        let v = vec![
+            glm::vec3(1.0, 0.0, 0.0),
+            glm::vec3(0.0, 1.0, 0.0),
+            glm::vec3(0.0, 0.0, 1.0),
+            glm::vec3(1.0, 1.0, 1.0),
+            glm::vec3(1.0, -1.0, 1.0),
+            glm::vec3(1.0, 1.0, -1.0),
+            glm::vec3(1.0, -1.0, -1.0),
+            glm::vec3(1.0, 1.0, 0.0),
+            glm::vec3(1.0, 0.0, 1.0),
+            glm::vec3(0.0, 1.0, 1.0),
+            glm::vec3(1.0, -1.0, 0.0),
+            glm::vec3(1.0, 0.0, -1.0),
+            glm::vec3(0.0, 1.0, -1.0),
+        ];
         assert_eq!(v.len(), 13);
         v
     };
@@ -55,7 +56,7 @@ where
     T: Copy,
 {
     fn new() -> Self {
-        return Self {
+        Self {
             children: Vec::new(),
             parent: None,
 
@@ -63,13 +64,13 @@ where
             elem_index: None,
             totnode: 0,
             main_axis: 0,
-        };
+        }
     }
 
     fn min_max_init(&mut self, start_axis: u8, stop_axis: u8) {
         let bv = &mut self.bv;
         for axis_iter in start_axis..stop_axis {
-            bv[((2 * axis_iter) + 0) as usize] = f64::MAX;
+            bv[(2 * axis_iter) as usize] = f64::MAX;
             bv[((2 * axis_iter) + 1) as usize] = f64::MIN;
         }
     }
@@ -113,7 +114,7 @@ where
             }
         }
 
-        return true;
+        true
     }
 
     fn ray_hit(&self, data: &RayCastData, r_dist: &mut f64) -> bool {
@@ -134,7 +135,7 @@ where
         }
 
         *r_dist = t1x.max(t1y).max(t1z);
-        return true;
+        true
     }
 }
 
@@ -185,24 +186,24 @@ impl BVHBuildHelper {
         branches_on_level: [usize; 32],
         remain_leafs: usize,
     ) -> Self {
-        return Self {
+        Self {
             totleafs,
             leafs_per_child,
             branches_on_level,
             remain_leafs,
-        };
+        }
     }
 
     /// Return the min index of all the leafs achievable with the given branch
     fn implicit_leafs_index(&self, depth: usize, child_index: usize) -> usize {
         let min_leaf_index = child_index * self.leafs_per_child[depth - 1];
         if min_leaf_index <= self.remain_leafs {
-            return min_leaf_index;
+            min_leaf_index
         } else if self.leafs_per_child[depth] != 0 {
-            return self.totleafs
-                - (self.branches_on_level[depth - 1] - child_index) * self.leafs_per_child[depth];
+            self.totleafs
+                - (self.branches_on_level[depth - 1] - child_index) * self.leafs_per_child[depth]
         } else {
-            return self.remain_leafs;
+            self.remain_leafs
         }
     }
 }
@@ -225,14 +226,14 @@ impl<'a> BVHDivNodesData<'a> {
         i: usize,
         first_of_next_level: usize,
     ) -> Self {
-        return Self {
+        Self {
             brances_array_start,
             tree_offset,
             data,
             depth,
             i,
             first_of_next_level,
-        };
+        }
     }
 }
 
@@ -249,7 +250,7 @@ where
     T: Copy,
 {
     fn new(index_1: T, index_2: T) -> Self {
-        return Self { index_1, index_2 };
+        Self { index_1, index_2 }
     }
 }
 
@@ -314,13 +315,13 @@ impl RayCastData {
             ray_dot_axis[i] = glm::dot(&dir, &BVHTREE_KDOP_AXES[i]);
 
             if ray_dot_axis[i].abs() < f64::EPSILON {
-                ray_dot_axis[i] = 0.0.into();
+                ray_dot_axis[i] = 0.0;
                 idot_axis[i] = f64::MAX;
             } else {
                 idot_axis[i] = 1.0 / ray_dot_axis[i];
             }
 
-            if idot_axis[i] < 0.0.into() {
+            if idot_axis[i] < 0.0 {
                 index[2 * i] = 1;
             } else {
                 index[2 * i] = 0;
@@ -360,7 +361,7 @@ where
     /// * When invalid `tree_type` is given.
     pub fn new(max_size: usize, epsilon: f64, tree_type: u8, axis: u8) -> Self {
         assert!(
-            tree_type >= 2 && tree_type <= MAX_TREETYPE,
+            (2..=MAX_TREETYPE).contains(&tree_type),
             "tree_type must be >= 2 and <= {}",
             MAX_TREETYPE
         );
@@ -408,7 +409,7 @@ where
                 .resize(tree_type.into(), BVHNodeIndex::unknown());
         }
 
-        return Self {
+        Self {
             nodes,
             node_array,
 
@@ -419,7 +420,7 @@ where
             stop_axis,
             axis,
             tree_type,
-        };
+        }
     }
 
     /// Insert new node
@@ -500,7 +501,7 @@ where
         let nnodes = (remain + tree_type - 2) / (tree_type - 1);
         let remain_leafs = remain + nnodes;
 
-        return BVHBuildHelper::new(totleafs, leafs_per_child, branches_on_level, remain_leafs);
+        BVHBuildHelper::new(totleafs, leafs_per_child, branches_on_level, remain_leafs)
     }
 
     fn bvh_insertion_sort(&mut self, lo: usize, hi: usize, axis: usize) {
@@ -544,13 +545,11 @@ where
                 node_a_j = self.node_array.get(self.nodes[j].0).unwrap();
             }
 
-            if !(i < j) {
+            if i >= j {
                 return i;
             }
 
-            let temp = self.nodes[i];
-            self.nodes[i] = self.nodes[j];
-            self.nodes[j] = temp;
+            self.nodes.swap(i, j);
 
             i += 1;
         }
@@ -563,20 +562,20 @@ where
 
         if node_mid.bv[axis] < node_lo.bv[axis] {
             if node_hi.bv[axis] < node_mid.bv[axis] {
-                return self.nodes[mid];
+                self.nodes[mid]
             } else if node_hi.bv[axis] < node_lo.bv[axis] {
-                return self.nodes[hi];
+                self.nodes[hi]
             } else {
-                return self.nodes[lo];
+                self.nodes[lo]
             }
         } else if node_hi.bv[axis] < node_mid.bv[axis] {
             if node_hi.bv[axis] < node_lo.bv[axis] {
-                return self.nodes[lo];
+                self.nodes[lo]
             } else {
-                return self.nodes[hi];
+                self.nodes[hi]
             }
         } else {
-            return self.nodes[mid];
+            self.nodes[mid]
         }
     }
 
@@ -671,6 +670,7 @@ where
                 .data
                 .implicit_leafs_index(data.depth + 1, child_level_index + 1);
 
+            #[allow(clippy::comparison_chain)]
             if child_leafs_end - child_leafs_begin > 1 {
                 let child_index = BVHNodeIndex(
                     self.node_array
@@ -777,7 +777,7 @@ where
         if node_index > self.totleaf {
             return Err(BVHError::IndexOutOfRange);
         }
-        if co_moving_many.len() > 0 && co_many.len() != co_moving_many.len() {
+        if !co_moving_many.is_empty() && co_many.len() != co_moving_many.len() {
             return Err(BVHError::DifferentNumPoints);
         }
 
@@ -785,7 +785,7 @@ where
 
         node.create_kdop_hull(self.start_axis, self.stop_axis, co_many, false);
 
-        if co_moving_many.len() > 0 {
+        if !co_moving_many.is_empty() {
             node.create_kdop_hull(self.start_axis, self.stop_axis, co_moving_many, true);
         }
 
@@ -796,7 +796,7 @@ where
             node.bv[(2 * axis_iter) + 1] += self.epsilon; // max
         }
 
-        return Ok(());
+        Ok(())
     }
 
     fn node_join(&mut self, nodes_index: usize) {
@@ -845,9 +845,10 @@ where
 
     fn overlap_thread_num(&self) -> usize {
         let node = self.node_array.get(self.nodes[self.totleaf].0).unwrap();
-        return self.tree_type.min(node.totnode).into();
+        self.tree_type.min(node.totnode).into()
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn overlap_traverse_callback<F>(
         &self,
         other: &BVHTree<T>,
@@ -885,7 +886,7 @@ where
                 } else {
                     for j in 0..other.tree_type {
                         let child_index = node_2.children[j as usize];
-                        if let Some(_) = other.node_array.get(child_index.0) {
+                        if other.node_array.get(child_index.0).is_some() {
                             self.overlap_traverse_callback(
                                 other,
                                 node_1_index,
@@ -901,7 +902,7 @@ where
             } else {
                 for j in 0..self.tree_type {
                     let child_index = node_1.children[j as usize];
-                    if let Some(_) = self.node_array.get(child_index.0) {
+                    if self.node_array.get(child_index.0).is_some() {
                         self.overlap_traverse_callback(
                             other,
                             child_index,
@@ -946,7 +947,7 @@ where
                 } else {
                     for j in 0..other.tree_type {
                         let child_index = node_2.children[j as usize];
-                        if let Some(_) = other.node_array.get(child_index.0) {
+                        if other.node_array.get(child_index.0).is_some() {
                             self.overlap_traverse(
                                 other,
                                 node_1_index,
@@ -961,7 +962,7 @@ where
             } else {
                 for j in 0..self.tree_type {
                     let child_index = node_1.children[j as usize];
-                    if let Some(_) = self.node_array.get(child_index.0) {
+                    if self.node_array.get(child_index.0).is_some() {
                         self.overlap_traverse(
                             other,
                             child_index,
@@ -1044,10 +1045,10 @@ where
                     &mut overlap_pairs,
                 );
             }
-            if overlap_pairs.len() == 0 {
-                return None;
+            if overlap_pairs.is_empty() {
+                None
             } else {
-                return Some(overlap_pairs);
+                Some(overlap_pairs)
             }
         }
     }
@@ -1093,7 +1094,6 @@ where
                 }
             }
         } else {
-            return;
         }
     }
 
@@ -1121,33 +1121,33 @@ where
 
         self.ray_cast_traverse(root_index, &data, callback, &mut hit_data);
 
-        if let Some(_) = hit_data.data {
-            return Some(hit_data);
+        if hit_data.data.is_some() {
+            Some(hit_data)
         } else {
-            return None;
+            None
         }
     }
 }
 
 fn implicit_needed_branches(tree_type: u8, leafs: usize) -> usize {
-    return 1.max(leafs + tree_type as usize - 3) / (tree_type - 1) as usize;
+    1.max(leafs + tree_type as usize - 3) / (tree_type - 1) as usize
 }
 
-fn get_largest_axis(bv: &Vec<f64>) -> u8 {
+fn get_largest_axis(bv: &[f64]) -> u8 {
     let middle_point_x = bv[1] - bv[0]; // x axis
     let middle_point_y = bv[3] - bv[2]; // y axis
     let middle_point_z = bv[5] - bv[4]; // z axis
 
     if middle_point_x > middle_point_y {
         if middle_point_x > middle_point_z {
-            return 1; // max x axis
+            1 // max x axis
         } else {
-            return 5; // max z axis
+            5 // max z axis
         }
     } else if middle_point_y > middle_point_z {
-        return 3; // max y axis
+        3 // max y axis
     } else {
-        return 5; // max z axis
+        5 // max z axis
     }
 }
 
