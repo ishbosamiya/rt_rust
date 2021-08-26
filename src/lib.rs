@@ -5,6 +5,7 @@ pub mod gpu_immediate;
 pub mod image;
 pub mod intersectable;
 pub mod math;
+pub mod meshio;
 pub mod ray;
 pub mod scene;
 pub mod shader;
