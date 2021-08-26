@@ -332,6 +332,7 @@ pub struct MeshDrawData<'a> {
     use_shader: MeshUseShader,
     draw_bvh: bool,
     bvh_draw_level: usize,
+    bvh_color: glm::DVec4,
     _color: Option<glm::Vec4>,
 }
 
@@ -341,6 +342,7 @@ impl<'a> MeshDrawData<'a> {
         use_shader: MeshUseShader,
         draw_bvh: bool,
         bvh_draw_level: usize,
+        bvh_color: glm::DVec4,
         color: Option<glm::Vec4>,
     ) -> Self {
         MeshDrawData {
@@ -348,6 +350,7 @@ impl<'a> MeshDrawData<'a> {
             use_shader,
             draw_bvh,
             bvh_draw_level,
+            bvh_color,
             _color: color,
         }
     }
@@ -367,6 +370,7 @@ impl Drawable<MeshDrawData<'_>, MeshDrawError> for Mesh {
                 bvh.draw(&mut BVHDrawData::new(
                     draw_data.imm,
                     draw_data.bvh_draw_level,
+                    draw_data.bvh_color,
                 ))?
             }
         }

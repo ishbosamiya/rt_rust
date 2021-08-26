@@ -216,6 +216,8 @@ fn main() {
     let mut draw_bvh = true;
     let mut bvh_draw_level = 0;
     let mut should_cast_ray = false;
+    let mut bvh_color = glm::vec4(0.9, 0.5, 0.2, 1.0);
+    let mut bvh_ray_color: glm::DVec4 = glm::vec4(0.2, 0.5, 0.9, 1.0);
     let mut bvh_ray_intersection = Vec::new();
 
     while !window.should_close() {
@@ -297,6 +299,7 @@ fn main() {
             MeshUseShader::DirectionalLight,
             draw_bvh,
             bvh_draw_level,
+            bvh_color,
             None,
         ))
         .unwrap();
@@ -350,13 +353,27 @@ fn main() {
                     smooth_color_3d_shader,
                 );
 
+                let bvh_ray_color: glm::Vec4 = glm::convert(bvh_ray_color);
+
                 bvh_ray_intersection.iter().for_each(|(pos, ray_hit_info)| {
                     let p1: glm::Vec3 = glm::convert(*pos);
                     let p2: glm::Vec3 = glm::convert(ray_hit_info.data.as_ref().unwrap().co);
 
-                    imm.attr_4f(color_attr, 0.8, 0.3, 0.8, 1.0);
+                    imm.attr_4f(
+                        color_attr,
+                        bvh_ray_color[0],
+                        bvh_ray_color[1],
+                        bvh_ray_color[2],
+                        bvh_ray_color[3],
+                    );
                     imm.vertex_3f(pos_attr, p1[0], p1[1], p1[2]);
-                    imm.attr_4f(color_attr, 0.8, 0.3, 0.8, 1.0);
+                    imm.attr_4f(
+                        color_attr,
+                        bvh_ray_color[0],
+                        bvh_ray_color[1],
+                        bvh_ray_color[2],
+                        bvh_ray_color[3],
+                    );
                     imm.vertex_3f(pos_attr, p2[0], p2[1], p2[2]);
                 });
 
@@ -381,6 +398,8 @@ fn main() {
 
                     ui.checkbox(&mut draw_bvh, "Draw BVH");
                     ui.add(egui::Slider::new(&mut bvh_draw_level, 0..=15).text("BVH Draw Level"));
+                    color_edit_button_dvec4(ui, "BVH Color", &mut bvh_color);
+                    color_edit_button_dvec4(ui, "BVH Ray Color", &mut bvh_ray_color);
 
                     if ui.button("Delete Rays").clicked() {
                         bvh_ray_intersection.clear();
@@ -456,4 +475,31 @@ fn handle_window_event(
     }
 
     *last_cursor = cursor;
+}
+
+fn color_edit_dvec4(ui: &mut egui::Ui, color: &mut glm::DVec4) {
+    let mut color_egui = egui::Color32::from_rgba_premultiplied(
+        (color[0] * 255.0) as _,
+        (color[1] * 255.0) as _,
+        (color[2] * 255.0) as _,
+        (color[3] * 255.0) as _,
+    );
+    egui::color_picker::color_edit_button_srgba(
+        ui,
+        &mut color_egui,
+        egui::color_picker::Alpha::BlendOrAdditive,
+    );
+    *color = glm::vec4(
+        color_egui.r() as f64 / 255.0,
+        color_egui.g() as f64 / 255.0,
+        color_egui.b() as f64 / 255.0,
+        color_egui.a() as f64 / 255.0,
+    );
+}
+
+fn color_edit_button_dvec4(ui: &mut egui::Ui, text: &str, color: &mut glm::DVec4) {
+    ui.horizontal(|ui| {
+        ui.label(text);
+        color_edit_dvec4(ui, color);
+    });
 }

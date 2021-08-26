@@ -1136,11 +1136,13 @@ where
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn recursive_draw(
         &self,
         node_index: BVHNodeIndex,
         pos_attr: usize,
         color_attr: usize,
+        color: &glm::Vec4,
         imm: &mut GPUImmediate,
         draw_level: usize,
         current_level: usize,
@@ -1155,7 +1157,7 @@ where
             let z1 = node.bv[(2 * 2)] as f32;
             let z2 = node.bv[(2 * 2) + 1] as f32;
 
-            draw_box(imm, x1, x2, y1, y2, z1, z2, pos_attr, color_attr);
+            draw_box(imm, x1, x2, y1, y2, z1, z2, pos_attr, color_attr, color);
 
             return; // don't need to go below this level anyway to render
         }
@@ -1168,6 +1170,7 @@ where
                         child_index,
                         pos_attr,
                         color_attr,
+                        color,
                         imm,
                         draw_level,
                         current_level + 1,
@@ -1206,10 +1209,11 @@ fn draw_line(
     p2: &glm::Vec3,
     pos_attr: usize,
     color_attr: usize,
+    color: &glm::Vec4,
 ) {
-    imm.attr_4f(color_attr, 0.8, 0.3, 0.8, 1.0);
+    imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
     imm.vertex_3f(pos_attr, p1[0], p1[1], p1[2]);
-    imm.attr_4f(color_attr, 0.8, 0.3, 0.8, 1.0);
+    imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
     imm.vertex_3f(pos_attr, p2[0], p2[1], p2[2]);
 }
 
@@ -1224,6 +1228,7 @@ fn draw_box(
     z2: f32,
     pos_attr: usize,
     color_attr: usize,
+    color: &glm::Vec4,
 ) {
     let v1 = glm::vec3(x1, y1, z1);
     let v2 = glm::vec3(x2, y1, z1);
@@ -1234,30 +1239,35 @@ fn draw_box(
     let v7 = glm::vec3(x2, y2, z2);
     let v8 = glm::vec3(x1, y2, z2);
 
-    draw_line(imm, &v1, &v2, pos_attr, color_attr);
-    draw_line(imm, &v2, &v3, pos_attr, color_attr);
-    draw_line(imm, &v3, &v4, pos_attr, color_attr);
-    draw_line(imm, &v4, &v1, pos_attr, color_attr);
+    draw_line(imm, &v1, &v2, pos_attr, color_attr, color);
+    draw_line(imm, &v2, &v3, pos_attr, color_attr, color);
+    draw_line(imm, &v3, &v4, pos_attr, color_attr, color);
+    draw_line(imm, &v4, &v1, pos_attr, color_attr, color);
 
-    draw_line(imm, &v5, &v6, pos_attr, color_attr);
-    draw_line(imm, &v6, &v7, pos_attr, color_attr);
-    draw_line(imm, &v7, &v8, pos_attr, color_attr);
-    draw_line(imm, &v8, &v5, pos_attr, color_attr);
+    draw_line(imm, &v5, &v6, pos_attr, color_attr, color);
+    draw_line(imm, &v6, &v7, pos_attr, color_attr, color);
+    draw_line(imm, &v7, &v8, pos_attr, color_attr, color);
+    draw_line(imm, &v8, &v5, pos_attr, color_attr, color);
 
-    draw_line(imm, &v1, &v5, pos_attr, color_attr);
-    draw_line(imm, &v2, &v6, pos_attr, color_attr);
-    draw_line(imm, &v3, &v7, pos_attr, color_attr);
-    draw_line(imm, &v4, &v8, pos_attr, color_attr);
+    draw_line(imm, &v1, &v5, pos_attr, color_attr, color);
+    draw_line(imm, &v2, &v6, pos_attr, color_attr, color);
+    draw_line(imm, &v3, &v7, pos_attr, color_attr, color);
+    draw_line(imm, &v4, &v8, pos_attr, color_attr, color);
 }
 
 pub struct BVHDrawData<'a> {
     imm: &'a mut GPUImmediate,
     draw_level: usize,
+    color: glm::DVec4,
 }
 
 impl<'a> BVHDrawData<'a> {
-    pub fn new(imm: &'a mut GPUImmediate, draw_level: usize) -> Self {
-        Self { imm, draw_level }
+    pub fn new(imm: &'a mut GPUImmediate, draw_level: usize, color: glm::DVec4) -> Self {
+        Self {
+            imm,
+            draw_level,
+            color,
+        }
     }
 }
 
@@ -1271,6 +1281,7 @@ where
             .as_ref()
             .unwrap();
         let draw_level = draw_data.draw_level;
+        let color: glm::Vec4 = glm::convert(draw_data.color);
         smooth_color_3d_shader.use_shader();
         smooth_color_3d_shader.set_mat4("model\0", &glm::identity());
 
@@ -1298,6 +1309,7 @@ where
             self.nodes[self.totleaf],
             pos_attr,
             color_attr,
+            &color,
             imm,
             draw_level,
             0,
