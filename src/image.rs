@@ -18,11 +18,11 @@ impl Image {
         empty_row.resize(width, Vec3::new(0.0, 0.0, 0.0));
         pixels.resize(height, empty_row);
 
-        return Image {
+        Image {
             pixels,
             width,
             height,
-        };
+        }
     }
 
     pub fn set_pixel(&mut self, i: usize, j: usize, data: Vec3) {
@@ -30,23 +30,23 @@ impl Image {
     }
 
     pub fn get_pixel(&self, i: usize, j: usize) -> &Vec3 {
-        return &self.pixels[i][j];
+        &self.pixels[i][j]
     }
 
     pub fn width(&self) -> usize {
-        return self.width;
+        self.width
     }
 
     pub fn height(&self) -> usize {
-        return self.height;
+        self.height
     }
 
     pub fn get_pixels_mut(&mut self) -> &mut Vec<Vec<Vec3>> {
-        return &mut self.pixels;
+        &mut self.pixels
     }
 
     pub fn get_pixels(&self) -> &Vec<Vec<Vec3>> {
-        return &self.pixels;
+        &self.pixels
     }
 
     pub fn get_slabs(&self, num_slabs: usize) -> Vec<Slab> {
@@ -66,7 +66,7 @@ impl Image {
             last_slab_height,
         ));
 
-        return slabs;
+        slabs
     }
 }
 
@@ -81,13 +81,13 @@ pub struct Slab {
 
 impl Slab {
     pub fn new(x_start: usize, y_start: usize, width: usize, height: usize) -> Self {
-        return Self {
+        Self {
             x_start,
             y_start,
             width,
             height,
             pixels: Vec::new(),
-        };
+        }
     }
 
     pub fn set_pixels(&mut self, pixels: Vec<Vec<Vec3>>) {
@@ -95,7 +95,7 @@ impl Slab {
     }
 
     pub fn get_pixels(&self) -> &Vec<Vec<Vec3>> {
-        return &self.pixels;
+        &self.pixels
     }
 }
 
@@ -105,7 +105,7 @@ pub struct PPM<'a> {
 
 impl PPM<'_> {
     pub fn new(image: &Image) -> PPM {
-        return PPM { image };
+        PPM { image }
     }
 
     pub fn write_to_file<P: AsRef<std::path::Path>>(&self, path: P) -> std::io::Result<()> {
@@ -122,20 +122,20 @@ impl PPM<'_> {
 
         for i in self.image.get_pixels() {
             for j in i {
-                let j = glm::clamp(&j, 0.0, 1.0);
+                let j = glm::clamp(j, 0.0, 1.0);
                 string_data.push_str(&((j[0] * 255.0) as i64 % 256).to_string());
-                string_data.push_str(" ");
+                string_data.push(' ');
                 string_data.push_str(&((j[1] * 255.0) as i64 % 256).to_string());
-                string_data.push_str(" ");
+                string_data.push(' ');
                 string_data.push_str(&((j[2] * 255.0) as i64 % 256).to_string());
-                string_data.push_str(" ");
+                string_data.push(' ');
             }
-            string_data.push_str("\n");
+            string_data.push('\n');
         }
 
         let mut fout = File::create(path).unwrap();
         fout.write_all(string_data.as_bytes())?;
 
-        return Ok(());
+        Ok(())
     }
 }
