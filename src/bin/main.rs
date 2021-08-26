@@ -61,7 +61,7 @@ fn main() {
 
                             let ray = camera.get_ray(u, v);
 
-                            let pixel = trace_ray(&ray, &camera, &SCENE, 2000);
+                            let pixel = trace_ray(&ray, camera, &SCENE, 2000);
                             pixels_inner.push(pixel);
                         }
                         pixels.push(pixels_inner);
