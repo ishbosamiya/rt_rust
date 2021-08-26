@@ -7,7 +7,6 @@ pub mod ray;
 pub mod scene;
 pub mod shader;
 pub mod sphere;
-pub mod threadpool;
 pub mod util;
 
 use nalgebra_glm as glm;
@@ -65,7 +64,6 @@ mod tests {
         use crate::intersectable::Intersectable;
         use crate::ray::Ray;
         use crate::sphere::Sphere;
-        use crate::threadpool::ThreadPool;
         use nalgebra_glm as glm;
         use rand::prelude::*;
 
@@ -93,27 +91,16 @@ mod tests {
             )));
         }
         let (t_min, t_max) = (0.01, 1000.0);
-        let pool = ThreadPool::new(12);
 
-        let mut chunk_size = scene.len() / pool.get_num_threads();
+        let mut chunk_size = scene.len();
         if chunk_size == 0 {
             chunk_size = 1;
         }
 
-        // for objects in scene.chunks(chunk_size) {
-        //     objects.iter().for_each(|object| {
-        //         object.hit(&ray, t_min, t_max);
-        //     })
-        // }
-
-        pool.scoped(|scope| {
-            for objects in scene.chunks(chunk_size) {
-                scope.execute(|| {
-                    objects.iter().for_each(|object| {
-                        object.hit(&ray, t_min, t_max);
-                    })
-                });
-            }
-        });
+        for objects in scene.chunks(chunk_size) {
+            objects.iter().for_each(|object| {
+                object.hit(&ray, t_min, t_max);
+            })
+        }
     }
 }
