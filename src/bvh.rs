@@ -7,8 +7,6 @@ use std::fmt::Debug;
 
 const MAX_TREETYPE: u8 = 32;
 
-type Scalar = f64;
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 struct BVHNodeIndex(pub Index);
 
@@ -25,7 +23,7 @@ where
     children: Vec<BVHNodeIndex>,  // Indices of the child nodes
     parent: Option<BVHNodeIndex>, // Parent index
 
-    bv: Vec<Scalar>,       // Bounding volume axis data
+    bv: Vec<f64>,          // Bounding volume axis data
     elem_index: Option<T>, // Index of element stored in the node
     totnode: u8,           // How many nodes are used, used for speedup
     main_axis: u8,         // Axis used to split this node
@@ -71,8 +69,8 @@ where
     fn min_max_init(&mut self, start_axis: u8, stop_axis: u8) {
         let bv = &mut self.bv;
         for axis_iter in start_axis..stop_axis {
-            bv[((2 * axis_iter) + 0) as usize] = Scalar::MAX;
-            bv[((2 * axis_iter) + 1) as usize] = Scalar::MIN;
+            bv[((2 * axis_iter) + 0) as usize] = f64::MAX;
+            bv[((2 * axis_iter) + 1) as usize] = f64::MIN;
         }
     }
 
@@ -80,7 +78,7 @@ where
         &mut self,
         start_axis: u8,
         stop_axis: u8,
-        co_many: Vec<glm::TVec3<Scalar>>,
+        co_many: Vec<glm::DVec3>,
         moving: bool,
     ) {
         if !moving {
@@ -118,7 +116,7 @@ where
         return true;
     }
 
-    fn ray_hit(&self, data: &RayCastData, r_dist: &mut Scalar) -> bool {
+    fn ray_hit(&self, data: &RayCastData, r_dist: &mut f64) -> bool {
         let bv = &self.bv;
 
         let t1x = (bv[data.index[0]] - data.co[0]) * data.idot_axis[0];
@@ -164,7 +162,7 @@ where
     nodes: Vec<BVHNodeIndex>,
     node_array: Arena<BVHNode<T>>, // Where the actual nodes are stored
 
-    epsilon: Scalar, // Epsilon for inflation of the kdop
+    epsilon: f64, // Epsilon for inflation of the kdop
     totleaf: usize,
     totbranch: usize,
     start_axis: u8,
@@ -260,14 +258,14 @@ where
     T: Copy,
 {
     pub elem_index: T,
-    pub co: glm::TVec3<Scalar>,
+    pub co: glm::DVec3,
 }
 
 impl<T> RayHitOptionalData<T>
 where
     T: Copy,
 {
-    pub fn new(elem_index: T, co: glm::TVec3<Scalar>) -> Self {
+    pub fn new(elem_index: T, co: glm::DVec3) -> Self {
         Self { elem_index, co }
     }
 }
@@ -277,15 +275,15 @@ where
     T: Copy,
 {
     pub data: Option<RayHitOptionalData<T>>,
-    pub normal: Option<glm::TVec3<Scalar>>,
-    pub dist: Scalar,
+    pub normal: Option<glm::DVec3>,
+    pub dist: f64,
 }
 
 impl<T> RayHitData<T>
 where
     T: Copy,
 {
-    pub fn new(dist: Scalar) -> Self {
+    pub fn new(dist: f64) -> Self {
         Self {
             data: None,
             normal: None,
@@ -299,25 +297,25 @@ where
 }
 
 struct RayCastData {
-    co: glm::TVec3<Scalar>,
-    dir: glm::TVec3<Scalar>,
+    co: glm::DVec3,
+    dir: glm::DVec3,
 
-    ray_dot_axis: [Scalar; 13],
-    idot_axis: [Scalar; 13],
+    ray_dot_axis: [f64; 13],
+    idot_axis: [f64; 13],
     index: [usize; 6],
 }
 
 impl RayCastData {
-    fn new(co: glm::TVec3<Scalar>, dir: glm::TVec3<Scalar>) -> Self {
-        let mut ray_dot_axis: [Scalar; 13] = [0.0; 13];
-        let mut idot_axis: [Scalar; 13] = [0.0; 13];
+    fn new(co: glm::DVec3, dir: glm::DVec3) -> Self {
+        let mut ray_dot_axis: [f64; 13] = [0.0; 13];
+        let mut idot_axis: [f64; 13] = [0.0; 13];
         let mut index: [usize; 6] = [0; 6];
         for i in 0..3 {
             ray_dot_axis[i] = glm::dot(&dir, &BVHTREE_KDOP_AXES[i]);
 
-            if ray_dot_axis[i].abs() < Scalar::EPSILON {
+            if ray_dot_axis[i].abs() < f64::EPSILON {
                 ray_dot_axis[i] = 0.0.into();
-                idot_axis[i] = Scalar::MAX;
+                idot_axis[i] = f64::MAX;
             } else {
                 idot_axis[i] = 1.0 / ray_dot_axis[i];
             }
@@ -360,15 +358,15 @@ where
     /// * When invalid `axis` is given.
     ///
     /// * When invalid `tree_type` is given.
-    pub fn new(max_size: usize, epsilon: Scalar, tree_type: u8, axis: u8) -> Self {
+    pub fn new(max_size: usize, epsilon: f64, tree_type: u8, axis: u8) -> Self {
         assert!(
             tree_type >= 2 && tree_type <= MAX_TREETYPE,
             "tree_type must be >= 2 and <= {}",
             MAX_TREETYPE
         );
 
-        // epsilon must be >= Scalar::EPSILON so that tangent rays can still hit a bounding volume
-        let epsilon = epsilon.max(Scalar::EPSILON);
+        // epsilon must be >= f64::EPSILON so that tangent rays can still hit a bounding volume
+        let epsilon = epsilon.max(f64::EPSILON);
 
         let start_axis;
         let stop_axis;
@@ -431,7 +429,7 @@ where
     /// will return `index` stored in the node that has closest hit
     ///
     /// `co_many` contains list of points to form the new BV around
-    pub fn insert(&mut self, index: T, co_many: Vec<glm::TVec3<Scalar>>) {
+    pub fn insert(&mut self, index: T, co_many: Vec<glm::DVec3>) {
         assert!(self.totbranch == 0);
 
         self.nodes[self.totleaf] = BVHNodeIndex(self.node_array.get_unknown_index(self.totleaf));
@@ -773,8 +771,8 @@ where
     pub fn update_node(
         &mut self,
         node_index: usize,
-        co_many: Vec<glm::TVec3<Scalar>>,
-        co_moving_many: Vec<glm::TVec3<Scalar>>,
+        co_many: Vec<glm::DVec3>,
+        co_moving_many: Vec<glm::DVec3>,
     ) -> Result<(), BVHError> {
         if node_index > self.totleaf {
             return Err(BVHError::IndexOutOfRange);
@@ -1061,7 +1059,7 @@ where
         callback: Option<&F>,
         r_hit_data: &mut RayHitData<T>,
     ) where
-        F: Fn((&glm::TVec3<Scalar>, &glm::TVec3<Scalar>), T) -> Option<RayHitData<T>>,
+        F: Fn((&glm::DVec3, &glm::DVec3), T) -> Option<RayHitData<T>>,
     {
         let mut dist = r_hit_data.dist;
         let node = self.node_array.get(node_index.0).unwrap();
@@ -1108,18 +1106,18 @@ where
     /// `Some(RayHitData)` if it hit the BVH (and callback returned `Some`)
     pub fn ray_cast<F>(
         &self,
-        co: glm::TVec3<Scalar>,
-        dir: glm::TVec3<Scalar>,
+        co: glm::DVec3,
+        dir: glm::DVec3,
         callback: Option<&F>,
     ) -> Option<RayHitData<T>>
     where
-        F: Fn((&glm::TVec3<Scalar>, &glm::TVec3<Scalar>), T) -> Option<RayHitData<T>>,
+        F: Fn((&glm::DVec3, &glm::DVec3), T) -> Option<RayHitData<T>>,
     {
         let root_index = self.nodes[self.totleaf];
 
         let data = RayCastData::new(co, dir);
 
-        let mut hit_data = RayHitData::new(Scalar::MAX);
+        let mut hit_data = RayHitData::new(f64::MAX);
 
         self.ray_cast_traverse(root_index, &data, callback, &mut hit_data);
 
@@ -1135,7 +1133,7 @@ fn implicit_needed_branches(tree_type: u8, leafs: usize) -> usize {
     return 1.max(leafs + tree_type as usize - 3) / (tree_type - 1) as usize;
 }
 
-fn get_largest_axis(bv: &Vec<Scalar>) -> u8 {
+fn get_largest_axis(bv: &Vec<f64>) -> u8 {
     let middle_point_x = bv[1] - bv[0]; // x axis
     let middle_point_y = bv[3] - bv[2]; // y axis
     let middle_point_z = bv[5] - bv[4]; // z axis
