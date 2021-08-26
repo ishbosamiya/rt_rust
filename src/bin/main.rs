@@ -381,6 +381,10 @@ fn main() {
 
                     ui.checkbox(&mut draw_bvh, "Draw BVH");
                     ui.add(egui::Slider::new(&mut bvh_draw_level, 0..=15).text("BVH Draw Level"));
+
+                    if ui.button("Delete Rays").clicked() {
+                        bvh_ray_intersection.clear();
+                    }
                 });
                 let _output = egui.end_frame(glm::vec2(window_width as _, window_height as _));
             }
