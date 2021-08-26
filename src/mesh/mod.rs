@@ -272,6 +272,10 @@ impl Mesh {
 
         self.bvh = Some(bvh);
     }
+
+    pub fn get_bvh(&self) -> &Option<BVHTree<usize>> {
+        &self.bvh
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]

@@ -258,6 +258,7 @@ where
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct RayHitOptionalData<T>
 where
     T: Copy,
@@ -275,6 +276,7 @@ where
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct RayHitData<T>
 where
     T: Copy,

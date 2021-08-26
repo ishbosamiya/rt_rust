@@ -1,3 +1,4 @@
+use rt::bvh::BVHTree;
 use rt::camera::Camera;
 use rt::image::{Image, PPM};
 use rt::math::Scalar;
@@ -214,6 +215,8 @@ fn main() {
 
     let mut draw_bvh = true;
     let mut bvh_draw_level = 0;
+    let mut should_cast_ray = false;
+    let mut bvh_ray_intersection = Vec::new();
 
     while !window.should_close() {
         glfw.poll_events();
@@ -221,7 +224,13 @@ fn main() {
         glfw::flush_messages(&events).for_each(|(_, event)| {
             egui.handle_event(&event, &window);
 
-            handle_window_event(&event, &mut window, &mut camera, &mut last_cursor);
+            handle_window_event(
+                &event,
+                &mut window,
+                &mut camera,
+                &mut should_cast_ray,
+                &mut last_cursor,
+            );
         });
 
         unsafe {
@@ -292,6 +301,69 @@ fn main() {
         ))
         .unwrap();
 
+        if should_cast_ray {
+            let ray_direction = camera.get_raycast_direction(
+                last_cursor.0,
+                last_cursor.1,
+                window_width,
+                window_height,
+            );
+
+            let bvh: &BVHTree<usize> = mesh.get_bvh().as_ref().unwrap();
+
+            if let Some(ray_hit_info) = bvh.ray_cast(
+                camera.get_position(),
+                ray_direction,
+                None::<&fn((&glm::DVec3, &glm::DVec3), _) -> Option<rt::bvh::RayHitData<_>>>,
+            ) {
+                bvh_ray_intersection.push((camera.get_position(), ray_hit_info));
+            }
+
+            should_cast_ray = false;
+        }
+
+        {
+            if !bvh_ray_intersection.is_empty() {
+                let smooth_color_3d_shader = shader::builtins::get_smooth_color_3d_shader()
+                    .as_ref()
+                    .unwrap();
+                smooth_color_3d_shader.use_shader();
+                smooth_color_3d_shader.set_mat4("model\0", &glm::identity());
+
+                let format = imm.get_cleared_vertex_format();
+                let pos_attr = format.add_attribute(
+                    "in_pos\0".to_string(),
+                    rt::gpu_immediate::GPUVertCompType::F32,
+                    3,
+                    rt::gpu_immediate::GPUVertFetchMode::Float,
+                );
+                let color_attr = format.add_attribute(
+                    "in_color\0".to_string(),
+                    rt::gpu_immediate::GPUVertCompType::F32,
+                    4,
+                    rt::gpu_immediate::GPUVertFetchMode::Float,
+                );
+
+                imm.begin(
+                    rt::gpu_immediate::GPUPrimType::Lines,
+                    bvh_ray_intersection.len() * 2,
+                    smooth_color_3d_shader,
+                );
+
+                bvh_ray_intersection.iter().for_each(|(pos, ray_hit_info)| {
+                    let p1: glm::Vec3 = glm::convert(*pos);
+                    let p2: glm::Vec3 = glm::convert(ray_hit_info.data.as_ref().unwrap().co);
+
+                    imm.attr_4f(color_attr, 0.8, 0.3, 0.8, 1.0);
+                    imm.vertex_3f(pos_attr, p1[0], p1[1], p1[2]);
+                    imm.attr_4f(color_attr, 0.8, 0.3, 0.8, 1.0);
+                    imm.vertex_3f(pos_attr, p2[0], p2[1], p2[2]);
+                });
+
+                imm.end();
+            }
+        }
+
         // Keep meshes that have shaders that need alpha channel
         // (blending) below this and handle it properly
         {
@@ -324,6 +396,7 @@ fn handle_window_event(
     event: &glfw::WindowEvent,
     window: &mut glfw::Window,
     camera: &mut gl_camera::Camera,
+    should_cast_ray: &mut bool,
     last_cursor: &mut (f64, f64),
 ) {
     let cursor = window.get_cursor_pos();
@@ -370,6 +443,12 @@ fn handle_window_event(
                 false,
             );
         }
+    }
+
+    if window.get_mouse_button(glfw::MouseButtonLeft) == glfw::Action::Press
+        && window.get_key(glfw::Key::LeftControl) == glfw::Action::Press
+    {
+        *should_cast_ray = true;
     }
 
     *last_cursor = cursor;
