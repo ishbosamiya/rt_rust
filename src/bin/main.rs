@@ -212,6 +212,9 @@ fn main() {
 
     let mut fps = FPS::default();
 
+    let mut draw_bvh = true;
+    let mut bvh_draw_level = 0;
+
     while !window.should_close() {
         glfw.poll_events();
 
@@ -283,6 +286,8 @@ fn main() {
         mesh.draw(&mut MeshDrawData::new(
             &mut imm,
             MeshUseShader::DirectionalLight,
+            draw_bvh,
+            bvh_draw_level,
             None,
         ))
         .unwrap();
@@ -301,6 +306,9 @@ fn main() {
                 egui::Window::new("Hello world!").show(egui.get_egui_ctx(), |ui| {
                     ui.label("Hello RT Rust!");
                     ui.label(format!("fps: {:.2}", fps.update_and_get(Some(60.0))));
+
+                    ui.checkbox(&mut draw_bvh, "Draw BVH");
+                    ui.add(egui::Slider::new(&mut bvh_draw_level, 0..=15).text("BVH Draw Level"));
                 });
                 let _output = egui.end_frame(glm::vec2(window_width as _, window_height as _));
             }

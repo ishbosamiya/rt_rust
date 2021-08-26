@@ -6,7 +6,7 @@ use std::path::Path;
 use itertools::Itertools;
 
 use crate::{
-    bvh::BVHTree,
+    bvh::{BVHDrawData, BVHTree},
     drawable::Drawable,
     glm,
     gpu_immediate::{GPUImmediate, GPUPrimType, GPUVertCompType, GPUVertFetchMode},
@@ -326,6 +326,8 @@ impl Display for MeshUseShader {
 pub struct MeshDrawData<'a> {
     imm: &'a mut GPUImmediate,
     use_shader: MeshUseShader,
+    draw_bvh: bool,
+    bvh_draw_level: usize,
     _color: Option<glm::Vec4>,
 }
 
@@ -333,11 +335,15 @@ impl<'a> MeshDrawData<'a> {
     pub fn new(
         imm: &'a mut GPUImmediate,
         use_shader: MeshUseShader,
+        draw_bvh: bool,
+        bvh_draw_level: usize,
         color: Option<glm::Vec4>,
     ) -> Self {
         MeshDrawData {
             imm,
             use_shader,
+            draw_bvh,
+            bvh_draw_level,
             _color: color,
         }
     }
@@ -346,11 +352,22 @@ impl<'a> MeshDrawData<'a> {
 impl Drawable<MeshDrawData<'_>, MeshDrawError> for Mesh {
     fn draw(&self, draw_data: &mut MeshDrawData<'_>) -> Result<(), MeshDrawError> {
         match draw_data.use_shader {
-            MeshUseShader::DirectionalLight => self.draw_directional_light_shader(draw_data),
+            MeshUseShader::DirectionalLight => self.draw_directional_light_shader(draw_data)?,
             // MeshUseShader::SmoothColor3D => self.draw_smooth_color_3d_shader(draw_data),
             // MeshUseShader::FaceOrientation => self.draw_face_orientation_shader(draw_data),
             _ => todo!(),
         }
+
+        if draw_data.draw_bvh {
+            if let Some(bvh) = &self.bvh {
+                bvh.draw(&mut BVHDrawData::new(
+                    draw_data.imm,
+                    draw_data.bvh_draw_level,
+                ))?
+            }
+        }
+
+        Ok(())
     }
 
     fn draw_wireframe(&self, _draw_data: &mut MeshDrawData<'_>) -> Result<(), MeshDrawError> {
