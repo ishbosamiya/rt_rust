@@ -1095,11 +1095,11 @@ where
                     self.ray_cast_traverse(node.children[i as usize], data, callback, r_hit_data);
                 }
             } else {
-                for i in (node.totnode - 1)..0 {
+                for i in 0..node.totnode {
+                    let i = node.totnode - 1 - i;
                     self.ray_cast_traverse(node.children[i as usize], data, callback, r_hit_data);
                 }
             }
-        } else {
         }
     }
 
