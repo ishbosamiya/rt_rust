@@ -8,6 +8,12 @@ pub struct Scene {
     objects: Vec<Object>,
 }
 
+impl Default for Scene {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Scene {
     pub fn new() -> Self {
         Self {
@@ -20,7 +26,7 @@ impl Scene {
     }
 
     pub fn get_objects(&self) -> &Vec<Object> {
-        return &self.objects;
+        &self.objects
     }
 }
 
@@ -33,7 +39,7 @@ impl Intersectable for Scene {
             .filter(|object| object.is_some())
             .collect();
 
-        if hit_infos.len() == 0 {
+        if hit_infos.is_empty() {
             return None;
         }
 
@@ -46,6 +52,6 @@ impl Intersectable for Scene {
             }
         }
 
-        return res;
+        res
     }
 }
