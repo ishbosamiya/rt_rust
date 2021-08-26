@@ -11,24 +11,24 @@ pub struct IntersectInfo {
 
 impl IntersectInfo {
     pub fn new(t: Scalar, point: Vec3) -> Self {
-        return Self {
+        Self {
             t,
             point,
             normal: None,
             front_face: false,
-        };
+        }
     }
 
     pub fn get_t(&self) -> Scalar {
-        return self.t;
+        self.t
     }
 
     pub fn get_point(&self) -> &Vec3 {
-        return &self.point;
+        &self.point
     }
 
     pub fn get_normal(&self) -> &Option<Vec3> {
-        return &self.normal;
+        &self.normal
     }
 
     /// Sets the normal and whether or not the hit was on the front
