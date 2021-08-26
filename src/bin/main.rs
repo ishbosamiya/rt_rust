@@ -130,7 +130,7 @@ fn main() {
 
     // creating window
     let (mut window, events) = glfw
-        .create_window(1280, 720, "Simple Render", glfw::WindowMode::Windowed)
+        .create_window(1280, 720, "RT Rust", glfw::WindowMode::Windowed)
         .expect("ERROR: glfw window creation failed");
 
     // setup bunch of polling data
@@ -166,7 +166,7 @@ fn main() {
         .insert(TextStyle::Small, (FontFamily::Proportional, 15.0));
     egui.get_egui_ctx().set_fonts(fonts);
 
-    let mesh = mesh::builtins::get_cube_subd_00();
+    let mesh = mesh::builtins::get_monkey_subd_01();
 
     let mut camera = gl_camera::Camera::new(
         glm::vec3(0.0, 0.0, 3.0),
@@ -279,10 +279,7 @@ fn main() {
         }
 
         directional_light_shader.use_shader();
-        directional_light_shader.set_mat4(
-            "model\0",
-            &glm::translate(&glm::identity(), &glm::vec3(2.1, 0.0, 0.0)),
-        );
+        directional_light_shader.set_mat4("model\0", &glm::identity());
         mesh.draw(&mut MeshDrawData::new(
             &mut imm,
             MeshUseShader::DirectionalLight,
@@ -303,7 +300,7 @@ fn main() {
         {
             egui.begin_frame(&window, &mut glfw);
             egui::Window::new("Hello world!").show(egui.get_egui_ctx(), |ui| {
-                ui.label("Hello World, Simple Render!");
+                ui.label("Hello RT Rust!");
                 ui.label(format!("fps: {:.2}", fps.update_and_get(Some(60.0))));
             });
             let _output = egui.end_frame(glm::vec2(window_width as _, window_height as _));
