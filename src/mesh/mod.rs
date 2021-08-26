@@ -6,6 +6,7 @@ use std::path::Path;
 use itertools::Itertools;
 
 use crate::{
+    bvh::BVHTree,
     drawable::Drawable,
     glm,
     gpu_immediate::{GPUImmediate, GPUPrimType, GPUVertCompType, GPUVertFetchMode},
@@ -71,6 +72,18 @@ impl Vertex {
     pub fn set_normal(&mut self, normal: glm::DVec3) {
         self.normal = Some(normal);
     }
+
+    pub fn get_pos(&self) -> &glm::DVec3 {
+        &self.pos
+    }
+
+    pub fn get_uv(&self) -> &Option<glm::DVec2> {
+        &self.uv
+    }
+
+    pub fn get_normal(&self) -> &Option<glm::DVec3> {
+        &self.normal
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -96,7 +109,10 @@ impl From<meshio::MeshIOError> for Error {
 
 pub struct Mesh {
     vertices: Vec<Vertex>,
-    indices: Vec<Vec<usize>>,
+    faces: Vec<Vec<usize>>,
+
+    // BVH that stores face indices
+    bvh: Option<BVHTree<usize>>,
 }
 
 impl Mesh {
@@ -126,7 +142,7 @@ impl Mesh {
             .collect();
 
         let mut vertex_counter = 0;
-        let indices = meshio
+        let faces = meshio
             .face_indices
             .iter()
             .map(|face| {
@@ -140,7 +156,11 @@ impl Mesh {
             })
             .collect();
 
-        Ok(Self { vertices, indices })
+        Ok(Self {
+            vertices,
+            faces,
+            bvh: None,
+        })
     }
 
     pub fn read_from_file<P>(path: P) -> Result<Self, Error>
@@ -156,7 +176,7 @@ impl Mesh {
         &self,
         draw_data: &mut MeshDrawData,
     ) -> Result<(), MeshDrawError> {
-        if self.indices.is_empty() {
+        if self.faces.is_empty() {
             return Ok(());
         }
 
@@ -190,11 +210,11 @@ impl Mesh {
         // currently assuming that no face has verts in excess of 10
         imm.begin_at_most(
             GPUPrimType::Tris,
-            self.indices.len() * 10,
+            self.faces.len() * 10,
             directional_light_shader,
         );
 
-        self.indices.iter().for_each(|face| {
+        self.faces.iter().for_each(|face| {
             // currently assuming that no face has verts in excess of
             // 10, will figure out a generic way to handle this later
             assert!(face.len() <= 10);
@@ -234,6 +254,23 @@ impl Mesh {
         imm.end();
 
         Ok(())
+    }
+
+    pub fn build_bvh(&mut self, epsilon: f64) {
+        let mut bvh = BVHTree::new(self.faces.len(), epsilon, 4, 8);
+
+        self.faces.iter().enumerate().for_each(|(f_index, face)| {
+            let co = face
+                .iter()
+                .map(|v_index| *self.vertices[*v_index].get_pos())
+                .collect();
+
+            bvh.insert(f_index, co);
+        });
+
+        bvh.balance();
+
+        self.bvh = Some(bvh);
     }
 }
 
