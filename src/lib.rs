@@ -1,6 +1,7 @@
 pub mod bvh;
 pub mod camera;
 pub mod drawable;
+pub mod fps;
 pub mod gl_camera;
 pub mod gpu_immediate;
 pub mod image;
