@@ -13,7 +13,6 @@ crossbeam-channel = "0.5"
 crossbeam = "0.8.0"
 lazy_static = "1.4.0"
 generational-arena = "0.2.8"
-num-traits = "0.2"
 
 [dev-dependencies]
 criterion = { version = "0.3.4", features = ["html_reports"]}

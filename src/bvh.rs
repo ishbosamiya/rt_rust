@@ -1,31 +1,13 @@
 use generational_arena::{Arena, Index};
 use lazy_static::lazy_static;
 use nalgebra_glm as glm;
-use num_traits::cast::FromPrimitive;
-use num_traits::float::Float;
 
 use std::cmp::PartialOrd;
 use std::fmt::Debug;
-use std::ops::{Add, AddAssign, Mul, MulAssign, Sub, SubAssign};
 
 const MAX_TREETYPE: u8 = 32;
 
-pub trait ScalarTrait:
-    Float
-    + Debug
-    + glm::Number
-    + 'static
-    + Add
-    + AddAssign
-    + Mul
-    + MulAssign
-    + Sub
-    + SubAssign
-    + PartialOrd
-    + FromPrimitive
-    + AxesTrait
-{
-}
+type Scalar = f64;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 struct BVHNodeIndex(pub Index);
@@ -36,10 +18,9 @@ impl BVHNodeIndex {
     }
 }
 
-struct BVHNode<T, Scalar>
+struct BVHNode<T>
 where
     T: Copy,
-    Scalar: ScalarTrait,
 {
     children: Vec<BVHNodeIndex>,  // Indices of the child nodes
     parent: Option<BVHNodeIndex>, // Parent index
@@ -50,15 +31,8 @@ where
     main_axis: u8,         // Axis used to split this node
 }
 
-// Reference: https://internals.rust-lang.org/t/how-about-generic-global-variables/8351
-// It is not possible to have generic global variables so need to do this hacky way
-// If user needs to use something other than f64 or f32, then they need to define those axes
-pub trait AxesTrait: Debug + Copy + PartialEq {
-    fn get_axes() -> &'static Vec<glm::TVec3<Self>>;
-}
-
 lazy_static! {
-    static ref BVHTREE_KDOP_AXES_F64: Vec<glm::TVec3<f64>> = {
+    static ref BVHTREE_KDOP_AXES: Vec<glm::DVec3> = {
         let mut v = Vec::with_capacity(13);
         v.push(glm::vec3(1.0, 0.0, 0.0));
         v.push(glm::vec3(0.0, 1.0, 0.0));
@@ -77,44 +51,10 @@ lazy_static! {
         v
     };
 }
-impl ScalarTrait for f64 {}
-impl AxesTrait for f64 {
-    fn get_axes() -> &'static Vec<glm::TVec3<f64>> {
-        return &BVHTREE_KDOP_AXES_F64;
-    }
-}
 
-lazy_static! {
-    static ref BVHTREE_KDOP_AXES_F32: Vec<glm::TVec3<f32>> = {
-        let mut v = Vec::with_capacity(13);
-        v.push(glm::vec3(1.0, 0.0, 0.0));
-        v.push(glm::vec3(0.0, 1.0, 0.0));
-        v.push(glm::vec3(0.0, 0.0, 1.0));
-        v.push(glm::vec3(1.0, 1.0, 1.0));
-        v.push(glm::vec3(1.0, -1.0, 1.0));
-        v.push(glm::vec3(1.0, 1.0, -1.0));
-        v.push(glm::vec3(1.0, -1.0, -1.0));
-        v.push(glm::vec3(1.0, 1.0, 0.0));
-        v.push(glm::vec3(1.0, 0.0, 1.0));
-        v.push(glm::vec3(0.0, 1.0, 1.0));
-        v.push(glm::vec3(1.0, -1.0, 0.0));
-        v.push(glm::vec3(1.0, 0.0, -1.0));
-        v.push(glm::vec3(0.0, 1.0, -1.0));
-        assert_eq!(v.len(), 13);
-        v
-    };
-}
-impl ScalarTrait for f32 {}
-impl AxesTrait for f32 {
-    fn get_axes() -> &'static Vec<glm::TVec3<f32>> {
-        return &BVHTREE_KDOP_AXES_F32;
-    }
-}
-
-impl<T, Scalar> BVHNode<T, Scalar>
+impl<T> BVHNode<T>
 where
     T: Copy,
-    Scalar: ScalarTrait,
 {
     fn new() -> Self {
         return Self {
@@ -131,8 +71,8 @@ where
     fn min_max_init(&mut self, start_axis: u8, stop_axis: u8) {
         let bv = &mut self.bv;
         for axis_iter in start_axis..stop_axis {
-            bv[((2 * axis_iter) + 0) as usize] = Float::max_value();
-            bv[((2 * axis_iter) + 1) as usize] = Float::min_value();
+            bv[((2 * axis_iter) + 0) as usize] = Scalar::MAX;
+            bv[((2 * axis_iter) + 1) as usize] = Scalar::MIN;
         }
     }
 
@@ -152,7 +92,7 @@ where
         for co in co_many {
             for axis_iter in start_axis..stop_axis {
                 let axis_iter = axis_iter as usize;
-                let new_min_max = glm::dot(&co, &Scalar::get_axes()[axis_iter]);
+                let new_min_max = glm::dot(&co, &BVHTREE_KDOP_AXES[axis_iter]);
                 if new_min_max < bv[2 * axis_iter] {
                     bv[2 * axis_iter] = new_min_max;
                 }
@@ -163,7 +103,7 @@ where
         }
     }
 
-    fn overlap_test(&self, other: &BVHNode<T, Scalar>, start_axis: u8, stop_axis: u8) -> bool {
+    fn overlap_test(&self, other: &BVHNode<T>, start_axis: u8, stop_axis: u8) -> bool {
         let bv1 = &self.bv;
         let bv2 = &other.bv;
         for axis_iter in start_axis..stop_axis {
@@ -178,7 +118,7 @@ where
         return true;
     }
 
-    fn ray_hit(&self, data: &RayCastData<Scalar>, r_dist: &mut Scalar) -> bool {
+    fn ray_hit(&self, data: &RayCastData, r_dist: &mut Scalar) -> bool {
         let bv = &self.bv;
 
         let t1x = (bv[data.index[0]] - data.co[0]) * data.idot_axis[0];
@@ -189,7 +129,7 @@ where
         let t2z = (bv[data.index[5]] - data.co[2]) * data.idot_axis[2];
 
         if (t1x > t2y || t2x < t1y || t1x > t2z || t2x < t1z || t1y > t2z || t2y < t1z)
-            || (t2x < Scalar::zero() || t2y < Scalar::zero() || t2z < Scalar::zero())
+            || (t2x < 0.0 || t2y < 0.0 || t2z < 0.0)
             || (t1x > *r_dist || t1y > *r_dist || t1z > *r_dist)
         {
             return false;
@@ -217,14 +157,12 @@ impl std::fmt::Display for BVHError {
 
 impl std::error::Error for BVHError {}
 
-pub struct BVHTree<T, Scalar>
+pub struct BVHTree<T>
 where
     T: Copy,
-    Scalar: ScalarTrait,
-    f64: Into<Scalar>,
 {
     nodes: Vec<BVHNodeIndex>,
-    node_array: Arena<BVHNode<T, Scalar>>, // Where the actual nodes are stored
+    node_array: Arena<BVHNode<T>>, // Where the actual nodes are stored
 
     epsilon: Scalar, // Epsilon for inflation of the kdop
     totleaf: usize,
@@ -317,39 +255,35 @@ where
     }
 }
 
-pub struct RayHitOptionalData<T, Scalar>
+pub struct RayHitOptionalData<T>
 where
     T: Copy,
-    Scalar: ScalarTrait,
 {
     pub elem_index: T,
     pub co: glm::TVec3<Scalar>,
 }
 
-impl<T, Scalar> RayHitOptionalData<T, Scalar>
+impl<T> RayHitOptionalData<T>
 where
     T: Copy,
-    Scalar: ScalarTrait,
 {
     pub fn new(elem_index: T, co: glm::TVec3<Scalar>) -> Self {
         Self { elem_index, co }
     }
 }
 
-pub struct RayHitData<T, Scalar>
+pub struct RayHitData<T>
 where
     T: Copy,
-    Scalar: ScalarTrait,
 {
-    pub data: Option<RayHitOptionalData<T, Scalar>>,
+    pub data: Option<RayHitOptionalData<T>>,
     pub normal: Option<glm::TVec3<Scalar>>,
     pub dist: Scalar,
 }
 
-impl<T, Scalar> RayHitData<T, Scalar>
+impl<T> RayHitData<T>
 where
     T: Copy,
-    Scalar: ScalarTrait,
 {
     pub fn new(dist: Scalar) -> Self {
         Self {
@@ -359,15 +293,12 @@ where
         }
     }
 
-    fn set_data(&mut self, data: RayHitOptionalData<T, Scalar>) {
+    fn set_data(&mut self, data: RayHitOptionalData<T>) {
         self.data = Some(data);
     }
 }
 
-struct RayCastData<Scalar>
-where
-    Scalar: ScalarTrait,
-{
+struct RayCastData {
     co: glm::TVec3<Scalar>,
     dir: glm::TVec3<Scalar>,
 
@@ -376,23 +307,19 @@ where
     index: [usize; 6],
 }
 
-impl<Scalar> RayCastData<Scalar>
-where
-    Scalar: ScalarTrait,
-    f64: Into<Scalar>,
-{
+impl RayCastData {
     fn new(co: glm::TVec3<Scalar>, dir: glm::TVec3<Scalar>) -> Self {
-        let mut ray_dot_axis: [Scalar; 13] = [Scalar::zero(); 13];
-        let mut idot_axis: [Scalar; 13] = [Scalar::zero(); 13];
+        let mut ray_dot_axis: [Scalar; 13] = [0.0; 13];
+        let mut idot_axis: [Scalar; 13] = [0.0; 13];
         let mut index: [usize; 6] = [0; 6];
         for i in 0..3 {
-            ray_dot_axis[i] = glm::dot(&dir, &Scalar::get_axes()[i]);
+            ray_dot_axis[i] = glm::dot(&dir, &BVHTREE_KDOP_AXES[i]);
 
-            if ray_dot_axis[i].abs() < Scalar::epsilon() {
+            if ray_dot_axis[i].abs() < Scalar::EPSILON {
                 ray_dot_axis[i] = 0.0.into();
-                idot_axis[i] = Float::max_value();
+                idot_axis[i] = Scalar::MAX;
             } else {
-                idot_axis[i] = 1.0.into() / ray_dot_axis[i];
+                idot_axis[i] = 1.0 / ray_dot_axis[i];
             }
 
             if idot_axis[i] < 0.0.into() {
@@ -415,11 +342,9 @@ where
     }
 }
 
-impl<T, Scalar> BVHTree<T, Scalar>
+impl<T> BVHTree<T>
 where
     T: Copy,
-    Scalar: ScalarTrait,
-    f64: Into<Scalar>,
 {
     /// Create new BVH
     ///
@@ -443,7 +368,7 @@ where
         );
 
         // epsilon must be >= Scalar::EPSILON so that tangent rays can still hit a bounding volume
-        let epsilon = epsilon.max(Scalar::epsilon());
+        let epsilon = epsilon.max(Scalar::EPSILON);
 
         let start_axis;
         let stop_axis;
@@ -480,7 +405,7 @@ where
 
         for i in 0..numnodes {
             let node = node_array.get_unknown_gen_mut(i).unwrap().0;
-            node.bv.resize(axis.into(), 0.0.into());
+            node.bv.resize(axis.into(), 0.0);
             node.children
                 .resize(tree_type.into(), BVHNodeIndex::unknown());
         }
@@ -507,7 +432,7 @@ where
     ///
     /// `co_many` contains list of points to form the new BV around
     pub fn insert(&mut self, index: T, co_many: Vec<glm::TVec3<Scalar>>) {
-        assert!(self.totbranch <= 0);
+        assert!(self.totbranch == 0);
 
         self.nodes[self.totleaf] = BVHNodeIndex(self.node_array.get_unknown_index(self.totleaf));
         let node = self.node_array.get_unknown_mut(self.totleaf);
@@ -641,23 +566,19 @@ where
         if node_mid.bv[axis] < node_lo.bv[axis] {
             if node_hi.bv[axis] < node_mid.bv[axis] {
                 return self.nodes[mid];
+            } else if node_hi.bv[axis] < node_lo.bv[axis] {
+                return self.nodes[hi];
             } else {
-                if node_hi.bv[axis] < node_lo.bv[axis] {
-                    return self.nodes[hi];
-                } else {
-                    return self.nodes[lo];
-                }
+                return self.nodes[lo];
+            }
+        } else if node_hi.bv[axis] < node_mid.bv[axis] {
+            if node_hi.bv[axis] < node_lo.bv[axis] {
+                return self.nodes[lo];
+            } else {
+                return self.nodes[hi];
             }
         } else {
-            if node_hi.bv[axis] < node_mid.bv[axis] {
-                if node_hi.bv[axis] < node_lo.bv[axis] {
-                    return self.nodes[lo];
-                } else {
-                    return self.nodes[hi];
-                }
-            } else {
-                return self.nodes[mid];
-            }
+            return self.nodes[mid];
         }
     }
 
@@ -858,10 +779,8 @@ where
         if node_index > self.totleaf {
             return Err(BVHError::IndexOutOfRange);
         }
-        if co_moving_many.len() > 0 {
-            if co_many.len() != co_moving_many.len() {
-                return Err(BVHError::DifferentNumPoints);
-            }
+        if co_moving_many.len() > 0 && co_many.len() != co_moving_many.len() {
+            return Err(BVHError::DifferentNumPoints);
         }
 
         let node = self.node_array.get_unknown_mut(node_index);
@@ -933,7 +852,7 @@ where
 
     fn overlap_traverse_callback<F>(
         &self,
-        other: &BVHTree<T, Scalar>,
+        other: &BVHTree<T>,
         node_1_index: BVHNodeIndex,
         node_2_index: BVHNodeIndex,
         start_axis: u8,
@@ -1002,7 +921,7 @@ where
 
     fn overlap_traverse(
         &self,
-        other: &BVHTree<T, Scalar>,
+        other: &BVHTree<T>,
         node_1_index: BVHNodeIndex,
         node_2_index: BVHNodeIndex,
         start_axis: u8,
@@ -1067,7 +986,7 @@ where
     /// considered.
     pub fn overlap<F>(
         &self,
-        other: &BVHTree<T, Scalar>,
+        other: &BVHTree<T>,
         callback: Option<&F>,
     ) -> Option<Vec<BVHTreeOverlap<T>>>
     where
@@ -1138,11 +1057,11 @@ where
     fn ray_cast_traverse<F>(
         &self,
         node_index: BVHNodeIndex,
-        data: &RayCastData<Scalar>,
+        data: &RayCastData,
         callback: Option<&F>,
-        r_hit_data: &mut RayHitData<T, Scalar>,
+        r_hit_data: &mut RayHitData<T>,
     ) where
-        F: Fn((&glm::TVec3<Scalar>, &glm::TVec3<Scalar>), T) -> Option<RayHitData<T, Scalar>>,
+        F: Fn((&glm::TVec3<Scalar>, &glm::TVec3<Scalar>), T) -> Option<RayHitData<T>>,
     {
         let mut dist = r_hit_data.dist;
         let node = self.node_array.get(node_index.0).unwrap();
@@ -1166,25 +1085,13 @@ where
                     r_hit_data.set_data(optional_data);
                     r_hit_data.dist = dist;
                 }
+            } else if data.ray_dot_axis[node.main_axis as usize] > 0.0 {
+                for i in 0..node.totnode {
+                    self.ray_cast_traverse(node.children[i as usize], data, callback, r_hit_data);
+                }
             } else {
-                if data.ray_dot_axis[node.main_axis as usize] > Scalar::zero() {
-                    for i in 0..node.totnode {
-                        self.ray_cast_traverse(
-                            node.children[i as usize],
-                            data,
-                            callback,
-                            r_hit_data,
-                        );
-                    }
-                } else {
-                    for i in (node.totnode - 1)..0 {
-                        self.ray_cast_traverse(
-                            node.children[i as usize],
-                            data,
-                            callback,
-                            r_hit_data,
-                        );
-                    }
+                for i in (node.totnode - 1)..0 {
+                    self.ray_cast_traverse(node.children[i as usize], data, callback, r_hit_data);
                 }
             }
         } else {
@@ -1204,15 +1111,15 @@ where
         co: glm::TVec3<Scalar>,
         dir: glm::TVec3<Scalar>,
         callback: Option<&F>,
-    ) -> Option<RayHitData<T, Scalar>>
+    ) -> Option<RayHitData<T>>
     where
-        F: Fn((&glm::TVec3<Scalar>, &glm::TVec3<Scalar>), T) -> Option<RayHitData<T, Scalar>>,
+        F: Fn((&glm::TVec3<Scalar>, &glm::TVec3<Scalar>), T) -> Option<RayHitData<T>>,
     {
         let root_index = self.nodes[self.totleaf];
 
         let data = RayCastData::new(co, dir);
 
-        let mut hit_data = RayHitData::new(Float::max_value());
+        let mut hit_data = RayHitData::new(Scalar::MAX);
 
         self.ray_cast_traverse(root_index, &data, callback, &mut hit_data);
 
@@ -1228,7 +1135,7 @@ fn implicit_needed_branches(tree_type: u8, leafs: usize) -> usize {
     return 1.max(leafs + tree_type as usize - 3) / (tree_type - 1) as usize;
 }
 
-fn get_largest_axis<Scalar: ScalarTrait>(bv: &Vec<Scalar>) -> u8 {
+fn get_largest_axis(bv: &Vec<Scalar>) -> u8 {
     let middle_point_x = bv[1] - bv[0]; // x axis
     let middle_point_y = bv[3] - bv[2]; // y axis
     let middle_point_z = bv[5] - bv[4]; // z axis
@@ -1239,12 +1146,10 @@ fn get_largest_axis<Scalar: ScalarTrait>(bv: &Vec<Scalar>) -> u8 {
         } else {
             return 5; // max z axis
         }
+    } else if middle_point_y > middle_point_z {
+        return 3; // max y axis
     } else {
-        if middle_point_y > middle_point_z {
-            return 3; // max y axis
-        } else {
-            return 5; // max z axis
-        }
+        return 5; // max z axis
     }
 }
 
@@ -1281,7 +1186,7 @@ mod tests {
     fn bvh_insert() {
         use super::ArenaFunctions;
         use nalgebra_glm as glm;
-        let mut bvh = super::BVHTree::<usize, _>::new(1, 0.001, 3, 6);
+        let mut bvh = super::BVHTree::<usize>::new(1, 0.001, 3, 6);
         bvh.insert(0, vec![glm::vec3(-1.0, 0.0, 0.0), glm::vec3(1.0, 0.0, 0.0)]);
         bvh.balance();
         assert_eq!(bvh.nodes.len(), bvh.node_array.len());
