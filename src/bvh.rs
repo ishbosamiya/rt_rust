@@ -518,7 +518,9 @@ where
                 while (j != lo) && (node_t.bv[axis] < node_j_minus_one.bv[axis]) {
                     self.nodes[j] = self.nodes[j - 1];
                     j -= 1;
-                    node_j_minus_one = self.node_array.get(self.nodes[j - 1].0).unwrap();
+                    if j != 0 {
+                        node_j_minus_one = self.node_array.get(self.nodes[j - 1].0).unwrap();
+                    }
                 }
             }
             self.nodes[j] = node_t_index;
