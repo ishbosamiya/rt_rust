@@ -1,10 +1,11 @@
 use nalgebra_glm as glm
+use std::cmp
 use crate::math::{Scalar,Vec3,saturate};
 use crate::ray::Ray;
 use crate::bsdf::{Material, BSDFData, GeomData};
 
 /// Function for calculating the fresnel dielectric 
-pub fun fresnel_dielectric(cosi : f64, eta : f64) -> f64 {
+pub fn fresnel_dielectric(cosi : f64, eta : f64) -> f64 {
     let c = cosi.abs();
     let mut g = eta * eta - 1 + c * c;
     if (g > 0) {
@@ -21,6 +22,13 @@ pub fun fresnel_dielectric(cosi : f64, eta : f64) -> f64 {
 // Structure for storing return variables
 pub struct ReturnShadersData {
 
+pub fn fresnel_calc(v : f64) {
+    let u = 1.0 - v;
+    let m = u.clamp(0.0, 1.0);
+    let m2 = m * m;
+    let mut f = m2 * m2 * m;
+
+    return f;
 }
 
 
@@ -40,6 +48,8 @@ pub struct Reflection {
 }
 /*
 pub struct Glossy {
+
+pub struct Translucent {
     alpha : f64,
     alpha_squared : f64,
     material : Material,
@@ -47,6 +57,13 @@ pub struct Glossy {
 }
 
 pub struct Transparent {
+    alpha : f64,
+    alpha_squared : f64,
+    material : Material,
+    data : &GeomData
+}
+
+pub struct Refraction {
     alpha : f64,
     alpha_squared : f64,
     material : Material,
@@ -67,17 +84,18 @@ impl BSDFData for Diffuse {
 
 
     /// Function that evaluates the weight for said shader
+    /// Function that evaluates the throughput for said shader
     fn eval(&mut self, backfacing : bool) -> Vec3 {
         let eta = 1e-5_f64;
-        let weight = Vec3::new(1.0, 1.0, 1.0);
+        let weight = Vec3::new(1.0_f64, 1.0_f64, 1.0_f64);
 
-        let mut ior = if backfacing {1.0 / eta} else {eta};
+        let mut ior = if backfacing {1.0_f64 / eta} else {eta};
 
         let mut cosno = self.N.dot(self.L);
         let fresnel = fresnel_dielectric(cosno, ior);
 
-        let transmission = ((1 >> 8) & 0xFF);
-        let mut diffuse_weight = (1.0 - saturate(self.material.metallness)) * (1.0 - saturate(transmission));
+        let transmission = ((1 >> 8) & 0xFF) as f64;
+        let mut diffuse_weight = (1.0_f64 - saturate(self.material.metallness)) * (1.0 - saturate(transmission));
         /// Specular weights not calculated
         
         /// Vector * Scalar * Vector (Check if it works?)
@@ -87,8 +105,66 @@ impl BSDFData for Diffuse {
     }
 
     /// Evaluates eval and pdf for scatter ray
-    fn eval_sample(diffuse : &Vec3, pdf : &Vec3, eval : &Vec3, outward : &Ray) {
+    fn eval_sample(&mut self, diffuse : &Vec3, pdf : &mut f64, eval : &mut Vec3, inward : &mut Ray) {
+        let mut randu = 0.0_f64;
+        let mut randv = 0.0_f64;
+        const M_2PI_F = 6.2831853071795864_f64;
+        const M_1_PI_F = 0.3183098861837067_f64;
+        let N = self.data.N;    /// Normal vector
 
+        /// TODO function for getting values of randu and randv(PMJ Sample)
+        
+        /// Sampling the hemishpere as is needed for disney diffusion
+        let mut r = cmp::max(0.0_f64, 1.0_f64 - randu * randu);
+        r.sqrt();
+        let phi = M_2PI_F * randv;
+        let x = r * phi.cos();
+        let y = r * phi.sin();
+
+        /// Making orthonormals
+        let mut T : Vec3 = Vec3::new(0.0, 0.0, 0.0);
+        if (N.x != N.y || N.x != N.z) {
+            T = Vec3::new(N.z - N.y, N.x - N.z, N.y - N.x);
+        }
+        else {
+            T = Vec3::new = Vec3::new(N.z - N.y, N.x + N.z, -N.y - N.x);
+        }
+        T = glm::normalize(T);
+
+        let mut B = N.cross(T);
+        
+
+        inward = x * T + y * B + z * N;
+        pdf = 0.5_f64 *  M_1_PI_F;
+
+        /// Post Sampling hemisphere
+        if (N.dot(inward) > 0) {
+            let mut H = glm::normalize(self.data.L + inward);   /// L is incident light vector
+
+            /// Calculate principled diffuse brdf part
+            let ndotl = cmp::max(N.dot(inward), 0.0);
+            let ndotv = cmp::max(N.dot(self.data.L), 0.0);
+
+            if (ndotl < 0 || ndotv < 0) {
+                pdf = 0.0;
+                eval = Vec3::new(0.0, 0.0, 0.0);
+            }
+            else {
+                let ldoth = inward.dot(H);
+                let mut fl = fresnel_calc(ndotl);
+                let mut fv = fresnel_calc(ndotv);
+
+                let fd90 = 0.5 + 2.0 * ldoth * ldoth * self.material.roughness;
+                let fd = (1.0 * (1.0 - fl) + fd90 * fl) * (1.0 * (1.0 - fv) + fd90 * fv);
+
+                let value = M_1_PI_F * nodtl * fd;
+
+                eval = Vec3::new(value, value, value);
+            }
+        }
+        else {
+            eval = Vec3::new(0.0, 0.0, 0.0);
+        }
     }
 
     /// Returns the ray
@@ -96,13 +172,13 @@ impl BSDFData for Diffuse {
     pub fn scatter_ray(&mut self, inward_ray : &Ray, outward_ray : &Ray, throughput : &Vec3, backfacing : bool) -> (Ray,Vec3) {
         /// Call the eval function
         let mut diffuse = eval(backfacing);
-        let mut pdf = Vec3::new(0.0, 0.0, 0.0);
-        let mut eval = Vec3::new(0.0, 0.0, 0.0);
+        let mut pdf = 0.0_f64;
+        let mut eval = Vec3::new(0.0_f64, 0.0_f64, 0.0_f64);
 
-        /// TODO COMPLETE THIS FUNCTION
-        self.eval_sample(diffuse, pdf, eval, outward_ray);
+        /// Samples the bsdf
+        self.eval_sample(diffuse, &mut pdf, &mut eval, &mut inward_ray);
 
-        if (pdf != glm::vec3(0.0, 0.0, 0.0)) {
+        if (pdf != glm::vec3(0.0_f64, 0.0_f64, 0.0_f64)) {
             /// Evaluating diffuse weight multiplied by the eval from above function
             eval = eval * diffuse;
         }
@@ -173,10 +249,14 @@ impl BSDFData for Reflection {
     }
 }
 
-impl BSDFData for Glossy {
+impl BSDFData for Translucent {
 
 }
 
 impl BSDFData for Transparent {
+
+}
+
+impl BSDFData for Refraction {
 
 }
