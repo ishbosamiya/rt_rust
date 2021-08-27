@@ -31,14 +31,14 @@ pub struct Diffuse {
     data : GeomData
 }
 
-/*
+
 pub struct Reflection {
     alpha : f64,
-    alpha_squared : f64,
     material : Material,
-    data : &GeomData
+    data : &GeomData,
+    refindex : f64
 }
-
+/*
 pub struct Glossy {
     alpha : f64,
     alpha_squared : f64,
@@ -119,7 +119,58 @@ impl BSDFData for Diffuse {
 /// TEST DIFFUSE SHADER FOR ERRORS (WILL BE PRESENT)
 
 impl BSDFData for Reflection {
+    pub fn new(material : &Material, data : &GeomData, alpha : f64, ref_index : f64) -> Self {
+        return Self {
+            alpha,
+            material,
+            data,
+            ref_index
+        }
+    }
 
+    fn eval(&mut self, backfacing : bool) -> Vec3 {
+
+    }
+
+    fn eval_sample_reflect(reflect : &Vec3, pdf : &f64, eval : &Vec3, outward : &Ray) {
+        let cosNO = self.N.dot(self.L);
+
+        if (cosNO > 0) {
+            eval = (2 * cosNO) * self.N - self.L;
+            if (self.outward.dot(eval) > 0) {
+                /// Perform RAY DIFFERENTIALS
+                /// let devaldx = ...
+            }
+        }
+        else {
+            pdf = 1e+6_f64;
+            eval = Vec3::new(pdf, pdf, pdf);
+        }
+    }
+
+    pub fn scatter_ray(&mut self, inward_ray : &Vec3, outward_ray : &Vec3, throughput : &Vec3, material : &Material, backfacing : bool) -> Vec3 {
+        let mut reflect = eval(backfacing);
+        /// let mut pdf = Vec3::new(0.0, 0.0, 0.0);
+        let mut pdf = 0.0_f64;
+        let mut eval = Vec3::new(0.0, 0.0, 0.0);
+
+        /// TODO COMPLETE THIS FUNCTION
+        self.eval_sample_reflect(reflect, pdf, eval, outward_ray);
+
+        if (pdf != glm::vec3(0.0, 0.0, 0.0)) {
+            /// Evaluating diffuse weight multiplied by the eval from above function
+            eval = eval * diffuse;
+        }
+
+        /// Modify Throughput
+        /// bsdf_bounce()
+
+        return (outward_ray, throughput);
+    }
+
+    pub fn eval(&mut self, backfacing : bool) -> Vec3 {
+
+    }
 }
 
 impl BSDFData for Glossy {
