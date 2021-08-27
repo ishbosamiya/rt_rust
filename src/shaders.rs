@@ -18,6 +18,11 @@ pub fun fresnel_dielectric(cosi : f64, eta : f64) -> f64 {
     return 1.0;
 }
 
+// Structure for storing return variables
+pub struct ReturnShadersData {
+
+}
+
 
 pub struct Diffuse {
     alpha : f64,
