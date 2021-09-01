@@ -1,5 +1,6 @@
 use crate::math::{Scalar,Vec3};
 use crate::ray::Ray;
+use crate::subsurfacescatter::{SubsurfaceScatterEvent};
 
 use nalgebra_glm as glm;
 
@@ -41,11 +42,13 @@ pub struct Material {
 
 /// Main trait for implementing the BSDF
 pub trait BSDFData {
-    pub fn new(material : &Material, data : &GeomData, alpha : f64, alpha_squared : f64) -> Self;
+    ///pub fn new(material : &Material, data : &GeomData, alpha : f64, alpha_squared : f64) -> Self;
 
-    fn eval_sample(&mut self, diffuse : &Vec3, pdf : &Vec3, eval : &Vec3, inward : &Ray);
+    fn sample(event : &SubsurfaceScatterEvent) -> bool;
 
-    pub fn scatter_ray(&mut self, inward_ray : &Vec3, outward_ray : &Vec3, throughput : &Vec3, material : &Material, backfacing : bool) -> Vec3;
+    ///pub fn invert(samplet : &PathSampleGenerator) -> bool;
 
-    pub fn eval(&mut self, backfacing : bool) -> Vec3;
+    pub fn eval(event : &SubsurfaceScatterEvent) -> Vec3;
+
+    pub fn pdf(event : &SubsurfaceScatterEvent) -> f64;
 }
