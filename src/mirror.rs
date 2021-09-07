@@ -3,6 +3,8 @@ use std::cmp
 use crate::math::{Scalar,Vec3,saturate};
 use crate::ray::Ray;
 use crate::bsdf::{Material, BSDFData, GeomData};
+use crate::subsurfacescatter::{SubsurfaceScatterEvent};
+
 
 let DiracAcceptanceThreshold = 1e-3_f64;
 
