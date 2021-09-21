@@ -9,7 +9,7 @@ use crate::subsurfacescatter::{SubsurfaceScatterEvent};
 let DiracAcceptanceThreshold = 1e-3_f64;
 
 /// Helper Function to check for reflection constraint
-pub fn checkRefractionConstraint(wi : &Vec3, wo : &Vec3, eta : f64, cosThetaT : f64) {
+pub fn checkRefractionConstraint(wi : &Vec3, wo : &Vec3, eta : f64, cosThetaT : f64) -> bool {
     let dotP : f64 = -wi.x * wo.x * eta - wi.y * wo.y * eta - (cosThetaT * wi.z) * wo.z;
     return abs(dotP - 1.0_f64) < DiracAcceptanceThreshold;
 }
