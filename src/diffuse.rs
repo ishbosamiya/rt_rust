@@ -4,6 +4,8 @@ use crate::math::{Scalar,Vec3,saturate};
 use crate::ray::Ray;
 use crate::bsdf::{Material, BSDFData, GeomData};
 use crate::subsurfacescatter::{SubsurfaceScatterEvent};
+use crate::sampler::{PathSampleGenerator}
+
 
 
 /// Function for calculating the fresnel dielectric 
@@ -32,11 +34,11 @@ impl BSDFData for Diffuse {
         let transmit = event.sampler.nextBoolean(transmittanceProbability);
         let mut weight :f64 = sampleR && sampleT ? 1.0_f64 : (transmit ? _transmittance : 1.0_f64 - _transmittance);
 
-        event.wo = SampleWarp::cosineHemisphere(event.sampler.next2D());
+        event.wo = PathSampleGenerator::cosineHemisphere(event.sampler.next2D());
         event.wo.z = event.wo.z * event.wi.z;
         if (transmit)
             event.wo.z = -event.wo.z;
-        event.pdf = SampleWarp::cosineHemispherePdf(event.wo);
+        event.pdf = PathSampleGenerator::cosineHemispherePdf(event.wo);
         event.weight = albedo(event.info) * weight;
         event.sampledLobe = BsdfLobes::DiffuseTransmissionLobe;
         return True;
@@ -62,6 +64,6 @@ impl BSDFData for Diffuse {
         let mut transmittanceProbability = sampleR && sampleT ? _transmittance : (sampleR ? 0.0_f64 : 1.0_f64);
 
         let mut factor = event.wi.z * event.wo.z < 0.0_f64 ? transmittanceProbability : 1.0_f64 - transmittanceProbability;
-        return factor * SampleWarp::cosineHemispherePdf(event.wo);
+        return factor * PathSampleGenerator::cosineHemispherePdf(event.wo);
     }
 }
