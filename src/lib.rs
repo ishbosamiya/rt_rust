@@ -6,6 +6,7 @@ pub mod ray;
 pub mod scene;
 pub mod sphere;
 pub mod threadpool;
+pub mod bsdf;
 
 use nalgebra_glm as glm;
 
