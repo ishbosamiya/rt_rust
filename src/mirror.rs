@@ -3,7 +3,6 @@ use std::cmp
 use crate::math::{Scalar,Vec3,saturate};
 use crate::ray::Ray;
 use crate::bsdf::{Material, BSDFData, GeomData};
-use crate::subsurfacescatter::{SubsurfaceScatterEvent};
 use crate::sampler;
 
 
@@ -16,14 +15,15 @@ pub fn checkRefractionConstraint(wi : &Vec3, wo : &Vec3, eta : f64, cosThetaT : 
 }
 
 
+/*
 impl BSDFData for Mirror {
     fn sample(event : &SubsurfaceScatterEvent) -> bool {
         if (!event.requestedLobe.test(BsdfLobes::SpecularReflectionLobe))
             return False;
         event.wo = Vec3::new(-event.wi.x, -event.wi.y, event.wi.z);
         event.pdf = 1.0_f64;
-        ///event.sampledLobe = BsdfLobes::SpecularReflectionLobe;
-        /// Finish albedo function
+        event.sampledLobe = BsdfLobes::SpecularReflectionLobe;
+        Finish albedo function
         event.weight = albedo(event.info);
         return True;
     }
@@ -46,3 +46,4 @@ impl BSDFData for Mirror {
             return 0.0_f64;
     }
 }
+*/

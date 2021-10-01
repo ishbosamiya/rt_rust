@@ -3,13 +3,14 @@ use std::cmp
 use crate::math::{Scalar,Vec3,saturate};
 use crate::ray::Ray;
 use crate::bsdf::{Material, BSDFData, GeomData};
-use crate::subsurfacescatter::{SubsurfaceScatterEvent};
 
 /// File for the Sampler
 /// Contains Uniform path sampler and sample warp
 
 
 /// May need to move to a different file
+/// 
+/*
 pub struct PathSampleGenerator {
     state : u64,
     sequence : u64
@@ -276,3 +277,4 @@ impl PathSampleGenerator {
         return false;
     }
 }
+*/
