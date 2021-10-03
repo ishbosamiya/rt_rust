@@ -1,21 +1,19 @@
 use crate::math::{Vec3};
 use crate::bsdf::{BSDF};
 
-fn normalize(T : &Vec3) -> Vec3 {
-    let sumofsq : f64 = T.x * T.x + T.y * T.y + T.z * T.z;
-    let v = sumofsq.sqrt();
-    let N : Vec3 = T / v;
-    return N;
-}
 
 pub struct Blinn {}
 
 impl BSDF for Blinn {
+    fn new() -> Self {
+        Blinn {}
+    }
+
     fn eval(&self, L : &Vec3, V : &Vec3, N : &Vec3, X : &Vec3, Y : &Vec3) -> Vec3 {
         let include_fresnel : bool = true;
         let divide_by_NdotL : bool = true;
         let S = L + V;
-        let H = normalize(&S);
+        let H = S.normalize();
 
         let NdotH = N.dot(&H);
         let VdotH = V.dot(&H);
