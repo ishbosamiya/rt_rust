@@ -7,6 +7,7 @@ pub mod scene;
 pub mod sphere;
 pub mod threadpool;
 pub mod bsdf;
+pub mod blinn;
 
 use nalgebra_glm as glm;
 
