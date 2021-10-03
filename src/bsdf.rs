@@ -6,9 +6,7 @@ use crate::blinn::{Blinn};
 
 // Structure for the Template
 pub struct BSDFTemplate {
-    metallness : f64,
     baseColor : Vec3,
-    emissive : Option<Vec3>,
     roughness : f64,
     brightness : f64,
     opacity : f64
@@ -29,8 +27,28 @@ impl BSDFTemplate {
         return b;
     }
     // Finish this function from main of above file
-    fn setup(&self) {
+    fn setup(&self, ray : &Vec3) -> Vec3 {
+        let mut normal = ray.normalize();
+        let mut tangent = (Vec3::new(0.0_f64, 1.0_f64, 0.0_f64).cross(&normal)).normalize();
+        let mut bitangent = (normal.cross(&tangent)).normalize();
 
+        let mut surfacepos : Vec3 = ray.normalize();
+
+        let viewvec = Vec3::new(0.0_f64, 0.0_f64, 1.0_f64);
+        let mut b = self.computeWithDirectionalLight(&surfacepos, ray, &viewvec, &normal, &tangent, &bitangent);
+
+        b = b * self.brightness;
+
+        // Calculate exposure - TBD
+        // b = b * self.opacity.powf(2.0)
+        // Check if gamma is roughness or not
+
+        let invgamma = 1.0_f64 / self.roughness;
+        
+        let mut new : Vec3;
+        new = Vec3::new(b.x.powf(invgamma), b.y.powf(invgamma), b.z.powf(invgamma));
+
+        return new;
     }
 }
 
