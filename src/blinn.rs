@@ -3,7 +3,10 @@ use crate::bsdf::{BSDF};
 
 fn normalize(T : &Vec3) -> Vec3 {
     /// TODO Finish this function
-    return Vec3::new(0.0, 0.0, 0.0);
+    let mut sumofsq : f64 = T.x.pow(2) + T.y.pow(2) + T.z.pow(2);
+    let v = Math.sqrt(sumofsq);
+    let mut N : Vec3 = T / v;
+    return N;
 }
 
 impl BSDF {
