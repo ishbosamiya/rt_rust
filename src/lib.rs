@@ -16,6 +16,7 @@ use crate::intersectable::Intersectable;
 use crate::math::Vec3;
 use crate::ray::Ray;
 use crate::scene::Scene;
+use crate::bsdf::BSDFTemplate;
 
 fn get_background_color(ray: &Ray, camera: &Camera) -> Vec3 {
     let color_1 = glm::vec3(0.8, 0.8, 0.8);
@@ -42,7 +43,18 @@ pub fn trace_ray(ray: &Ray, camera: &Camera, scene: &'static Scene, depth: usize
     }
     let val;
     if let Some(info) = scene.hit(ray, 0.01, 1000.0) {
+        // Creating bsdf template and calling function
+        // Random values as of now
+        let template = BSDFTemplate {
+            roughness: 1.5_f64, 
+            brightness: 2.5_f64, 
+            opacity: 1.0_f64,
+        };
         // diffuse shader
+        // Shader code : TODO Check if it works with bsdf
+        // Modified BSDF Code
+        // let target = info.get_point() + template.setup(ray.get_direction(), &info.get_point());
+        // Original code
         let target = info.get_point() + info.get_normal().unwrap() + math::random_in_unit_sphere();
         val = 0.5
             * trace_ray(
