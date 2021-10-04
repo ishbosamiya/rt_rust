@@ -9,43 +9,43 @@ impl BSDF for Blinn {
         Blinn {}
     }
 
-    fn eval(&self, L : &Vec3, V : &Vec3, N : &Vec3, X : &Vec3, Y : &Vec3) -> Vec3 {
+    fn eval(&self, l : &Vec3, v : &Vec3, n : &Vec3, x : &Vec3, y : &Vec3) -> Vec3 {
         let include_fresnel : bool = true;
-        let divide_by_NdotL : bool = true;
-        let S = L + V;
-        let H = S.normalize();
+        let divide_by_ndot_l : bool = true;
+        let s = l + v;
+        let h = s.normalize();
 
-        let NdotH = N.dot(&H);
-        let VdotH = V.dot(&H);
-        let NdotL = N.dot(L);
-        let NdotV = N.dot(V);
+        let ndot_h = n.dot(&h);
+        let vdot_h = v.dot(&h);
+        let ndot_l = n.dot(l);
+        let ndot_v = n.dot(v);
 
-        let x = NdotH.acos() * 100.0_f64;
-        let D = ( -x * x).exp();
-        let G : f64;
-        if NdotV < NdotL {
-            G = if ((2.0_f64 * NdotV * NdotH < VdotH)) {2.0_f64 * NdotH / VdotH} else {1.0_f64 / NdotV};
+        let x_val = ndot_h.acos() * 100.0_f64;
+        let d = ( -x_val * x_val).exp();
+        let g_val : f64;
+        if ndot_v < ndot_l {
+            g_val = if 2.0_f64 * ndot_v * ndot_h < vdot_h {2.0_f64 * ndot_h / vdot_h} else {1.0_f64 / ndot_v};
         }
         else {
-            G = if ((2.0_f64 * NdotL * NdotH < VdotH)) {2.0_f64 * NdotH * NdotL / (VdotH * NdotV)} else {1.0_f64 / NdotV};
+            g_val = if 2.0_f64 * ndot_l * ndot_h < vdot_h {2.0_f64 * ndot_h * ndot_l / (vdot_h * ndot_v)} else {1.0_f64 / ndot_v};
         }
-        let c = VdotH;
+        let c = vdot_h;
         let g = (2.5_f64 * 2.5_f64 + c * c - 1.0_f64).sqrt();
-        let mut F : f64 = 0.0_f64;
+        let f : f64;
         // Double Check this value
-        F = 0.5_f64 * ((g - c) * (g - c)) / ((g + c) * (g + c)) * (1.0_f64 + (c * (g + c) - 1.0_f64).powf(2.0)) / (c * (g - c) + 1.0_f64).powf(2.0);
+        f = 0.5_f64 * ((g - c) * (g - c)) / ((g + c) * (g + c)) * (1.0_f64 + (c * (g + c) - 1.0_f64).powf(2.0)) / (c * (g - c) + 1.0_f64).powf(2.0);
 
         let mut val : f64;
-        if NdotH < 0.0_f64 {
+        if ndot_h < 0.0_f64 {
             val = 0.0_f64;
         }
         else {
-            let fresnel = if include_fresnel {F} else {1.0_f64};
-            val = D * G * fresnel;
+            let fresnel = if include_fresnel {f} else {1.0_f64};
+            val = d * g_val * fresnel;
         }
 
-        if divide_by_NdotL {
-            val = val / N.dot(L);
+        if divide_by_ndot_l {
+            val = val / n.dot(l);
         }
         return Vec3::new(val, val, val);
 

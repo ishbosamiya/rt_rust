@@ -14,13 +14,13 @@ pub struct BSDFTemplate {
 // Need to finish this function as provided in brdftemplatesphere.frag
 // Need not put color as of now
 impl BSDFTemplate {
-    fn computeWithDirectionalLight(&self, surf : &Vec3, L : &Vec3, view : &Vec3, N : &Vec3, X : &Vec3, Y : &Vec3) -> Vec3 {
+    fn compute_with_directional_light(&self, surf : &Vec3, l : &Vec3, view : &Vec3, n : &Vec3, x : &Vec3, y : &Vec3) -> Vec3 {
         let zerovec : Vec3 = Vec3::new(0.0_f64, 0.0_f64, 0.0_f64);
-        let BlinnModel : Blinn = BSDF::new();
-        let S = BlinnModel.eval(L, view, N, X, Y);
-        let mut b = if S > zerovec {S} else {zerovec};
+        let blinn_model : Blinn = BSDF::new();
+        let s = blinn_model.eval(l, view, n, x, y);
+        let mut b = if s > zerovec {s} else {zerovec};
 
-        b = b * N.dot(L);
+        b = b * n.dot(l);
 
         return b;
     }
@@ -35,7 +35,7 @@ impl BSDFTemplate {
         let surfacepos : Vec3 = vertex.normalize();
 
         let viewvec = Vec3::new(0.0_f64, 0.0_f64, 1.0_f64);
-        let mut b = self.computeWithDirectionalLight(&surfacepos, ray, &viewvec, &normal, &tangent, &bitangent);
+        let mut b = self.compute_with_directional_light(&surfacepos, ray, &viewvec, &normal, &tangent, &bitangent);
 
         b = b * self.brightness;
 
@@ -57,5 +57,5 @@ impl BSDFTemplate {
 pub trait BSDF {
     fn new() -> Self;
     // fn sample(event : &SubsurfaceScatterEvent) -> bool    
-    fn eval(&self, L : &Vec3, V : &Vec3, N : &Vec3, X : &Vec3, Y : &Vec3) -> Vec3;
+    fn eval(&self, l : &Vec3, v : &Vec3, n : &Vec3, x : &Vec3, y : &Vec3) -> Vec3;
 }
