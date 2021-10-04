@@ -27,12 +27,14 @@ impl BSDFTemplate {
         return b;
     }
     // Finish this function from main of above file
-    fn setup(&self, ray : &Vec3) -> Vec3 {
-        let mut normal = ray.normalize();
-        let mut tangent = (Vec3::new(0.0_f64, 1.0_f64, 0.0_f64).cross(&normal)).normalize();
-        let mut bitangent = (normal.cross(&tangent)).normalize();
+    fn setup(&self, ray : &Vec3, vertex : &Vec3) -> Vec3 {
+        // Replace ray with vertex vector in world space
+        // Ray then becomes incident light vector
+        let normal = vertex.normalize();
+        let tangent = (Vec3::new(0.0_f64, 1.0_f64, 0.0_f64).cross(&normal)).normalize();
+        let bitangent = (normal.cross(&tangent)).normalize();
 
-        let mut surfacepos : Vec3 = ray.normalize();
+        let surfacepos : Vec3 = vertex.normalize();
 
         let viewvec = Vec3::new(0.0_f64, 0.0_f64, 1.0_f64);
         let mut b = self.computeWithDirectionalLight(&surfacepos, ray, &viewvec, &normal, &tangent, &bitangent);
