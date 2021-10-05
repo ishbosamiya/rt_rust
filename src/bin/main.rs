@@ -1,14 +1,15 @@
 use rt::bvh::BVHTree;
 use rt::camera::Camera;
 use rt::glm;
-use rt::image::{Image, PPM};
+use rt::gpu_utils::draw_plane_with_image;
+use rt::image::Image;
 use rt::scene::Scene;
 use rt::sphere::{Sphere, SphereDrawData};
 
+use rt::texture::TextureRGBAFloat;
 use rt::trace_ray;
 
 extern crate lazy_static;
-use crossbeam::thread;
 use lazy_static::lazy_static;
 
 lazy_static! {
@@ -23,7 +24,7 @@ lazy_static! {
     };
 }
 
-fn _ray_trace_scene() {
+fn ray_trace_scene() -> Image {
     let width = 1000;
     let height = 1000;
     let mut image = Image::new(width, height);
@@ -41,7 +42,7 @@ fn _ray_trace_scene() {
 
         println!("slabs: {:?}", slabs);
 
-        thread::scope(|s| {
+        crossbeam::thread::scope(|s| {
             let mut handles = Vec::new();
 
             for slab in &mut slabs {
@@ -98,17 +99,16 @@ fn _ray_trace_scene() {
 
     //         // use opengl coords, (0.0, 0.0) is center; (1.0, 1.0) is
     //         // top right; (-1.0, -1.0) is bottom left
-    //         let u = ((i as Scalar / (width - 1) as Scalar) - 0.5) * 2.0;
-    //         let v = ((j as Scalar / (height - 1) as Scalar) - 0.5) * 2.0;
+    //         let u = ((i as f64 / (width - 1) as f64) - 0.5) * 2.0;
+    //         let v = ((j as f64 / (height - 1) as f64) - 0.5) * 2.0;
 
     //         let ray = camera.get_ray(u, v);
 
-    //         *pixel = trace_ray(&ray, &camera, &SCENE, 2);
+    //         *pixel = trace_ray(&ray, camera, &SCENE, 2);
     //     }
     // }
 
-    let ppm = PPM::new(&image);
-    ppm.write_to_file("image.ppm").unwrap();
+    image
 }
 
 use std::convert::TryInto;
@@ -202,6 +202,8 @@ fn main() {
 
     let sphere = Sphere::new(glm::vec3(1.0, 0.0, 0.0), 0.4);
 
+    let mut image = TextureRGBAFloat::new_empty(100, 100);
+
     while !window.should_close() {
         glfw.poll_events();
 
@@ -254,6 +256,14 @@ fn main() {
                 glm::vec4(1.0, 0.0, 0.0, 1.0),
             ))
             .unwrap();
+
+        draw_plane_with_image(
+            &glm::vec3(2.0, 0.0, 0.0),
+            &glm::vec3(2.0, 2.0, 2.0),
+            &glm::vec3(0.0, 0.0, 1.0),
+            &mut image,
+            &mut imm,
+        );
 
         if should_cast_ray {
             let ray_direction = camera.get_raycast_direction(
@@ -354,6 +364,10 @@ fn main() {
 
                     if ui.button("Delete Rays").clicked() {
                         bvh_ray_intersection.clear();
+                    }
+
+                    if ui.button("Ray Trace Scene").clicked() {
+                        image = TextureRGBAFloat::from_image(&ray_trace_scene());
                     }
                 });
                 let _output = egui.end_frame(glm::vec2(window_width as _, window_height as _));
