@@ -1,11 +1,16 @@
 use crate::intersectable::{IntersectInfo, Intersectable};
-use crate::math::Scalar;
 use crate::ray::Ray;
 
 type Object = Box<dyn Intersectable + Send + Sync>;
 
 pub struct Scene {
     objects: Vec<Object>,
+}
+
+impl Default for Scene {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Scene {
@@ -20,12 +25,12 @@ impl Scene {
     }
 
     pub fn get_objects(&self) -> &Vec<Object> {
-        return &self.objects;
+        &self.objects
     }
 }
 
 impl Intersectable for Scene {
-    fn hit(&self, ray: &Ray, t_min: Scalar, t_max: Scalar) -> Option<IntersectInfo> {
+    fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<IntersectInfo> {
         let hit_infos: Vec<_> = self
             .objects
             .iter()
@@ -33,7 +38,7 @@ impl Intersectable for Scene {
             .filter(|object| object.is_some())
             .collect();
 
-        if hit_infos.len() == 0 {
+        if hit_infos.is_empty() {
             return None;
         }
 
@@ -46,6 +51,6 @@ impl Intersectable for Scene {
             }
         }
 
-        return res;
+        res
     }
 }

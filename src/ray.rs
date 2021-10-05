@@ -1,25 +1,25 @@
-use crate::math::{Scalar, Vec3};
+use crate::glm;
 
 #[derive(Debug, Copy, Clone)]
 pub struct Ray {
-    origin: Vec3,
-    direction: Vec3,
+    origin: glm::DVec3,
+    direction: glm::DVec3,
 }
 
 impl Ray {
-    pub fn new(origin: Vec3, direction: Vec3) -> Self {
-        return Self { origin, direction };
+    pub fn new(origin: glm::DVec3, direction: glm::DVec3) -> Self {
+        Self { origin, direction }
     }
 
-    pub fn get_origin(&self) -> &Vec3 {
-        return &self.origin;
+    pub fn get_origin(&self) -> &glm::DVec3 {
+        &self.origin
     }
 
-    pub fn get_direction(&self) -> &Vec3 {
-        return &self.direction;
+    pub fn get_direction(&self) -> &glm::DVec3 {
+        &self.direction
     }
 
-    pub fn at(&self, t: Scalar) -> Vec3 {
-        return &self.origin + t * &self.direction;
+    pub fn at(&self, t: f64) -> glm::DVec3 {
+        self.origin + t * self.direction
     }
 }

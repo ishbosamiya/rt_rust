@@ -1,24 +1,33 @@
+pub mod blinn;
+pub mod bsdf;
+pub mod bvh;
 pub mod camera;
+pub mod drawable;
+pub mod fps;
+pub mod gl_camera;
+pub mod gpu_immediate;
+pub mod gpu_utils;
 pub mod image;
 pub mod intersectable;
 pub mod math;
+pub mod mesh;
+pub mod meshio;
 pub mod ray;
 pub mod scene;
+pub mod shader;
 pub mod sphere;
-pub mod threadpool;
-pub mod bsdf;
-pub mod blinn;
+pub mod texture;
+pub mod util;
 
-use nalgebra_glm as glm;
+pub use nalgebra_glm as glm;
 
+use crate::bsdf::BSDFTemplate;
 use crate::camera::Camera;
 use crate::intersectable::Intersectable;
-use crate::math::Vec3;
 use crate::ray::Ray;
 use crate::scene::Scene;
-use crate::bsdf::BSDFTemplate;
 
-fn get_background_color(ray: &Ray, camera: &Camera) -> Vec3 {
+fn get_background_color(ray: &Ray, camera: &Camera) -> glm::DVec3 {
     let color_1 = glm::vec3(0.8, 0.8, 0.8);
     let color_2 = glm::vec3(0.2, 0.2, 0.8);
 
@@ -27,7 +36,7 @@ fn get_background_color(ray: &Ray, camera: &Camera) -> Vec3 {
     let y_val = (camera_origin_y + ray.get_direction()[1]) / camera_vertical_range;
     let y_val = (y_val + 1.0) / 2.0;
 
-    return glm::lerp(&color_1, &color_2, y_val);
+    glm::lerp(&color_1, &color_2, y_val)
 }
 
 // x: current point
@@ -37,8 +46,8 @@ fn get_background_color(ray: &Ray, camera: &Camera) -> Vec3 {
 // e: intensity of emitted light by x_prime reaching x
 // i: intensity of light from x_prime to x
 // p: intensity of light scattered from x_prime_prime to x by a patch on surface at x_prime
-pub fn trace_ray(ray: &Ray, camera: &Camera, scene: &'static Scene, depth: usize) -> Vec3 {
-    if depth <= 0 {
+pub fn trace_ray(ray: &Ray, camera: &Camera, scene: &'static Scene, depth: usize) -> glm::DVec3 {
+    if depth == 0 {
         return glm::zero();
     }
     let val;
@@ -46,8 +55,8 @@ pub fn trace_ray(ray: &Ray, camera: &Camera, scene: &'static Scene, depth: usize
         // Creating bsdf template and calling function
         // Random values as of now
         let template = BSDFTemplate {
-            roughness: 1.5_f64, 
-            brightness: 2.5_f64, 
+            roughness: 1.5_f64,
+            brightness: 2.5_f64,
             opacity: 1.0_f64,
         };
         // diffuse shader
@@ -66,29 +75,28 @@ pub fn trace_ray(ray: &Ray, camera: &Camera, scene: &'static Scene, depth: usize
     } else {
         val = get_background_color(ray, camera);
     }
-    return val;
+    val
 }
 
 #[cfg(test)]
 mod tests {
     #[test]
     fn single_ray_vs_scene_mt() {
+        use crate::glm;
         use crate::intersectable::Intersectable;
         use crate::ray::Ray;
         use crate::sphere::Sphere;
-        use crate::threadpool::ThreadPool;
-        use nalgebra_glm as glm;
         use rand::prelude::*;
 
         fn rng_scaled(rng: &mut ThreadRng, scale_factor: f64) -> f64 {
-            return (rng.gen::<f64>() - 0.5) * 2.0 * scale_factor;
+            (rng.gen::<f64>() - 0.5) * 2.0 * scale_factor
         }
 
         fn random_vec3(rng: &mut ThreadRng, scale_factor: f64) -> glm::DVec3 {
             let x = rng_scaled(rng, scale_factor);
             let y = rng_scaled(rng, scale_factor);
             let z = rng_scaled(rng, scale_factor);
-            return glm::vec3(x, y, z);
+            glm::vec3(x, y, z)
         }
 
         let ray = Ray::new(glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 0.0, -1.0));
@@ -104,27 +112,16 @@ mod tests {
             )));
         }
         let (t_min, t_max) = (0.01, 1000.0);
-        let pool = ThreadPool::new(12);
 
-        let mut chunk_size = scene.len() / pool.get_num_threads();
+        let mut chunk_size = scene.len();
         if chunk_size == 0 {
             chunk_size = 1;
         }
 
-        // for objects in scene.chunks(chunk_size) {
-        //     objects.iter().for_each(|object| {
-        //         object.hit(&ray, t_min, t_max);
-        //     })
-        // }
-
-        pool.scoped(|scope| {
-            for objects in scene.chunks(chunk_size) {
-                scope.execute(|| {
-                    objects.iter().for_each(|object| {
-                        object.hit(&ray, t_min, t_max);
-                    })
-                });
-            }
-        });
+        for objects in scene.chunks(chunk_size) {
+            objects.iter().for_each(|object| {
+                object.hit(&ray, t_min, t_max);
+            })
+        }
     }
 }
