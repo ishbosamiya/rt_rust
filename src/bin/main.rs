@@ -3,7 +3,7 @@ use rt::camera::Camera;
 use rt::glm;
 use rt::image::{Image, PPM};
 use rt::scene::Scene;
-use rt::sphere::Sphere;
+use rt::sphere::{Sphere, SphereDrawData};
 
 use rt::trace_ray;
 
@@ -200,6 +200,8 @@ fn main() {
     let mut bvh_ray_color: glm::DVec4 = glm::vec4(0.2, 0.5, 0.9, 1.0);
     let mut bvh_ray_intersection = Vec::new();
 
+    let sphere = Sphere::new(glm::vec3(1.0, 0.0, 0.0), 0.4);
+
     while !window.should_close() {
         glfw.poll_events();
 
@@ -244,6 +246,14 @@ fn main() {
             None,
         ))
         .unwrap();
+
+        sphere
+            .draw(&mut SphereDrawData::new(
+                &mut imm,
+                glm::vec4(0.0, 0.0, 1.0, 1.0),
+                glm::vec4(1.0, 0.0, 0.0, 1.0),
+            ))
+            .unwrap();
 
         if should_cast_ray {
             let ray_direction = camera.get_raycast_direction(
