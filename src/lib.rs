@@ -14,6 +14,7 @@ pub mod ray;
 pub mod scene;
 pub mod shader;
 pub mod sphere;
+pub mod texture;
 pub mod util;
 
 pub use nalgebra_glm as glm;
