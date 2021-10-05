@@ -1,11 +1,11 @@
 use generational_arena::{Arena, Index};
 use lazy_static::lazy_static;
-use nalgebra_glm as glm;
 
 use std::cmp::PartialOrd;
 use std::fmt::Debug;
 
 use crate::drawable::Drawable;
+use crate::glm;
 use crate::gpu_immediate::*;
 use crate::shader;
 
@@ -1352,8 +1352,8 @@ impl<T> ArenaFunctions for Arena<T> {
 mod tests {
     #[test]
     fn bvh_insert() {
+        use super::glm;
         use super::ArenaFunctions;
-        use nalgebra_glm as glm;
         let mut bvh = super::BVHTree::<usize>::new(1, 0.001, 3, 6);
         bvh.insert(0, vec![glm::vec3(-1.0, 0.0, 0.0), glm::vec3(1.0, 0.0, 0.0)]);
         bvh.balance();
@@ -1368,8 +1368,8 @@ mod tests {
 
     #[test]
     fn bvh_insert_2() {
+        use super::glm;
         use super::ArenaFunctions;
-        use nalgebra_glm as glm;
         let mut bvh = super::BVHTree::new(5, 0.001, 4, 6);
         bvh.insert(0, vec![glm::vec3(-1.0, 0.0, 0.0), glm::vec3(1.0, 0.0, 0.0)]);
         bvh.insert(1, vec![glm::vec3(0.0, -1.0, 0.0), glm::vec3(0.0, 1.0, 0.0)]);

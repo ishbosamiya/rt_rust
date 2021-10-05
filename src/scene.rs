@@ -1,5 +1,4 @@
 use crate::intersectable::{IntersectInfo, Intersectable};
-use crate::math::Scalar;
 use crate::ray::Ray;
 
 type Object = Box<dyn Intersectable + Send + Sync>;
@@ -31,7 +30,7 @@ impl Scene {
 }
 
 impl Intersectable for Scene {
-    fn hit(&self, ray: &Ray, t_min: Scalar, t_max: Scalar) -> Option<IntersectInfo> {
+    fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<IntersectInfo> {
         let hit_infos: Vec<_> = self
             .objects
             .iter()

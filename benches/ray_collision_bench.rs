@@ -6,7 +6,6 @@ use lazy_static::lazy_static;
 
 use rt::camera::Camera;
 use rt::image::Image;
-use rt::math::Scalar;
 use rt::scene::Scene;
 use rt::sphere::Sphere;
 use rt::trace_ray;
@@ -54,8 +53,8 @@ fn multi_threaded() {
 
                             // use opengl coords, (0.0, 0.0) is center; (1.0, 1.0) is
                             // top right; (-1.0, -1.0) is bottom left
-                            let u = ((i as Scalar / (width - 1) as Scalar) - 0.5) * 2.0;
-                            let v = ((j as Scalar / (height - 1) as Scalar) - 0.5) * 2.0;
+                            let u = ((i as f64 / (width - 1) as f64) - 0.5) * 2.0;
+                            let v = ((j as f64 / (height - 1) as f64) - 0.5) * 2.0;
 
                             let ray = camera.get_ray(u, v);
 
@@ -109,8 +108,8 @@ fn single_threaded() {
 
             // use opengl coords, (0.0, 0.0) is center; (1.0, 1.0) is
             // top right; (-1.0, -1.0) is bottom left
-            let u = ((i as Scalar / (width - 1) as Scalar) - 0.5) * 2.0;
-            let v = ((j as Scalar / (height - 1) as Scalar) - 0.5) * 2.0;
+            let u = ((i as f64 / (width - 1) as f64) - 0.5) * 2.0;
+            let v = ((j as f64 / (height - 1) as f64) - 0.5) * 2.0;
 
             let ray = camera.get_ray(u, v);
 

@@ -1,21 +1,19 @@
 use std::fs::File;
 use std::io::prelude::*;
 
-use nalgebra_glm as glm;
-
-use crate::math::Vec3;
+use crate::glm;
 
 pub struct Image {
-    pixels: Vec<Vec<Vec3>>,
+    pixels: Vec<Vec<glm::DVec3>>,
     width: usize,
     height: usize,
 }
 
 impl Image {
     pub fn new(width: usize, height: usize) -> Image {
-        let mut pixels: Vec<Vec<Vec3>> = Vec::with_capacity(height);
+        let mut pixels: Vec<Vec<glm::DVec3>> = Vec::with_capacity(height);
         let mut empty_row = Vec::with_capacity(width);
-        empty_row.resize(width, Vec3::new(0.0, 0.0, 0.0));
+        empty_row.resize(width, glm::vec3(0.0, 0.0, 0.0));
         pixels.resize(height, empty_row);
 
         Image {
@@ -25,11 +23,11 @@ impl Image {
         }
     }
 
-    pub fn set_pixel(&mut self, i: usize, j: usize, data: Vec3) {
+    pub fn set_pixel(&mut self, i: usize, j: usize, data: glm::DVec3) {
         self.pixels[i][j] = data;
     }
 
-    pub fn get_pixel(&self, i: usize, j: usize) -> &Vec3 {
+    pub fn get_pixel(&self, i: usize, j: usize) -> &glm::DVec3 {
         &self.pixels[i][j]
     }
 
@@ -41,11 +39,11 @@ impl Image {
         self.height
     }
 
-    pub fn get_pixels_mut(&mut self) -> &mut Vec<Vec<Vec3>> {
+    pub fn get_pixels_mut(&mut self) -> &mut Vec<Vec<glm::DVec3>> {
         &mut self.pixels
     }
 
-    pub fn get_pixels(&self) -> &Vec<Vec<Vec3>> {
+    pub fn get_pixels(&self) -> &Vec<Vec<glm::DVec3>> {
         &self.pixels
     }
 
@@ -76,7 +74,7 @@ pub struct Slab {
     pub y_start: usize,
     pub width: usize,
     pub height: usize,
-    pixels: Vec<Vec<Vec3>>,
+    pixels: Vec<Vec<glm::DVec3>>,
 }
 
 impl Slab {
@@ -90,11 +88,11 @@ impl Slab {
         }
     }
 
-    pub fn set_pixels(&mut self, pixels: Vec<Vec<Vec3>>) {
+    pub fn set_pixels(&mut self, pixels: Vec<Vec<glm::DVec3>>) {
         self.pixels = pixels;
     }
 
-    pub fn get_pixels(&self) -> &Vec<Vec<Vec3>> {
+    pub fn get_pixels(&self) -> &Vec<Vec<glm::DVec3>> {
         &self.pixels
     }
 }

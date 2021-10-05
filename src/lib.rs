@@ -15,15 +15,14 @@ pub mod shader;
 pub mod sphere;
 pub mod util;
 
-use nalgebra_glm as glm;
+pub use nalgebra_glm as glm;
 
 use crate::camera::Camera;
 use crate::intersectable::Intersectable;
-use crate::math::Vec3;
 use crate::ray::Ray;
 use crate::scene::Scene;
 
-fn get_background_color(ray: &Ray, camera: &Camera) -> Vec3 {
+fn get_background_color(ray: &Ray, camera: &Camera) -> glm::DVec3 {
     let color_1 = glm::vec3(0.8, 0.8, 0.8);
     let color_2 = glm::vec3(0.2, 0.2, 0.8);
 
@@ -42,7 +41,7 @@ fn get_background_color(ray: &Ray, camera: &Camera) -> Vec3 {
 // e: intensity of emitted light by x_prime reaching x
 // i: intensity of light from x_prime to x
 // p: intensity of light scattered from x_prime_prime to x by a patch on surface at x_prime
-pub fn trace_ray(ray: &Ray, camera: &Camera, scene: &'static Scene, depth: usize) -> Vec3 {
+pub fn trace_ray(ray: &Ray, camera: &Camera, scene: &'static Scene, depth: usize) -> glm::DVec3 {
     if depth == 0 {
         return glm::zero();
     }
@@ -67,10 +66,10 @@ pub fn trace_ray(ray: &Ray, camera: &Camera, scene: &'static Scene, depth: usize
 mod tests {
     #[test]
     fn single_ray_vs_scene_mt() {
+        use crate::glm;
         use crate::intersectable::Intersectable;
         use crate::ray::Ray;
         use crate::sphere::Sphere;
-        use nalgebra_glm as glm;
         use rand::prelude::*;
 
         fn rng_scaled(rng: &mut ThreadRng, scale_factor: f64) -> f64 {

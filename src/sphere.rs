@@ -1,30 +1,28 @@
+use crate::glm;
 use crate::intersectable::{IntersectInfo, Intersectable};
-use crate::math::{Scalar, Vec3};
 use crate::ray::Ray;
 
-use nalgebra_glm as glm;
-
 pub struct Sphere {
-    center: Vec3,
-    radius: Scalar,
+    center: glm::DVec3,
+    radius: f64,
 }
 
 impl Sphere {
-    pub fn new(center: Vec3, radius: Scalar) -> Self {
+    pub fn new(center: glm::DVec3, radius: f64) -> Self {
         Self { center, radius }
     }
 
-    pub fn get_center(&self) -> &Vec3 {
+    pub fn get_center(&self) -> &glm::DVec3 {
         &self.center
     }
 
-    pub fn get_radius(&self) -> Scalar {
+    pub fn get_radius(&self) -> f64 {
         self.radius
     }
 }
 
 impl Intersectable for Sphere {
-    fn hit(&self, ray: &Ray, t_min: Scalar, t_max: Scalar) -> Option<IntersectInfo> {
+    fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<IntersectInfo> {
         let oc = ray.get_origin() - self.get_center();
         let a = glm::length2(ray.get_direction());
         let half_b = oc.dot(ray.get_direction());
