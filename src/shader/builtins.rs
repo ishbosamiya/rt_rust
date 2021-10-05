@@ -48,3 +48,9 @@ load_builtin_shader_easy!(
     "../../shaders/face_orientation.vert";
     "../../shaders/face_orientation.frag"
 );
+
+load_builtin_shader_easy!(
+    smooth_sphere;
+    "../../shaders/smooth_sphere.vert";
+    "../../shaders/smooth_sphere.frag"
+);
