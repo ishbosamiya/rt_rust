@@ -52,6 +52,12 @@ load_builtin_shader_easy!(
 );
 
 load_builtin_shader_easy!(
+    flat_texture;
+    "../../shaders/flat_texture.vert";
+    "../../shaders/flat_texture.frag"
+);
+
+load_builtin_shader_easy!(
     smooth_sphere;
     "../../shaders/smooth_sphere.vert";
     "../../shaders/smooth_sphere.frag"
@@ -85,6 +91,16 @@ pub fn display_uniform_and_attribute_info() {
             "face_orientation: uniforms: {:?} attributes: {:?}",
             face_orientation_shader.get_uniforms(),
             face_orientation_shader.get_attributes(),
+        );
+    }
+
+    {
+        let flat_texture_shader = get_flat_texture_shader().as_ref().unwrap();
+
+        println!(
+            "flat_texture: uniforms: {:?} attributes: {:?}",
+            flat_texture_shader.get_uniforms(),
+            flat_texture_shader.get_attributes(),
         );
     }
 
@@ -139,6 +155,15 @@ pub fn setup_shaders(camera: &Camera, window_width: usize, window_height: usize)
         face_orientation_shader.set_mat4("model\0", &glm::identity());
         face_orientation_shader.set_vec4("color_face_front\0", &glm::vec4(0.0, 0.0, 1.0, 1.0));
         face_orientation_shader.set_vec4("color_face_back\0", &glm::vec4(1.0, 0.0, 0.0, 1.0));
+    }
+
+    {
+        let flat_texture_shader = get_flat_texture_shader().as_ref().unwrap();
+
+        flat_texture_shader.use_shader();
+        flat_texture_shader.set_mat4("projection\0", projection_matrix);
+        flat_texture_shader.set_mat4("view\0", view_matrix);
+        flat_texture_shader.set_mat4("model\0", &glm::identity());
     }
 
     {
