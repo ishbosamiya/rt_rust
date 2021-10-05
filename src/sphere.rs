@@ -1,4 +1,7 @@
+use crate::drawable::Drawable;
 use crate::glm;
+use crate::gpu_immediate::GPUImmediate;
+use crate::gpu_utils::draw_smooth_sphere_at;
 use crate::intersectable::{IntersectInfo, Intersectable};
 use crate::ray::Ray;
 
@@ -48,5 +51,42 @@ impl Intersectable for Sphere {
         info.set_normal(ray, &outward_normal);
 
         Some(info)
+    }
+}
+
+pub struct SphereDrawData<'a> {
+    imm: &'a mut GPUImmediate,
+    outside_color: glm::Vec4,
+    inside_color: glm::Vec4,
+}
+
+impl<'a> SphereDrawData<'a> {
+    pub fn new(
+        imm: &'a mut GPUImmediate,
+        outside_color: glm::Vec4,
+        inside_color: glm::Vec4,
+    ) -> Self {
+        Self {
+            imm,
+            outside_color,
+            inside_color,
+        }
+    }
+}
+
+impl Drawable<SphereDrawData<'_>, ()> for Sphere {
+    fn draw(&self, extra_data: &mut SphereDrawData) -> Result<(), ()> {
+        draw_smooth_sphere_at(
+            self.center,
+            self.radius,
+            extra_data.outside_color,
+            extra_data.inside_color,
+            extra_data.imm,
+        );
+        Ok(())
+    }
+
+    fn draw_wireframe(&self, _extra_data: &mut SphereDrawData) -> Result<(), ()> {
+        unreachable!("No Wireframe drawing for Sphere");
     }
 }
