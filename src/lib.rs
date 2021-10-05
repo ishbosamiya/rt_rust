@@ -4,6 +4,7 @@ pub mod drawable;
 pub mod fps;
 pub mod gl_camera;
 pub mod gpu_immediate;
+pub mod gpu_utils;
 pub mod image;
 pub mod intersectable;
 pub mod math;
