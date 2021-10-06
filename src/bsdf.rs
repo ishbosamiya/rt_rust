@@ -1,4 +1,5 @@
 use crate::blinn::Blinn;
+use crate::blinnphong::BlinnPhong;
 use crate::glm;
 
 // Removed front and back facing as it is already present in intersect info
@@ -24,9 +25,9 @@ impl BSDFTemplate {
         y: &glm::DVec3,
     ) -> glm::DVec3 {
         let zerovec = glm::vec3(0.0_f64, 0.0_f64, 0.0_f64);
-        let blinn_model: Blinn = BSDF::new();
+        let blinn_model: BlinnPhong = BSDF::new();
         let s = blinn_model.eval(l, view, n, x, y);
-        let mut b = if s > zerovec { s } else { zerovec };
+        let mut b = s;
 
         b = b * n.dot(l);
 
@@ -52,7 +53,7 @@ impl BSDFTemplate {
             &bitangent,
         );
 
-        b = b * self.brightness;
+        b = b * self.brightness  ;
 
         // Calculate exposure - TBD
         // b = b * self.opacity.powf(2.0)

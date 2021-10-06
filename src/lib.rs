@@ -18,6 +18,7 @@ pub mod shader;
 pub mod sphere;
 pub mod texture;
 pub mod util;
+pub mod blinnphong;
 
 pub use nalgebra_glm as glm;
 
@@ -55,16 +56,16 @@ pub fn trace_ray(ray: &Ray, camera: &Camera, scene: &'static Scene, depth: usize
         // Creating bsdf template and calling function
         // Random values as of now
         let template = BSDFTemplate {
-            roughness: 1.5_f64,
-            brightness: 2.5_f64,
+            roughness: 0.01_f64,
+            brightness: 10.0_f64,
             opacity: 1.0_f64,
         };
         // diffuse shader
         // Shader code : TODO Check if it works with bsdf
         // Modified BSDF Code
-        // let target = info.get_point() + template.setup(ray.get_direction(), &info.get_point());
+         let target = template.setup(ray.get_direction(), &info.get_point());
         // Original code
-        let target = info.get_point() + info.get_normal().unwrap() + math::random_in_unit_sphere();
+        //let target = info.get_point() + info.get_normal().unwrap() + math::random_in_unit_sphere();
         val = 0.5
             * trace_ray(
                 &Ray::new(*info.get_point(), target - info.get_point()),
