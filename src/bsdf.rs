@@ -16,16 +16,16 @@ pub struct BSDFTemplate {
 impl BSDFTemplate {
     fn compute_with_directional_light(
         &self,
-        surf: &glm::DVec3,
+        _surf: &glm::DVec3,
         l: &glm::DVec3,
         view: &glm::DVec3,
         n: &glm::DVec3,
-        x: &glm::DVec3,
-        y: &glm::DVec3,
+        _x: &glm::DVec3,
+        _y: &glm::DVec3,
     ) -> glm::DVec3 {
         let zerovec = glm::vec3(0.0_f64, 0.0_f64, 0.0_f64);
         let blinn_model: Blinn = BSDF::new();
-        let s = blinn_model.eval(l, view, n, x, y);
+        let s = blinn_model.eval(l, view, n, _x, _y);
         let mut b = if s > zerovec { s } else { zerovec };
 
         b = b * n.dot(l);
