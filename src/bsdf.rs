@@ -25,15 +25,9 @@ impl BSDFTemplate {
         _y: &glm::DVec3,
     ) -> glm::DVec3 {
         let zerovec = glm::vec3(0.0_f64, 0.0_f64, 0.0_f64);
-<<<<<<< HEAD
-        let blinn_model: Blinn = BSDF::new();
-        let s = blinn_model.eval(l, view, n, _x, _y);
-        let mut b = if s > zerovec { s } else { zerovec };
-=======
         let blinn_model: BlinnPhong = BSDF::new();
-        let s = blinn_model.eval(l, view, n, x, y);
+        let s = blinn_model.eval(l, view, n, _x, _y);
         let mut b = s;
->>>>>>> d501be01c9135ac98d10371a7d4943372b2ef425
 
         b = b * n.dot(l);
 
