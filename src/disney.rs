@@ -4,6 +4,7 @@ use crate::bsdfutils::Utils;
 
 // File for main disney brdf code
 struct Disney {
+    pub basecolor: glm::DVec3,
     pub metallic: f64,
     pub subsurface: f64,
     pub specular: f64,
@@ -19,7 +20,8 @@ struct Disney {
 
 impl BSDF for Disney {
     fn new() -> Self {
-        Disney {metallic: 0.0_f64, 
+        Disney {basecolor: glm::DVec3::new(0.82, 0.67, 0.16),
+            metallic: 0.0_f64, 
             subsurface: 0.0_f64, 
             specular: 0.5_f64, 
             roughness: 0.5_f64, 
@@ -40,6 +42,32 @@ impl BSDF for Disney {
         y: &glm::DVec3,
     ) -> glm::DVec3 {
         // Enter main eval code
-        return glm::vec3(0.0, 0.0, 0.0);
+        let ndot_l = n.dot(l);
+        let ndot_v = n.dot(v);
+
+        if ndot_l < 0.0 || ndot_v < 0.0 {
+            return glm::DVec3::new(0.0, 0.0, 0.0);
+        }
+        //let mut h : glm::DVec3;
+        let mut h = (l + v).normalize();
+
+        let ndot_h = n.dot(&h);
+        let ldot_h = l.dot(&h);
+
+        // Utility structure
+        let util: Utils = Utils::new();
+        // Calculate colour if required here
+        let cdlin = util.mon2lin(&self.basecolor);
+        // Calculate lumincance approx
+        let cdlum = 0.3_f64 * cdlin.x + 0.6_f64 * cdlin.y + 0.1_f64 * cdlin.z;
+
+        let newvec = glm::DVec3::new(cdlin.x / cdlum, cdlin.y / cdlum, cdlin.z / cdlum);
+        let ctint: glm::DVec3;
+        ctint = if cdlum > 0.0_f64 {newvec} else {glm::DVec3::new(1.0, 1.0, 1.0)};
+        
+        // TODO Finish functions from here
+
+
+        return glm::DVec3::new(0.0, 0.0, 0.0);
     }
 }
