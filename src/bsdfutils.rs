@@ -1,5 +1,6 @@
 use crate::bsdf::BSDF;
 use crate::glm;
+use lerp::Lerp;
 
 pub struct Utils {}
 
@@ -37,5 +38,12 @@ impl Utils {
     }
     pub fn mon2lin(&self, x : &glm::DVec3) -> glm::DVec3 {
         return glm::DVec3::new(x.x.powf(2.2), x.y.powf(2.2), x.z.powf(2.2));
+    }
+    pub fn mix(&self, x: &glm::DVec3, y: &glm::DVec3,z: f64) -> glm::DVec3 {
+        return x.lerp(y,z);
+    }
+
+    pub fn mixnum(&self, x: f64,y: f64,z: f64) -> f64 {
+        return x.lerp(y,z);
     }
 }
