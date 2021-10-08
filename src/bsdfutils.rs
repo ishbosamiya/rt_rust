@@ -1,4 +1,3 @@
-use crate::bsdf::BSDF;
 use crate::glm;
 use lerp::Lerp;
 
@@ -15,18 +14,18 @@ impl Utils {
         return m2 * m2 * m;
     }
     pub fn gtr1(&self, ndot_h : f64, a : f64) -> f64 {
-        let PI = 3.14159265358979323846;
+        let pi = 3.14159265358979323846;
         if a >= 1.0 {
-            return 1.0_f64 / PI;
+            return 1.0_f64 / pi;
         }
         let a2 = a.powf(2.0);
         let t = 1.0_f64 + (a2 - 1.0_f64) * ndot_h * ndot_h;
         // Check again if it is log10 or log2
-        return (a2 - 1.0_f64) / (PI * a2.log10() * t);
+        return (a2 - 1.0_f64) / (pi * a2.log10() * t);
     }
     pub fn gtr2_aniso(&self, ndot_h : f64, hdot_x : f64, hdot_y : f64, ax : f64, ay : f64) -> f64 {
-        let PI = 3.14159265358979323846;
-        return 1.0_f64 / (PI * ax * ay * ((hdot_x / ax).powf(2.0) + (hdot_y / ay).powf(2.0) + ndot_h * ndot_h ).powf(2.0));
+        let pi = 3.14159265358979323846;
+        return 1.0_f64 / (pi * ax * ay * ((hdot_x / ax).powf(2.0) + (hdot_y / ay).powf(2.0) + ndot_h * ndot_h ).powf(2.0));
     }
     pub fn smithg_ggx(&self, ndot_v : f64, alphag : f64) -> f64 {
         let a = alphag.powf(2.0);
