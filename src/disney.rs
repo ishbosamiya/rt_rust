@@ -47,6 +47,7 @@ impl BSDF for Disney {
         let ndot_l = n.dot(l);
         let ndot_v = n.dot(v);
         
+        let PI = 3.14159265358979323846;
 
         if ndot_l < 0.0 || ndot_v < 0.0 {
             return glm::DVec3::new(0.0, 0.0, 0.0);
@@ -72,7 +73,9 @@ impl BSDF for Disney {
         ctint = if cdlum > 0.0_f64 {newvec} else {glm::DVec3::new(1.0, 1.0, 1.0)};
         
         let cspec0: glm::DVec3;
-        cspec0 = util.mix(self.specular*0.8_f64*util.mix(&glm::DVec3::new(1.0_f64, 1.0_f64, 1.0_f64),&ctint,self.specularTint), &cdlin,self.metallic);
+        // TODO Check this function
+        let spec_vec: glm::DVec3 = self.specular * 0.8_f64 * util.mix(&glm::DVec3::new(1.0_f64, 1.0_f64, 1.0_f64),&ctint,self.specularTint);
+        cspec0 = util.mix(&spec_vec, &cdlin,self.metallic);
 
         let csheen: glm::DVec3;
         csheen = util.mix(&glm::DVec3::new(1.0,1.0,1.0), &ctint, self.sheenTint);
@@ -101,9 +104,9 @@ impl BSDF for Disney {
 
         let fs: glm::DVec3;
 
-        fs = util.mix(cspec0, &glm::DVec3::new(1.0,1.0,1.0), fh);
+        fs = util.mix(&cspec0, &glm::DVec3::new(1.0,1.0,1.0), fh);
 
-        let gs = util.smithg_ggx_aniso(ndot_l,l.dot(x),l.dot(y),ax,ay);
+        let mut gs = util.smithg_ggx_aniso(ndot_l,l.dot(x),l.dot(y),ax,ay);
 
         gs *= util.smithg_ggx_aniso(ndot_v,v.dot(x),v.dot(y),ax,ay);
 
@@ -116,13 +119,10 @@ impl BSDF for Disney {
 
         let gr = util.smithg_ggx(ndot_l, 0.25_f64) * util.smithg_ggx(ndot_v, 0.25_f64);
 
-
-
-
-
-
-        
-
-        return glm::DVec3::new(0.0, 0.0, 0.0);
+        // Check main code reference to fix error
+        // Unsure of main code
+        let clear_val = 0.25_f64 * self.clearcoat * gr * fr * dr;
+        let clear_vec = glm::DVec3::new(clear_val, clear_val, clear_val);
+        return ((1.0_f64 / PI) * util.mixnum(fd, ss, self.subsurface, ) * cdlin + fsheen) * (1.0_f64 - self.metallic) + gs * fs * ds + clear_vec;
     }
 }
