@@ -26,9 +26,9 @@ impl BSDFTemplate {
         _y: &glm::DVec3,
     ) -> glm::DVec3 {
         // let zerovec = glm::zero();
-        let blinn_model: BlinnPhong = BSDF::new();
-        let s = blinn_model.eval(l, view, n, _x, _y);
-        let mut b = s;
+        let disney_model: Disney = BSDF::new();
+        let mut b = disney_model.eval(l, view, n, _x, _y);
+        // let mut b = s;
 
         b = b * n.dot(l);
 

@@ -65,9 +65,9 @@ impl BSDF for Disney {
         // Calculate colour if required here
         let cdlin = util.mon2lin(&self.basecolor);
         // Calculate lumincance approx
-        let cdlum = 0.3_f64 * cdlin.x + 0.6_f64 * cdlin.y + 0.1_f64 * cdlin.z;
+        let cdlum = 0.3_f64 * cdlin[0] + 0.6_f64 * cdlin[1] + 0.1_f64 * cdlin[2];
 
-        let newvec = glm::vec3(cdlin.x / cdlum, cdlin.y / cdlum, cdlin.z / cdlum);
+        let newvec = glm::vec3(cdlin[0] / cdlum, cdlin[1] / cdlum, cdlin[2] / cdlum);
         let ctint: glm::DVec3;
         ctint = if cdlum > 0.0_f64 {newvec} else {glm::vec3(1.0, 1.0, 1.0)};
         
