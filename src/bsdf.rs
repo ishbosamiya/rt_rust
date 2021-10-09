@@ -1,5 +1,3 @@
-use crate::blinn::Blinn;
-use crate::blinnphong::BlinnPhong;
 use crate::disney::Disney;
 use crate::glm;
 
@@ -29,6 +27,7 @@ impl BSDFTemplate {
         let disney_model: Disney = BSDF::new();
         let mut b = disney_model.eval(l, view, n, _x, _y);
         // let mut b = s;
+        b = glm::max2(&b, &glm::zero());
 
         b = b * n.dot(l);
 
@@ -54,17 +53,19 @@ impl BSDFTemplate {
             &bitangent,
         );
 
-        b = b * self.brightness  ;
+        b = b * self.brightness;
 
         // Calculate exposure - TBD
         // b = b * self.opacity.powf(2.0)
         // Check if gamma is roughness or not
+        let gamma_factor = 1.0_f64 / self.roughness;
+        let gamma_vec = glm::vec3(gamma_factor, gamma_factor, gamma_factor);
 
-        let invgamma = 1.0_f64 / self.roughness;
+        b = glm::pow(&b, &gamma_vec);
 
-        let new = glm::vec3(b.x.powf(invgamma), b.y.powf(invgamma), b.z.powf(invgamma));
+        // let new = glm::vec3(b[0].powf(invgamma), b[1].powf(invgamma), b[2].powf(invgamma));
 
-        return new;
+        return b;
     }
 }
 
