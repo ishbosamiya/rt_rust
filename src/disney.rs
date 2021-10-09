@@ -49,7 +49,7 @@ impl BSDF for Disney {
         let pi = 3.14159265358979323846;
 
         if ndot_l < 0.0 || ndot_v < 0.0 {
-            return glm::DVec3::new(0.0, 0.0, 0.0);
+            return glm::zero();
         }
         //let mut h : glm::DVec3;
         let h = (l + v).normalize();
@@ -67,17 +67,17 @@ impl BSDF for Disney {
         // Calculate lumincance approx
         let cdlum = 0.3_f64 * cdlin.x + 0.6_f64 * cdlin.y + 0.1_f64 * cdlin.z;
 
-        let newvec = glm::DVec3::new(cdlin.x / cdlum, cdlin.y / cdlum, cdlin.z / cdlum);
+        let newvec = glm::vec3(cdlin.x / cdlum, cdlin.y / cdlum, cdlin.z / cdlum);
         let ctint: glm::DVec3;
-        ctint = if cdlum > 0.0_f64 {newvec} else {glm::DVec3::new(1.0, 1.0, 1.0)};
+        ctint = if cdlum > 0.0_f64 {newvec} else {glm::vec3(1.0, 1.0, 1.0)};
         
         let cspec0: glm::DVec3;
         // TODO Check this function
-        let spec_vec: glm::DVec3 = self.specular * 0.8_f64 * util.mix(&glm::DVec3::new(1.0_f64, 1.0_f64, 1.0_f64),&ctint,self.specular_tint);
-        cspec0 = util.mix(&spec_vec, &cdlin,self.metallic);
+        let spec_vec: glm::DVec3 = self.specular * 0.8_f64 * glm::mix(&glm::vec3(1.0_f64, 1.0_f64, 1.0_f64),&ctint,self.specular_tint);
+        cspec0 = glm::mix(&spec_vec, &cdlin,self.metallic);
 
         let csheen: glm::DVec3;
-        csheen = util.mix(&glm::DVec3::new(1.0,1.0,1.0), &ctint, self.sheen_tint);
+        csheen = glm::mix(&glm::vec3(1.0,1.0,1.0), &ctint, self.sheen_tint);
 
         let fl = util.schlick_fresnel(ndot_l);
 
@@ -85,11 +85,11 @@ impl BSDF for Disney {
 
         let fd90 = 0.5_f64 + 2.0_f64 * ldot_h*ldot_h * self.roughness;
 
-        let fd = util.mixnum(1.0_f64, fd90,fl)* util.mixnum(1.0,fd90,fv);
+        let fd = glm::mix_scalar(1.0_f64, fd90,fl)* glm::mix_scalar(1.0,fd90,fv);
 
         let fss90 = ldot_h * ldot_h * self.roughness;
 
-        let fss = util.mixnum(1.0_f64, fss90, fl) * util.mixnum(1.0_f64, fss90, fv);
+        let fss = glm::mix_scalar(1.0_f64, fss90, fl) * glm::mix_scalar(1.0_f64, fss90, fv);
 
         let ss = 1.25 * (fss* (1.0_f64/(ndot_l+ndot_v) - 0.5_f64)+ 0.5_f64);
         
@@ -103,7 +103,7 @@ impl BSDF for Disney {
 
         let fs: glm::DVec3;
 
-        fs = util.mix(&cspec0, &glm::DVec3::new(1.0,1.0,1.0), fh);
+        fs = glm::mix(&cspec0, &glm::vec3(1.0_f64,1.0_f64,1.0_f64), fh);
 
         let mut gs = util.smithg_ggx_aniso(ndot_l,l.dot(x),l.dot(y),ax,ay);
 
@@ -112,16 +112,16 @@ impl BSDF for Disney {
         let fsheen: glm::DVec3;
         fsheen = fh * self.sheen * csheen;
 
-        let dr = util.gtr1(ndot_h, util.mixnum(0.1_f64, 0.001_f64, self.clearcoat_glass));
+        let dr = util.gtr1(ndot_h, glm::mix_scalar(0.1_f64, 0.001_f64, self.clearcoat_glass));
 
-        let fr = util.mixnum(0.4_f64, 1.0_f64, fh);
+        let fr = glm::mix_scalar(0.4_f64, 1.0_f64, fh);
 
         let gr = util.smithg_ggx(ndot_l, 0.25_f64) * util.smithg_ggx(ndot_v, 0.25_f64);
 
         // Check main code reference to fix error
         // Unsure of main code
         let clear_val = 0.25_f64 * self.clearcoat * gr * fr * dr;
-        let clear_vec = glm::DVec3::new(clear_val, clear_val, clear_val);
-        return ((1.0_f64 / pi) * util.mixnum(fd, ss, self.subsurface, ) * cdlin + fsheen) * (1.0_f64 - self.metallic) + gs * fs * ds + clear_vec;
+        let clear_vec = glm::vec3(clear_val, clear_val, clear_val);
+        return ((1.0_f64 / pi) * glm::mix_scalar(fd, ss, self.subsurface, ) * cdlin + fsheen) * (1.0_f64 - self.metallic) + gs * fs * ds + clear_vec;
     }
 }

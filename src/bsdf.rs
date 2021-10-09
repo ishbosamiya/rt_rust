@@ -25,7 +25,7 @@ impl BSDFTemplate {
         _x: &glm::DVec3,
         _y: &glm::DVec3,
     ) -> glm::DVec3 {
-        // let zerovec = glm::vec3(0.0_f64, 0.0_f64, 0.0_f64);
+        // let zerovec = glm::zero();
         let blinn_model: BlinnPhong = BSDF::new();
         let s = blinn_model.eval(l, view, n, _x, _y);
         let mut b = s;
@@ -39,12 +39,12 @@ impl BSDFTemplate {
         // Replace ray with vertex vector in world space
         // Ray then becomes incident light vector
         let normal = vertex.normalize();
-        let tangent = (glm::DVec3::new(0.0_f64, 1.0_f64, 0.0_f64).cross(&normal)).normalize();
+        let tangent = (glm::vec3(0.0_f64, 1.0_f64, 0.0_f64).cross(&normal)).normalize();
         let bitangent = (normal.cross(&tangent)).normalize();
 
         let surfacepos: glm::DVec3 = vertex.normalize();
 
-        let viewvec = glm::DVec3::new(0.0_f64, 0.0_f64, 1.0_f64);
+        let viewvec = glm::vec3(0.0_f64, 0.0_f64, 1.0_f64);
         let mut b = self.compute_with_directional_light(
             &surfacepos,
             ray,
