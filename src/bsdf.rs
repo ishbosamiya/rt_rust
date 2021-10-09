@@ -63,7 +63,9 @@ impl BSDFTemplate {
 
         b = glm::pow(&b, &gamma_vec);
 
-        // let new = glm::vec3(b[0].powf(invgamma), b[1].powf(invgamma), b[2].powf(invgamma));
+        // Check this once more
+        // let maxvec = glm::vec3(1.0, 1.0, 1.0);
+        // let frag_color = glm::vec4(glm::clamp_vec(&b, &glm::zero(), &maxvec), 1.0);
 
         return b;
     }
@@ -72,7 +74,8 @@ impl BSDFTemplate {
 // Main trait for implementing the BSDF
 pub trait BSDF {
     fn new() -> Self;
-    // fn sample(event : &SubsurfaceScatterEvent) -> bool
+    // TODO Implement Sample struct if needed (may not need for lambert)
+    // fn sample(&self, out : &glm::DVec3, vertex : &glm::DVec3, bsdf_sample: &Sample) -> glm::DVec3;
     fn eval(
         &self,
         l: &glm::DVec3,
