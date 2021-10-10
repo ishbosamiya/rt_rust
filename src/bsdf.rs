@@ -7,7 +7,7 @@ use crate::glm;
 pub struct BSDFTemplate {
     pub roughness: f64,
     pub brightness: f64,
-    pub opacity: f64,
+    pub opacity: f64
 }
 
 // Implementing the template with various functions
@@ -75,7 +75,10 @@ impl BSDFTemplate {
 pub trait BSDF {
     fn new() -> Self;
     // TODO Implement Sample struct if needed (may not need for lambert)
-    // fn sample(&self, out : &glm::DVec3, vertex : &glm::DVec3, bsdf_sample: &Sample) -> glm::DVec3;
+    fn sample(&self, 
+        out : &glm::DVec3, 
+        vertex : &glm::DVec3
+    ) -> glm::DVec3;
     fn eval(
         &self,
         l: &glm::DVec3,

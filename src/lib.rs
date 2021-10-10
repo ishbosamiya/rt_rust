@@ -22,6 +22,7 @@ pub mod blinnphong;
 pub mod disney;
 pub mod bsdfutils;
 pub mod lambert;
+pub mod sampler;
 
 pub use nalgebra_glm as glm;
 

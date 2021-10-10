@@ -1,8 +1,4 @@
-use nalgebra_glm as glm
-use std::cmp
-use crate::math::{Scalar,Vec3,saturate};
-use crate::ray::Ray;
-use crate::bsdf::{Material, BSDFData, GeomData};
+use crate::glm;
 
 /// File for the Sampler
 /// Contains Uniform path sampler and sample warp
@@ -10,13 +6,10 @@ use crate::bsdf::{Material, BSDFData, GeomData};
 
 /// May need to move to a different file
 /// 
-/*
-pub struct PathSampleGenerator {
-    state : u64,
-    sequence : u64
-}
+pub struct Sampler {}
 
-impl PathSampleGenerator {
+impl Sampler {
+    /* 
     /// TBD Need an outstream module
     fn saveState(out : &outstream) {
         /// Write to file
@@ -54,18 +47,19 @@ impl PathSampleGenerator {
         let INV_TWO_PI = 0.5_f64 * (1.0_f64 / 3.1415926536_f64);
         return INV_TWO_PI;
     }
+    */
     
-    pub fn cosineHemisphere(xi : & Vec2) -> Vec3 {
-        let phi = xi.x * 2.0 * 3.1415926536;
-        let r = sqrt(xi.y);
+    pub fn cosine_hemisphere(xi : &glm::DVec2) -> glm::DVec3 {
+        let phi = xi[0] * 2.0_f64 * std::f64::consts::PI;
+        let r = (xi[1]).sqrt();
     
-        return Vec3(
-                std::cos(phi)*r,
-                std::sin(phi)*r,
-                sqrt(max(1.0 - xi.y, 0.0))
-        );
+        glm::vec3(
+                phi.cos() * r,
+                phi.sin() *r,
+                (glm::max2_scalar(1.0_f64 - xi.y, 0.0_f64)).sqrt()
+        )
     }
-    
+    /* 
     pub fn cosineHemispherePdf(p : &Vec3) -> f64 {
         let INV_PI = (1.0_f64 / 3.1415926536_f64)
         return abs(p.z) * INV_PI;
@@ -276,5 +270,5 @@ impl PathSampleGenerator {
         }
         return false;
     }
+    */
 }
-*/
