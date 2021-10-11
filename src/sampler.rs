@@ -2,7 +2,16 @@ use crate::glm;
 
 /// File for the Sampler
 /// Contains Uniform path sampler and sample warp
+pub fn cosine_hemisphere(xi : &glm::DVec2) -> glm::DVec3 {
+    let phi = xi[0] * 2.0_f64 * std::f64::consts::PI;
+    let r = (xi[1]).sqrt();
 
+    glm::vec3(
+            phi.cos() * r,
+            phi.sin() *r,
+            (glm::max2_scalar(1.0_f64 - xi.y, 0.0_f64)).sqrt()
+    )
+}
 
 /// May need to move to a different file
 /// 
@@ -49,16 +58,6 @@ impl Sampler {
     }
     */
     
-    pub fn cosine_hemisphere(xi : &glm::DVec2) -> glm::DVec3 {
-        let phi = xi[0] * 2.0_f64 * std::f64::consts::PI;
-        let r = (xi[1]).sqrt();
-    
-        glm::vec3(
-                phi.cos() * r,
-                phi.sin() *r,
-                (glm::max2_scalar(1.0_f64 - xi.y, 0.0_f64)).sqrt()
-        )
-    }
     /* 
     pub fn cosineHemispherePdf(p : &Vec3) -> f64 {
         let INV_PI = (1.0_f64 / 3.1415926536_f64)

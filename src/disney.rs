@@ -1,9 +1,51 @@
+use rand::Rng;
+
 use crate::bsdf::BSDF;
 use crate::glm;
 use crate::bsdfutils::Utils;
-
-
+use crate::sampler;
+extern crate rand;
+use rand::thread_rng;
 // File for main disney brdf code
+
+// Enum for Disney Sampling types
+pub enum SampleTypes {
+    Diffuse {outgoing : glm::DVec3},
+    Sheen,
+    Specular,
+    Clearcoat
+}
+
+// Sampling functions for each enum type
+impl SampleTypes {
+    fn sample(&self) -> glm::DVec3 {
+        match self {
+            SampleTypes::Diffuse {outgoing} => {
+                // Create random number between 2 and 1? (According to code)
+                let mut rng = thread_rng();
+                let x: f64 = rng.gen_range(0.0..2.0);
+                let y: f64 = rng.gen_range(0.0..1.0);
+                let s = glm::vec2(x, y);
+
+                // Try and change to struct if needed
+                let incoming = sampler::cosine_hemisphere(&s);
+                // May need to transform to parent 
+                incoming
+            },
+            SampleTypes::Sheen => {
+                glm::zero()
+            },/* 
+            SampleTypes::Specular => {
+
+            },
+            SampleTypes::Clearcoat => {
+
+            }
+            */
+        }
+    }
+}
+
 pub struct Disney {
     pub basecolor: glm::DVec3,
     pub metallic: f64,
@@ -21,7 +63,7 @@ pub struct Disney {
 
 impl BSDF for Disney {
     fn new() -> Self {
-        Disney {basecolor: glm::DVec3::new(0.82, 0.67, 0.16),
+        Disney {basecolor: glm::vec3(0.82, 0.67, 0.16),
             metallic: 0.0_f64, 
             subsurface: 0.0_f64, 
             specular: 0.5_f64, 
@@ -35,12 +77,12 @@ impl BSDF for Disney {
         }
     }
     fn sample(&self, 
-        out : &glm::DVec3, 
-        vertex : &glm::DVec3
+        _out : &glm::DVec3, 
+        _vertex : &glm::DVec3
     ) -> glm::DVec3 {
-        return glm::zero();
+        glm::zero()
     }
-    
+    // Returns vector required to modify color
     fn eval(&self,
         l: &glm::DVec3,
         v: &glm::DVec3,
@@ -51,8 +93,6 @@ impl BSDF for Disney {
         // Enter main eval code
         let ndot_l = n.dot(l);
         let ndot_v = n.dot(v);
-        
-        let pi = 3.14159265358979323846;
 
         if ndot_l < 0.0 || ndot_v < 0.0 {
             return glm::zero();
@@ -70,7 +110,7 @@ impl BSDF for Disney {
         let util: Utils = Utils::new();
         // Calculate colour if required here
         let cdlin = util.mon2lin(&self.basecolor);
-        // Calculate lumincance approx
+        // Calculate luminance approx
         let cdlum = 0.3_f64 * cdlin[0] + 0.6_f64 * cdlin[1] + 0.1_f64 * cdlin[2];
 
         let newvec = glm::vec3(cdlin[0] / cdlum, cdlin[1] / cdlum, cdlin[2] / cdlum);
@@ -124,10 +164,9 @@ impl BSDF for Disney {
 
         let gr = util.smithg_ggx(ndot_l, 0.25_f64) * util.smithg_ggx(ndot_v, 0.25_f64);
 
-        // Check main code reference to fix error
         // Unsure of main code
         let clear_val = 0.25_f64 * self.clearcoat * gr * fr * dr;
         let clear_vec = glm::vec3(clear_val, clear_val, clear_val);
-        return ((1.0_f64 / pi) * glm::mix_scalar(fd, ss, self.subsurface, ) * cdlin + fsheen) * (1.0_f64 - self.metallic) + gs * fs * ds + clear_vec;
+        ((1.0_f64 / std::f64::consts::PI) * glm::mix_scalar(fd, ss, self.subsurface) * cdlin + fsheen) * (1.0_f64 - self.metallic) + gs * fs * ds + clear_vec
     }
 }
