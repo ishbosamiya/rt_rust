@@ -22,7 +22,7 @@ impl SampleTypes {
             SampleTypes::Diffuse {outgoing, normal, vertex} => {
                 // Create random number between 2 and 1? (According to code)
                 let mut rng = thread_rng();
-                let x: f64 = rng.gen_range(0.0..2.0);
+                let x: f64 = rng.gen_range(0.0..1.0);
                 let y: f64 = rng.gen_range(0.0..1.0);
                 let s = glm::vec2(x, y);
 
@@ -48,9 +48,10 @@ impl SampleTypes {
             },
             SampleTypes::Sheen {outgoing, normal, vertex} => {
                 let mut rng = thread_rng();
-                let x: f64 = rng.gen_range(0.0..2.0);
+                let x: f64 = rng.gen_range(0.0..1.0);
                 let y: f64 = rng.gen_range(0.0..1.0);
                 let s = glm::vec2(x, y);
+        
                 let mut incoming: glm::DVec3 = sampler::uniformHemisphere(&s);
 
                 incoming = incoming[0] * outgoing + incoming[1] * normal + incoming[2] * vertex;
@@ -100,9 +101,10 @@ impl BSDF for Disney {
         }
     }
     fn sample(&self, 
-        _out : &glm::DVec3, 
-        _vertex : &glm::DVec3
+        out : &glm::DVec3, 
+        vertex : &glm::DVec3
     ) -> glm::DVec3 {
+        let normal = vertex.normalize();
         // Compute weight within sample
         let mut weights:[f64;4] = [0.0, 0.0, 0.0, 0.0];
 
@@ -121,6 +123,25 @@ impl BSDF for Disney {
         let rcp_total = 1.0_f64 / total;
 
         weights.iter_mut().for_each(|i| *i *= rcp_total);
+
+        let mut cdf:[f64;4] = [0.0, 0.0, 0.0, 0.0];
+
+        let mut rng = thread_rng();
+        let s: f64 = rng.gen_range(0.0..1.0);
+
+        cdf[0] = weights[0];
+        cdf[1] = cdf[0] + weights[1];
+        cdf[2] = cdf[1] + weights[2];
+        cdf[3] = cdf[2] + weights[3];
+
+        let incoming: glm::DVec3;
+
+        if s < cdf[0] {
+            // let diff = SampleTypes::Diffuse(out, normal, vertex);
+            // incoming = diff.sample(out, normal, vertex);
+        }
+        // Get if ladder for rest
+        
 
         glm::zero()
     }
