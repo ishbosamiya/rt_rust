@@ -12,6 +12,11 @@ pub fn cosine_hemisphere(xi : &glm::DVec2) -> glm::DVec3 {
             (glm::max2_scalar(1.0_f64 - xi.y, 0.0_f64)).sqrt()
     )
 }
+pub fn uniformHemisphere(xi : &glm::DVec2) -> glm::DVec3 {
+    let phi  = (2.0_f64 * std::f64::consts::PI) * xi[0];
+    let r = (glm::max2_scalar(1.0 - xi[1] * xi[1], 0.0)).sqrt();
+    glm::vec3(phi.cos() * r, phi.sin() * r, xi[1])
+}
 
 /// May need to move to a different file
 /// 
@@ -44,12 +49,6 @@ impl Sampler {
         if (result < Vec3::new(0.0, 0.0, 0.0))
             result += Vec3::new(1.0, 1.0, 1.0);
         return result;
-    }
-    
-    pub fn uniformHemisphere(xi : &Vec2) -> Vec3 {
-        let mut phi  = (2.0_f64 * 3.1415926536_f64) * xi.x;
-        let mut r = sqrt(max(1.0 - xi.y * xi.y, 0.0));
-        return Vec3::new(std::cos(phi)*r, std::sin(phi)*r, xi.y);
     }
     
     pub fn uniformHemispherePdf(p : &Vec3) -> f64 {

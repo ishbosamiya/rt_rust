@@ -1,5 +1,4 @@
 use rand::Rng;
-
 use crate::bsdf::BSDF;
 use crate::glm;
 use crate::bsdfutils::Utils;
@@ -10,15 +9,15 @@ use rand::thread_rng;
 
 // Enum for Disney Sampling types
 pub enum SampleTypes {
-    Diffuse {outgoing : &glm::DVec3, normal: &glm::DVec3, vertex: &glm::DVec3},
-    Sheen,
+    Diffuse {outgoing : glm::DVec3, normal: glm::DVec3, vertex: glm::DVec3},
+    Sheen {outgoing : glm::DVec3, normal: glm::DVec3, vertex: glm::DVec3},
     Specular,
     Clearcoat
 }
 
 // Sampling functions for each enum type
 impl SampleTypes {
-    fn sample(&self) -> glm::DVec3 {
+    fn sample(&self) -> (glm::DVec3,f64) {
         match self {
             SampleTypes::Diffuse {outgoing, normal, vertex} => {
                 // Create random number between 2 and 1? (According to code)
@@ -41,27 +40,31 @@ impl SampleTypes {
                 let cos_in = normal.dot(&incoming);
                 let cos_ih = incoming.dot(&h);
 
-                let prob = cos_in.abs() * glm::one_over_pi();
+                let prob: f64 = cos_in.abs() * 1.0_f64 / std::f64::consts::PI;
 
                 assert!(prob > 0.0_f64);
 
-                if prob > 1e-6 {
-                    // Compute differentials?
-                    incoming
-                }
-                
-                glm::zero()
+                (incoming, prob)
             },
-            SampleTypes::Sheen => {
-                glm::zero()
-            },/* 
+            SampleTypes::Sheen {outgoing, normal, vertex} => {
+                let mut rng = thread_rng();
+                let x: f64 = rng.gen_range(0.0..2.0);
+                let y: f64 = rng.gen_range(0.0..1.0);
+                let s = glm::vec2(x, y);
+                let mut incoming: glm::DVec3 = sampler::uniformHemisphere(&s);
+
+                incoming = incoming[0] * outgoing + incoming[1] * normal + incoming[2] * vertex;
+
+                //PDF value is here
+                let prob: f64 = glm::two_over_pi();
+                (incoming, prob)
+            }, 
             SampleTypes::Specular => {
-
-            },
+                (glm::zero(),0.0_f64)
+            }, 
             SampleTypes::Clearcoat => {
-
+                (glm::zero(),0.0_f64)
             }
-            */
         }
     }
 }
@@ -100,6 +103,25 @@ impl BSDF for Disney {
         _out : &glm::DVec3, 
         _vertex : &glm::DVec3
     ) -> glm::DVec3 {
+        // Compute weight within sample
+        let mut weights:[f64;4] = [0.0, 0.0, 0.0, 0.0];
+
+        // Order is Diffuse, Sheen , Specular , Clearcoat
+        let util: Utils = Utils::new();
+        // Calculate colour if required here
+        let cdlin = util.mon2lin(&self.basecolor);
+        // Calculate luminance approx
+        let cdlum: f64 = 0.3_f64 * cdlin[0] + 0.6_f64 * cdlin[1] + 0.1_f64 * cdlin[2];
+        weights[0] = glm::lerp_scalar(cdlum, 0.0_f64, self.metallic);
+        weights[1] = glm::lerp_scalar(self.sheen, 0.0_f64, self.metallic);
+        weights[2] = glm::lerp_scalar(self.specular, 1.0_f64, self.metallic);
+        weights[3] = self.clearcoat * 0.25_f64;
+
+        let total: f64 = weights.iter().sum();
+        let rcp_total = 1.0_f64 / total;
+
+        weights.iter_mut().for_each(|i| *i *= rcp_total);
+
         glm::zero()
     }
     // Returns vector required to modify color
