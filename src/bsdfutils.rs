@@ -36,7 +36,7 @@ impl Utils {
         return 1.0_f64 / (ndot_v + ((vdot_x * ax).powf(2.0) + (vdot_y * ay).powf(2.0)).sqrt());
     }
     pub fn mon2lin(&self, x : &glm::DVec3) -> glm::DVec3 {
-        return glm::DVec3::new(x.x.powf(2.2), x.y.powf(2.2), x.z.powf(2.2));
+        return glm::vec3(x.x.powf(2.2), x.y.powf(2.2), x.z.powf(2.2));
     }
     pub fn mix(&self, x: &glm::DVec3, y: &glm::DVec3,z: f64) -> glm::DVec3 {
         return x.lerp(y,z);

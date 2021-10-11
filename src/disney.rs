@@ -10,7 +10,7 @@ use rand::thread_rng;
 
 // Enum for Disney Sampling types
 pub enum SampleTypes {
-    Diffuse {outgoing : glm::DVec3},
+    Diffuse {outgoing : &glm::DVec3, normal: &glm::DVec3, vertex: &glm::DVec3},
     Sheen,
     Specular,
     Clearcoat
@@ -20,7 +20,7 @@ pub enum SampleTypes {
 impl SampleTypes {
     fn sample(&self) -> glm::DVec3 {
         match self {
-            SampleTypes::Diffuse {outgoing} => {
+            SampleTypes::Diffuse {outgoing, normal, vertex} => {
                 // Create random number between 2 and 1? (According to code)
                 let mut rng = thread_rng();
                 let x: f64 = rng.gen_range(0.0..2.0);
@@ -28,9 +28,29 @@ impl SampleTypes {
                 let s = glm::vec2(x, y);
 
                 // Try and change to struct if needed
-                let incoming = sampler::cosine_hemisphere(&s);
-                // May need to transform to parent 
-                incoming
+                let mut incoming = sampler::cosine_hemisphere(&s);
+                // Below is similar to transform_to_parent in appleseed
+                incoming = incoming[0] * outgoing + incoming[1] * normal + incoming[2] * vertex;
+                // May need to find probability , check once more
+                // Shall find probability in this function itself
+                // Based on that we can take the vector or not
+                /*Below code is akin to evaluate in appleseed */
+                
+                let h: glm::DVec3 = (incoming + outgoing).normalize();
+                let cos_on = normal.dot(outgoing);
+                let cos_in = normal.dot(&incoming);
+                let cos_ih = incoming.dot(&h);
+
+                let prob = cos_in.abs() * glm::one_over_pi();
+
+                assert!(prob > 0.0_f64);
+
+                if prob > 1e-6 {
+                    // Compute differentials?
+                    incoming
+                }
+                
+                glm::zero()
             },
             SampleTypes::Sheen => {
                 glm::zero()
