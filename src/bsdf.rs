@@ -75,6 +75,11 @@ impl BSDFTemplate {
 pub trait BSDF {
     fn new() -> Self;
     // TODO Implement Sample struct if needed (may not need for lambert)
+
+    
+
+
+
     fn sample(&self, 
         out : &glm::DVec3, 
         vertex : &glm::DVec3
