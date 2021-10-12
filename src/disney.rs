@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use rand::Rng;
 use crate::bsdf::BSDF;
 use crate::glm;
@@ -16,9 +17,10 @@ pub enum SampleTypes {
 }
 
 // Sampling functions for each enum type
+
 impl SampleTypes {
-    fn sample(&self) -> (glm::DVec3,f64) {
-        match self {
+    fn sample(&self) -> glm::DVec3 {
+        match *self {
             SampleTypes::Diffuse {outgoing, normal, vertex} => {
                 // Create random number between 2 and 1? (According to code)
                 let mut rng = thread_rng();
@@ -36,15 +38,15 @@ impl SampleTypes {
                 /*Below code is akin to evaluate in appleseed */
                 
                 let h: glm::DVec3 = (incoming + outgoing).normalize();
-                let cos_on = normal.dot(outgoing);
+                // let cos_on = normal.dot(&outgoing);
                 let cos_in = normal.dot(&incoming);
-                let cos_ih = incoming.dot(&h);
+                // let cos_ih = incoming.dot(&h);
 
                 let prob: f64 = cos_in.abs() * 1.0_f64 / std::f64::consts::PI;
 
                 assert!(prob > 0.0_f64);
 
-                (incoming, prob)
+                incoming
             },
             SampleTypes::Sheen {outgoing, normal, vertex} => {
                 let mut rng = thread_rng();
@@ -58,18 +60,17 @@ impl SampleTypes {
 
                 //PDF value is here
                 let prob: f64 = glm::two_over_pi();
-                (incoming, prob)
+                incoming
             }, 
             SampleTypes::Specular => {
-                (glm::zero(),0.0_f64)
+                glm::zero()
             }, 
             SampleTypes::Clearcoat => {
-                (glm::zero(),0.0_f64)
+                glm::zero()
             }
         }
     }
 }
-
 pub struct Disney {
     pub basecolor: glm::DVec3,
     pub metallic: f64,
@@ -134,16 +135,20 @@ impl BSDF for Disney {
         cdf[2] = cdf[1] + weights[2];
         cdf[3] = cdf[2] + weights[3];
 
-        let incoming: glm::DVec3;
+        let mut incoming =  glm::zero();
 
         if s < cdf[0] {
-            // let diff = SampleTypes::Diffuse(out, normal, vertex);
-            // incoming = diff.sample(out, normal, vertex);
+            let diff = SampleTypes::Diffuse {outgoing: *out, normal, vertex: *vertex};
+            incoming = diff.sample();
+        }
+        else if s < cdf[1] {
+            let sheen = SampleTypes::Sheen {outgoing: *out, normal, vertex: *vertex};
+            incoming = sheen.sample();
         }
         // Get if ladder for rest
         
 
-        glm::zero()
+        incoming
     }
     // Returns vector required to modify color
     fn eval(&self,
