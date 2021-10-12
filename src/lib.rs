@@ -23,6 +23,7 @@ pub mod disney;
 pub mod bsdfutils;
 pub mod lambert;
 pub mod sampler;
+pub mod microfacet;
 
 pub use nalgebra_glm as glm;
 
