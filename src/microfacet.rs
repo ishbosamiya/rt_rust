@@ -1,4 +1,5 @@
 use crate::glm;
+use egui::emath::Numeric;
 use rand::Rng;
 extern crate rand;
 use rand::thread_rng;
@@ -22,12 +23,32 @@ pub fn microfacet_alpha_from_roughness(roughness : f64,
         }
 }
 
+pub fn sample_aniso_glossy(k : f64, s : f64) -> f64 {
+    let hpi : f64 = glm::half_pi();
+    if s < 0.25 {
+        let b: f64 = (hpi * 4.0_f64 * s).tan();
+        (k * b).atan()
+    }
+    else if s < 0.5 {
+        let b: f64 = (hpi * (4.0_f64 * s - 1.0)).tan();
+        (k * b).atan() + hpi
+    }
+    else if s < 0.75 {
+        let b: f64 = (hpi * (4.0_f64 * s - 2.0)).tan();
+        (k * b).atan() + std::f64::consts::PI
+    }
+    else {
+        let b: f64 = (hpi * (4.0_f64 * s - 3.0)).tan();
+        (k * b).atan() + std::f64::consts::PI + hpi
+    }
+}
+
 // Here glossy and diffuse are reflectance values
 // Unsure of exact variables in disney bsdf
 pub fn sample_micro(outgoing : &glm::DVec3, 
     glossy : f64, 
     diffuse : f64, 
-    shiny : f64,
+    aniso : f64,
     normal : &glm::DVec3,
     vertex : &glm::DVec3
 ) -> glm::DVec3 {
@@ -68,11 +89,24 @@ pub fn sample_micro(outgoing : &glm::DVec3,
     if s[2] < diffuse_weights {
         let wi = sampler::cosine_hemisphere(&glm::vec2(s[0], s[1]));
         incoming = wi[0] * outgoing + wi[1] * normal + wi[2] * vertex;
-        h_vec = (incoming + outgoing).normalize();
     }
     else {
         // TODO Anisotropic calcs
-    }
+        let phi : f64 = sample_aniso_glossy(aniso, s[0]);
+        let cos_phi = phi.cos();
+        let sin_phi = phi.sin();
 
-    glm::zero()
+        // Unsure of formula check once more
+        exp = (glossy * cos_phi.powf(2.0)) + (aniso * sin_phi.powf(2.0));
+
+        let cos_theta = (1.0_f64 - s[1]).powf(1.0 / (exp + 1.0));
+        let sin_theta = (1.0_f64 - cos_theta.powf(2.0)).sqrt();
+
+        let trig_vec = glm::vec3(cos_phi * sin_theta, cos_theta, sin_phi * sin_theta);
+        h_vec = trig_vec[0] * outgoing + trig_vec[1] * normal + trig_vec[2] * vertex;
+        incoming = (outgoing - 2.0_f64 * outgoing.dot(&h_vec) * h_vec).normalize();
+    }
+    h_vec = (incoming + outgoing).normalize();
+
+    incoming
 }

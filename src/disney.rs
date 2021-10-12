@@ -6,13 +6,14 @@ use crate::bsdfutils::Utils;
 use crate::sampler;
 extern crate rand;
 use rand::thread_rng;
+use crate::microfacet;
 // File for main disney brdf code
 
 // Enum for Disney Sampling types
 pub enum SampleTypes {
     Diffuse {outgoing : glm::DVec3, normal: glm::DVec3, vertex: glm::DVec3},
     Sheen {outgoing : glm::DVec3, normal: glm::DVec3, vertex: glm::DVec3},
-    Specular,
+    Specular ,
     Clearcoat
 }
 
@@ -144,6 +145,12 @@ impl BSDF for Disney {
         else if s < cdf[1] {
             let sheen = SampleTypes::Sheen {outgoing: *out, normal, vertex: *vertex};
             incoming = sheen.sample();
+        }
+        else if s < cdf[2] {
+            let mut alpha_x : f64 = 0.0;
+            let mut alpha_y : f64 = 0.0;
+            microfacet::microfacet_alpha_from_roughness(self.roughness, self.anisotropic, &mut alpha_x, &mut alpha_y);
+            incoming = microfacet::sample_micro(out, self.metallic, self.specular, self.anisotropic, &normal, vertex);
         }
         // Get if ladder for rest
         
