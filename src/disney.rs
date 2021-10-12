@@ -150,9 +150,14 @@ impl BSDF for Disney {
             let mut alpha_x : f64 = 0.0;
             let mut alpha_y : f64 = 0.0;
             microfacet::microfacet_alpha_from_roughness(self.roughness, self.anisotropic, &mut alpha_x, &mut alpha_y);
-            incoming = microfacet::sample_micro(out, self.metallic, self.specular, self.anisotropic, &normal, vertex);
+            incoming = microfacet::sample_micro(out, self.roughness, alpha_x, alpha_y, &normal, vertex);
         }
         // Get if ladder for rest
+        else {
+            // Check if it is glass or just clearcoat
+            let alpha: f64 = glm::mix_scalar(0.1_f64, 0.001_f64, self.clearcoat_glass);
+            incoming = microfacet::sample_micro(out, alpha, alpha, alpha, &normal, vertex);
+        }
         
 
         incoming
