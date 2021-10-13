@@ -171,7 +171,7 @@ fn main() {
         .insert(TextStyle::Small, (FontFamily::Proportional, 15.0));
     egui.get_egui_ctx().set_fonts(fonts);
 
-    let mesh = mesh::builtins::get_monkey_subd_01();
+    let mesh = mesh::builtins::get_monkey_subd_00();
 
     let mut camera = gl_camera::Camera::new(
         glm::vec3(0.0, 0.0, 3.0),
@@ -248,6 +248,132 @@ fn main() {
             None,
         ))
         .unwrap();
+
+        {
+            let normal_color = glm::vec4(1.0, 0.0, 0.0, 1.0);
+            let tangent_color = glm::vec4(0.0, 1.0, 0.0, 1.0);
+            let bitangent_color = glm::vec4(0.0, 0.0, 1.0, 1.0);
+            let scale_factor = 0.1;
+            let smooth_color_3d_shader = shader::builtins::get_smooth_color_3d_shader()
+                .as_ref()
+                .unwrap();
+            smooth_color_3d_shader.use_shader();
+            smooth_color_3d_shader.set_mat4("model\0", &glm::identity());
+
+            let format = imm.get_cleared_vertex_format();
+            let pos_attr = format.add_attribute(
+                "in_pos\0".to_string(),
+                rt::gpu_immediate::GPUVertCompType::F32,
+                3,
+                rt::gpu_immediate::GPUVertFetchMode::Float,
+            );
+            let color_attr = format.add_attribute(
+                "in_color\0".to_string(),
+                rt::gpu_immediate::GPUVertCompType::F32,
+                4,
+                rt::gpu_immediate::GPUVertFetchMode::Float,
+            );
+
+            {
+                imm.begin(
+                    rt::gpu_immediate::GPUPrimType::Lines,
+                    mesh.get_verticies().len() * 2,
+                    smooth_color_3d_shader,
+                );
+
+                mesh.get_verticies().iter().for_each(|vert| {
+                    let pos: glm::Vec3 = glm::convert(*vert.get_pos());
+                    let normal: glm::Vec3 = glm::convert(vert.get_normal().unwrap());
+                    let end_pos = pos + scale_factor * normal.normalize();
+
+                    imm.attr_4f(
+                        color_attr,
+                        normal_color[0],
+                        normal_color[1],
+                        normal_color[2],
+                        normal_color[3],
+                    );
+                    imm.vertex_3f(pos_attr, pos[0], pos[1], pos[2]);
+
+                    imm.attr_4f(
+                        color_attr,
+                        normal_color[0],
+                        normal_color[1],
+                        normal_color[2],
+                        normal_color[3],
+                    );
+                    imm.vertex_3f(pos_attr, end_pos[0], end_pos[1], end_pos[2]);
+                });
+
+                imm.end();
+            }
+            {
+                imm.begin(
+                    rt::gpu_immediate::GPUPrimType::Lines,
+                    mesh.get_verticies().len() * 2,
+                    smooth_color_3d_shader,
+                );
+
+                mesh.get_verticies().iter().for_each(|vert| {
+                    let pos: glm::Vec3 = glm::convert(*vert.get_pos());
+                    let tangent: glm::Vec3 = glm::convert(vert.get_tangent().unwrap());
+                    let end_pos = pos + scale_factor * tangent.normalize();
+
+                    imm.attr_4f(
+                        color_attr,
+                        tangent_color[0],
+                        tangent_color[1],
+                        tangent_color[2],
+                        tangent_color[3],
+                    );
+                    imm.vertex_3f(pos_attr, pos[0], pos[1], pos[2]);
+
+                    imm.attr_4f(
+                        color_attr,
+                        tangent_color[0],
+                        tangent_color[1],
+                        tangent_color[2],
+                        tangent_color[3],
+                    );
+                    imm.vertex_3f(pos_attr, end_pos[0], end_pos[1], end_pos[2]);
+                });
+
+                imm.end();
+            }
+            {
+                imm.begin(
+                    rt::gpu_immediate::GPUPrimType::Lines,
+                    mesh.get_verticies().len() * 2,
+                    smooth_color_3d_shader,
+                );
+
+                mesh.get_verticies().iter().for_each(|vert| {
+                    let pos: glm::Vec3 = glm::convert(*vert.get_pos());
+                    let bitangent: glm::Vec3 = glm::convert(vert.get_bitangent().unwrap());
+                    let end_pos = pos + scale_factor * bitangent.normalize();
+
+                    imm.attr_4f(
+                        color_attr,
+                        bitangent_color[0],
+                        bitangent_color[1],
+                        bitangent_color[2],
+                        bitangent_color[3],
+                    );
+                    imm.vertex_3f(pos_attr, pos[0], pos[1], pos[2]);
+
+                    imm.attr_4f(
+                        color_attr,
+                        bitangent_color[0],
+                        bitangent_color[1],
+                        bitangent_color[2],
+                        bitangent_color[3],
+                    );
+                    imm.vertex_3f(pos_attr, end_pos[0], end_pos[1], end_pos[2]);
+                });
+
+                imm.end();
+            }
+        }
 
         sphere
             .draw(&mut SphereDrawData::new(
