@@ -12,14 +12,14 @@ pub fn cosine_hemisphere(xi: &glm::DVec2) -> glm::DVec3 {
         (glm::max2_scalar(1.0_f64 - xi.y, 0.0_f64)).sqrt(),
     )
 }
-pub fn uniformHemisphere(xi: &glm::DVec2) -> glm::DVec3 {
+
+pub fn uniform_hemisphere(xi: &glm::DVec2) -> glm::DVec3 {
     let phi = (2.0_f64 * std::f64::consts::PI) * xi[0];
     let r = (glm::max2_scalar(1.0 - xi[1] * xi[1], 0.0)).sqrt();
     glm::vec3(phi.cos() * r, phi.sin() * r, xi[1])
 }
 
 /// May need to move to a different file
-///
 pub struct Sampler {}
 
 impl Sampler {

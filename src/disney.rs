@@ -71,7 +71,7 @@ impl SampleTypes {
                 let y: f64 = rng.gen_range(0.0..1.0);
                 let s = glm::vec2(x, y);
 
-                let mut incoming: glm::DVec3 = sampler::uniformHemisphere(&s);
+                let mut incoming: glm::DVec3 = sampler::uniform_hemisphere(&s);
 
                 incoming = incoming[0] * outgoing + incoming[1] * normal + incoming[2] * vertex;
 
