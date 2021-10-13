@@ -1,5 +1,6 @@
 use crate::bsdf::BSDF;
 use crate::glm;
+use crate::intersectable::IntersectInfo;
 
 pub struct BlinnPhong {}
 
@@ -8,7 +9,7 @@ impl BSDF for BlinnPhong {
         BlinnPhong {}
     }
 
-    fn sample(&self, _out: &glm::DVec3, _vertex: &glm::DVec3) -> glm::DVec3 {
+    fn sample(&self, _out: &glm::DVec3, _intersect_info: &IntersectInfo) -> glm::DVec3 {
         todo!("BlinnPhong sample still needs to be calculated")
     }
 

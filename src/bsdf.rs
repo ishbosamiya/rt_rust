@@ -1,5 +1,6 @@
 use crate::disney::Disney;
 use crate::glm;
+use crate::intersectable::IntersectInfo;
 
 // Removed front and back facing as it is already present in intersect info
 
@@ -33,6 +34,7 @@ impl BSDFTemplate {
 
         b
     }
+
     // Finish this function from main of above file
     pub fn setup(&self, ray: &glm::DVec3, vertex: &glm::DVec3) -> glm::DVec3 {
         // Replace ray with vertex vector in world space
@@ -72,7 +74,8 @@ pub trait BSDF {
     fn new() -> Self;
     // TODO Implement Sample struct if needed (may not need for lambert)
 
-    fn sample(&self, out: &glm::DVec3, vertex: &glm::DVec3) -> glm::DVec3;
+    fn sample(&self, out: &glm::DVec3, intersect_info: &IntersectInfo) -> glm::DVec3;
+
     fn eval(
         &self,
         l: &glm::DVec3,

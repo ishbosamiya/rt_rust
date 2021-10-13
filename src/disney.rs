@@ -4,6 +4,7 @@ use rand::Rng;
 use crate::bsdf::BSDF;
 use crate::bsdfutils;
 use crate::glm;
+use crate::intersectable::IntersectInfo;
 use crate::microfacet;
 use crate::sampler;
 
@@ -114,8 +115,10 @@ impl BSDF for Disney {
             clearcoat_glass: 1.0_f64,
         }
     }
-    fn sample(&self, out: &glm::DVec3, vertex: &glm::DVec3) -> glm::DVec3 {
-        let normal = vertex.normalize();
+    fn sample(&self, out: &glm::DVec3, intersect_info: &IntersectInfo) -> glm::DVec3 {
+        let normal = intersect_info.get_normal().unwrap();
+        let vertex = intersect_info.get_point();
+
         // Compute weight within sample
         let mut weights: [f64; 4] = [0.0, 0.0, 0.0, 0.0];
 
