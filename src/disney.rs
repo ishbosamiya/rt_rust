@@ -50,7 +50,7 @@ impl SampleTypes {
                 // Based on that we can take the vector or not
                 /*Below code is akin to evaluate in appleseed */
 
-                let h: glm::DVec3 = (incoming + outgoing).normalize();
+                let _h: glm::DVec3 = (incoming + outgoing).normalize();
                 // let cos_on = normal.dot(&outgoing);
                 let cos_in = normal.dot(&incoming);
                 // let cos_ih = incoming.dot(&h);
@@ -76,7 +76,7 @@ impl SampleTypes {
                 incoming = incoming[0] * outgoing + incoming[1] * normal + incoming[2] * vertex;
 
                 //PDF value is here
-                let prob: f64 = glm::two_over_pi();
+                let _prob: f64 = glm::two_over_pi();
                 incoming
             }
             SampleTypes::Specular => todo!("Need to use microfacet"),
@@ -179,28 +179,35 @@ impl BSDF for Disney {
     // Returns vector required to modify color
     fn eval(
         &self,
-        l: &glm::DVec3,
-        v: &glm::DVec3,
-        n: &glm::DVec3,
-        x: &glm::DVec3,
-        y: &glm::DVec3,
+        incident_vector: &glm::DVec3,
+        view_vector: &glm::DVec3,
+        normal_vector: &glm::DVec3,
+        tangent: &glm::DVec3,
+        bitangent: &glm::DVec3,
     ) -> glm::DVec3 {
+        // l: incident_vector
+        // v: view_vector
+        // n: normal_vector
+        // x: tangent
+        // y: bitangent
+        // h: incident_plus_view_normalized
+
         // Enter main eval code
-        let ndot_l = n.dot(l);
-        let ndot_v = n.dot(v);
+        let ndot_l = normal_vector.dot(incident_vector);
+        let ndot_v = normal_vector.dot(view_vector);
 
         if ndot_l < 0.0 || ndot_v < 0.0 {
             return glm::zero();
         }
-        //let mut h : glm::DVec3;
-        let h = (l + v).normalize();
 
-        let ndot_h = n.dot(&h);
-        let ldot_h = l.dot(&h);
+        let h = (incident_vector + view_vector).normalize();
 
-        let hdot_x = h.dot(x);
+        let ndot_h = normal_vector.dot(&h);
+        let ldot_h = incident_vector.dot(&h);
 
-        let hdot_y = h.dot(y);
+        let hdot_x = h.dot(tangent);
+
+        let hdot_y = h.dot(bitangent);
         // Utility structure
         // Calculate colour if required here
         let cdlin = bsdfutils::mon2lin(&self.basecolor);
@@ -208,14 +215,12 @@ impl BSDF for Disney {
         let cdlum = 0.3_f64 * cdlin[0] + 0.6_f64 * cdlin[1] + 0.1_f64 * cdlin[2];
 
         let newvec = glm::vec3(cdlin[0] / cdlum, cdlin[1] / cdlum, cdlin[2] / cdlum);
-        let ctint: glm::DVec3;
-        ctint = if cdlum > 0.0_f64 {
+        let ctint = if cdlum > 0.0_f64 {
             newvec
         } else {
             glm::vec3(1.0, 1.0, 1.0)
         };
 
-        let cspec0: glm::DVec3;
         // TODO Check this function
         let spec_vec: glm::DVec3 = self.specular
             * 0.8_f64
@@ -224,7 +229,7 @@ impl BSDF for Disney {
                 &ctint,
                 self.specular_tint,
             );
-        cspec0 = glm::mix(&spec_vec, &cdlin, self.metallic);
+        let cspec0 = glm::mix(&spec_vec, &cdlin, self.metallic);
 
         let csheen: glm::DVec3;
         csheen = glm::mix(&glm::vec3(1.0, 1.0, 1.0), &ctint, self.sheen_tint);
@@ -254,9 +259,21 @@ impl BSDF for Disney {
 
         fs = glm::mix(&cspec0, &glm::vec3(1.0_f64, 1.0_f64, 1.0_f64), fh);
 
-        let mut gs = bsdfutils::smithg_ggx_aniso(ndot_l, l.dot(x), l.dot(y), ax, ay);
+        let mut gs = bsdfutils::smithg_ggx_aniso(
+            ndot_l,
+            incident_vector.dot(tangent),
+            incident_vector.dot(bitangent),
+            ax,
+            ay,
+        );
 
-        gs *= bsdfutils::smithg_ggx_aniso(ndot_v, v.dot(x), v.dot(y), ax, ay);
+        gs *= bsdfutils::smithg_ggx_aniso(
+            ndot_v,
+            view_vector.dot(tangent),
+            view_vector.dot(bitangent),
+            ax,
+            ay,
+        );
 
         let fsheen: glm::DVec3;
         fsheen = fh * self.sheen * csheen;
