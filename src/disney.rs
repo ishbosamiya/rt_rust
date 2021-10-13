@@ -1,12 +1,12 @@
-#![allow(dead_code)]
-use crate::bsdf::BSDF;
-use crate::bsdfutils::Utils;
-use crate::glm;
-use crate::sampler;
-use rand::Rng;
-extern crate rand;
-use crate::microfacet;
 use rand::thread_rng;
+use rand::Rng;
+
+use crate::bsdf::BSDF;
+use crate::bsdfutils;
+use crate::glm;
+use crate::microfacet;
+use crate::sampler;
+
 // File for main disney brdf code
 
 // Enum for Disney Sampling types
@@ -120,9 +120,8 @@ impl BSDF for Disney {
         let mut weights: [f64; 4] = [0.0, 0.0, 0.0, 0.0];
 
         // Order is Diffuse, Sheen , Specular , Clearcoat
-        let util: Utils = Utils::new();
         // Calculate colour if required here
-        let cdlin = util.mon2lin(&self.basecolor);
+        let cdlin = bsdfutils::mon2lin(&self.basecolor);
         // Calculate luminance approx
         let cdlum: f64 = 0.3_f64 * cdlin[0] + 0.6_f64 * cdlin[1] + 0.1_f64 * cdlin[2];
         weights[0] = glm::lerp_scalar(cdlum, 0.0_f64, self.metallic);
@@ -203,9 +202,8 @@ impl BSDF for Disney {
 
         let hdot_y = h.dot(y);
         // Utility structure
-        let util: Utils = Utils::new();
         // Calculate colour if required here
-        let cdlin = util.mon2lin(&self.basecolor);
+        let cdlin = bsdfutils::mon2lin(&self.basecolor);
         // Calculate luminance approx
         let cdlum = 0.3_f64 * cdlin[0] + 0.6_f64 * cdlin[1] + 0.1_f64 * cdlin[2];
 
@@ -231,9 +229,9 @@ impl BSDF for Disney {
         let csheen: glm::DVec3;
         csheen = glm::mix(&glm::vec3(1.0, 1.0, 1.0), &ctint, self.sheen_tint);
 
-        let fl = util.schlick_fresnel(ndot_l);
+        let fl = bsdfutils::schlick_fresnel(ndot_l);
 
-        let fv = util.schlick_fresnel(ndot_v);
+        let fv = bsdfutils::schlick_fresnel(ndot_v);
 
         let fd90 = 0.5_f64 + 2.0_f64 * ldot_h * ldot_h * self.roughness;
 
@@ -249,28 +247,28 @@ impl BSDF for Disney {
         let aspect = (1.0_f64 - self.anisotropic * 0.9_f64).sqrt();
         let ax = 0.001_f64.max(self.roughness.sqrt() / aspect);
         let ay = 0.001_f64.max(self.roughness.sqrt() * aspect);
-        let ds = util.gtr2_aniso(ndot_h, hdot_x, hdot_y, ax, ay);
-        let fh = util.schlick_fresnel(ldot_h);
+        let ds = bsdfutils::gtr2_aniso(ndot_h, hdot_x, hdot_y, ax, ay);
+        let fh = bsdfutils::schlick_fresnel(ldot_h);
 
         let fs: glm::DVec3;
 
         fs = glm::mix(&cspec0, &glm::vec3(1.0_f64, 1.0_f64, 1.0_f64), fh);
 
-        let mut gs = util.smithg_ggx_aniso(ndot_l, l.dot(x), l.dot(y), ax, ay);
+        let mut gs = bsdfutils::smithg_ggx_aniso(ndot_l, l.dot(x), l.dot(y), ax, ay);
 
-        gs *= util.smithg_ggx_aniso(ndot_v, v.dot(x), v.dot(y), ax, ay);
+        gs *= bsdfutils::smithg_ggx_aniso(ndot_v, v.dot(x), v.dot(y), ax, ay);
 
         let fsheen: glm::DVec3;
         fsheen = fh * self.sheen * csheen;
 
-        let dr = util.gtr1(
+        let dr = bsdfutils::gtr1(
             ndot_h,
             glm::mix_scalar(0.1_f64, 0.001_f64, self.clearcoat_glass),
         );
 
         let fr = glm::mix_scalar(0.4_f64, 1.0_f64, fh);
 
-        let gr = util.smithg_ggx(ndot_l, 0.25_f64) * util.smithg_ggx(ndot_v, 0.25_f64);
+        let gr = bsdfutils::smithg_ggx(ndot_l, 0.25_f64) * bsdfutils::smithg_ggx(ndot_v, 0.25_f64);
 
         // Unsure of main code
         let clear_val = 0.25_f64 * self.clearcoat * gr * fr * dr;

@@ -26,6 +26,7 @@ pub mod texture;
 pub mod util;
 
 pub use nalgebra_glm as glm;
+extern crate rand;
 
 use crate::bsdf::BSDFTemplate;
 use crate::camera::Camera;
