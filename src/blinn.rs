@@ -14,21 +14,27 @@ impl BSDF for Blinn {
 
     fn eval(
         &self,
-        l: &glm::DVec3,
-        v: &glm::DVec3,
-        n: &glm::DVec3,
-        x: &glm::DVec3,
-        y: &glm::DVec3,
+        incident_vector: &glm::DVec3,
+        view_vector: &glm::DVec3,
+        normal_vector: &glm::DVec3,
+        _tangent: &glm::DVec3,
+        _bitangent: &glm::DVec3,
     ) -> glm::DVec3 {
         let include_fresnel: bool = true;
         let divide_by_ndot_l: bool = true;
-        let s = l + v;
-        let h = s.normalize();
+        let incident_plus_view_normalized = (incident_vector + view_vector).normalize();
 
-        let ndot_h = n.dot(&h);
-        let vdot_h = v.dot(&h);
-        let ndot_l = n.dot(l);
-        let ndot_v = n.dot(v);
+        // l: incident_vector
+        // v: view_vector
+        // n: normal_vector
+        // x: tangent
+        // y: bitangent
+        // h: incident_plus_view_normalized
+
+        let ndot_h = normal_vector.dot(&incident_plus_view_normalized);
+        let vdot_h = view_vector.dot(&incident_plus_view_normalized);
+        let ndot_l = normal_vector.dot(incident_vector);
+        let ndot_v = normal_vector.dot(view_vector);
 
         let x_val = ndot_h.acos() * 100.0_f64;
         let d = (-x_val * x_val).exp();
@@ -63,8 +69,9 @@ impl BSDF for Blinn {
         }
 
         if divide_by_ndot_l {
-            val = val / n.dot(l);
+            val /= normal_vector.dot(incident_vector);
         }
-        return glm::vec3(val, val, val);
+
+        glm::vec3(val, val, val)
     }
 }
