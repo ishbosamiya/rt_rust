@@ -69,7 +69,7 @@ pub fn trace_ray(ray: &Ray, camera: &Camera, scene: &'static Scene, depth: usize
         // diffuse shader
         // Shader code : TODO Check if it works with bsdf
         // Modified BSDF Code
-        let target = template.setup(ray.get_direction(), &info.get_point());
+        let target = template.setup(ray.get_direction(), info.get_point());
         // Original code
         //let target = info.get_point() + info.get_normal().unwrap() + math::random_in_unit_sphere();
         val = 0.5
