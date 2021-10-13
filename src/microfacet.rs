@@ -1,8 +1,6 @@
 use crate::glm;
-use egui::emath::Numeric;
 use rand::Rng;
 extern crate rand;
-use crate::sampler;
 use rand::thread_rng;
 
 pub fn microfacet_alpha_from_roughness(

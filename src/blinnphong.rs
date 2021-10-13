@@ -7,8 +7,8 @@ impl BSDF for BlinnPhong {
     fn new() -> Self {
         BlinnPhong {}
     }
-    fn sample(&self, out: &glm::DVec3, vertex: &glm::DVec3) -> glm::DVec3 {
-        return glm::zero();
+    fn sample(&self, _out: &glm::DVec3, _vertex: &glm::DVec3) -> glm::DVec3 {
+        todo!("BlinnPhong sample still needs to be calculated")
     }
 
     fn eval(

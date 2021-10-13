@@ -79,8 +79,8 @@ impl SampleTypes {
                 let prob: f64 = glm::two_over_pi();
                 incoming
             }
-            SampleTypes::Specular => glm::zero(),
-            SampleTypes::Clearcoat => glm::zero(),
+            SampleTypes::Specular => todo!("Need to use microfacet"),
+            SampleTypes::Clearcoat => todo!("Need to use microfacet"),
         }
     }
 }
