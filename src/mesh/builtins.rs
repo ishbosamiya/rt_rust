@@ -13,6 +13,7 @@ macro_rules! load_builtin_mesh {
                 let reader = MeshIO::from_lines(&lines).unwrap();
                 let mut mesh = Mesh::read(&reader).unwrap();
                 mesh.build_bvh(0.01);
+                mesh.calculate_tangent_info();
                 mesh
             };
         }

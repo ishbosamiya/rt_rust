@@ -91,6 +91,14 @@ impl Vertex {
         self.normal = Some(normal);
     }
 
+    pub fn set_tangent(&mut self, tangent: glm::DVec3) {
+        self.tangent = Some(tangent);
+    }
+
+    pub fn set_bitangent(&mut self, bitangent: glm::DVec3) {
+        self.bitangent = Some(bitangent);
+    }
+
     pub fn get_pos(&self) -> &glm::DVec3 {
         &self.pos
     }
@@ -198,6 +206,14 @@ impl Mesh {
         Mesh::read(&meshio)
     }
 
+    pub fn get_verticies(&self) -> &Vec<Vertex> {
+        &self.vertices
+    }
+
+    pub fn get_faces(&self) -> &Vec<Vec<usize>> {
+        &self.faces
+    }
+
     fn draw_directional_light_shader(
         &self,
         draw_data: &mut MeshDrawData,
@@ -301,6 +317,64 @@ impl Mesh {
 
     pub fn get_bvh(&self) -> &Option<BVHTree<usize>> {
         &self.bvh
+    }
+
+    pub fn calculate_tangent_info(&mut self) {
+        // TODO(ish): if uv or normal info is not available at the
+        // vertex, need to return Err
+
+        for face in &self.faces {
+            // TODO(ish): make it work properly for concave faces
+
+            // It doesn't make sense for a face to have only 2 verts
+            assert!(face.len() > 2);
+
+            let v1_index = face[0];
+            for (v2_index, v3_index) in face.iter().skip(1).tuple_windows() {
+                let v1 = &self.vertices[v1_index];
+                let v2 = &self.vertices[*v2_index];
+                let v3 = &self.vertices[*v3_index];
+
+                let pos1 = v1.get_pos();
+                let pos2 = v2.get_pos();
+                let pos3 = v3.get_pos();
+
+                let uv1 = v1.get_uv().as_ref().unwrap();
+                let uv2 = v2.get_uv().as_ref().unwrap();
+                let uv3 = v3.get_uv().as_ref().unwrap();
+
+                let edge1 = pos2 - pos1;
+                let edge2 = pos3 - pos1;
+                let deltauv1 = uv2 - uv1;
+                let deltauv2 = uv3 - uv1;
+
+                let f = 1.0 / (deltauv1[0] * deltauv2[1] - deltauv2[0] * deltauv1[1]);
+
+                let tangent = f * glm::vec3(
+                    deltauv2[1] * edge1[0] - deltauv1[1] * edge2[0],
+                    deltauv2[1] * edge1[1] - deltauv1[1] * edge2[1],
+                    deltauv2[1] * edge1[2] - deltauv1[1] * edge2[2],
+                );
+
+                let bitangent = f * glm::vec3(
+                    -deltauv2[0] * edge1[0] + deltauv1[0] * edge2[0],
+                    -deltauv2[0] * edge1[1] + deltauv1[0] * edge2[1],
+                    -deltauv2[0] * edge1[2] + deltauv1[0] * edge2[2],
+                );
+
+                let v1 = &mut self.vertices[v1_index];
+                v1.set_tangent(tangent);
+                v1.set_bitangent(bitangent);
+
+                let v2 = &mut self.vertices[*v2_index];
+                v2.set_tangent(tangent);
+                v2.set_bitangent(bitangent);
+
+                let v3 = &mut self.vertices[*v3_index];
+                v3.set_tangent(tangent);
+                v3.set_bitangent(bitangent);
+            }
+        }
     }
 }
 
