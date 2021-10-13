@@ -73,9 +73,14 @@ pub fn sample_micro(outgoing : &glm::DVec3,
     let cos_phi: f64 = phi.cos();
     let sin_phi: f64 = phi.sin();
 
-    let m = glm::vec3(cos_phi * sin_theta, cos_theta, sin_phi * sin_theta);
+    let mut m = glm::vec3(cos_phi * sin_theta, cos_theta, sin_phi * sin_theta);
 
     // TODO Compute reflection
+    let wi = (wo - 2.0 * wo.dot(&m) * m).normalize();
+    m = (wi + wo).normalize();
+    let cos_oh = wo.dot(&m);
+
+    incoming = wi;
 
     /* 
     let rd = glossy.clamp(0.0, 1.0);
