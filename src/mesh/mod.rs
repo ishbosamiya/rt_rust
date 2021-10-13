@@ -18,6 +18,8 @@ pub struct Vertex {
     pos: glm::DVec3,
     uv: Option<glm::DVec2>,
     normal: Option<glm::DVec3>,
+    tangent: Option<glm::DVec3>,
+    bitangent: Option<glm::DVec3>,
 }
 
 impl Vertex {
@@ -26,6 +28,8 @@ impl Vertex {
             pos,
             uv: None,
             normal: None,
+            tangent: None,
+            bitangent: None,
         }
     }
 
@@ -33,8 +37,16 @@ impl Vertex {
         pos: glm::DVec3,
         uv: Option<glm::DVec2>,
         normal: Option<glm::DVec3>,
+        tangent: Option<glm::DVec3>,
+        bitangent: Option<glm::DVec3>,
     ) -> Self {
-        Self { pos, uv, normal }
+        Self {
+            pos,
+            uv,
+            normal,
+            tangent,
+            bitangent,
+        }
     }
 
     pub fn new_with_uv(pos: glm::DVec3, uv: glm::DVec2) -> Self {
@@ -42,6 +54,8 @@ impl Vertex {
             pos,
             uv: Some(uv),
             normal: None,
+            tangent: None,
+            bitangent: None,
         }
     }
 
@@ -50,6 +64,8 @@ impl Vertex {
             pos,
             uv: None,
             normal: Some(normal),
+            tangent: None,
+            bitangent: None,
         }
     }
 
@@ -58,6 +74,8 @@ impl Vertex {
             pos,
             uv: Some(uv),
             normal: Some(normal),
+            tangent: None,
+            bitangent: None,
         }
     }
 
@@ -83,6 +101,14 @@ impl Vertex {
 
     pub fn get_normal(&self) -> &Option<glm::DVec3> {
         &self.normal
+    }
+
+    pub fn get_tangent(&self) -> &Option<glm::DVec3> {
+        &self.tangent
+    }
+
+    pub fn get_bitangent(&self) -> &Option<glm::DVec3> {
+        &self.bitangent
     }
 }
 
@@ -136,7 +162,7 @@ impl Mesh {
                         normal = None;
                     }
 
-                    Vertex::new_maybe_all(pos, uv, normal)
+                    Vertex::new_maybe_all(pos, uv, normal, None, None)
                 })
             })
             .collect();
