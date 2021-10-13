@@ -199,6 +199,13 @@ fn main() {
     let mut bvh_color = glm::vec4(0.9, 0.5, 0.2, 1.0);
     let mut bvh_ray_color: glm::DVec4 = glm::vec4(0.2, 0.5, 0.9, 1.0);
     let mut bvh_ray_intersection = Vec::new();
+    let mut normal_color: glm::DVec4 = glm::vec4(0.7, 0.25, 0.25, 1.0);
+    let mut tangent_color: glm::DVec4 = glm::vec4(0.25, 0.7, 0.25, 1.0);
+    let mut bitangent_color: glm::DVec4 = glm::vec4(0.25, 0.25, 0.7, 1.0);
+    let mut normals_scale_factor = 0.05;
+    let mut draw_normal = false;
+    let mut draw_tangent = false;
+    let mut draw_bitangent = false;
 
     let sphere = Sphere::new(glm::vec3(1.0, 0.0, 0.0), 0.4);
 
@@ -250,10 +257,9 @@ fn main() {
         .unwrap();
 
         {
-            let normal_color = glm::vec4(1.0, 0.0, 0.0, 1.0);
-            let tangent_color = glm::vec4(0.0, 1.0, 0.0, 1.0);
-            let bitangent_color = glm::vec4(0.0, 0.0, 1.0, 1.0);
-            let scale_factor = 0.1;
+            let normal_color: glm::Vec4 = glm::convert(normal_color);
+            let tangent_color: glm::Vec4 = glm::convert(tangent_color);
+            let bitangent_color: glm::Vec4 = glm::convert(bitangent_color);
             let smooth_color_3d_shader = shader::builtins::get_smooth_color_3d_shader()
                 .as_ref()
                 .unwrap();
@@ -274,7 +280,7 @@ fn main() {
                 rt::gpu_immediate::GPUVertFetchMode::Float,
             );
 
-            {
+            if draw_normal {
                 imm.begin(
                     rt::gpu_immediate::GPUPrimType::Lines,
                     mesh.get_verticies().len() * 2,
@@ -284,7 +290,7 @@ fn main() {
                 mesh.get_verticies().iter().for_each(|vert| {
                     let pos: glm::Vec3 = glm::convert(*vert.get_pos());
                     let normal: glm::Vec3 = glm::convert(vert.get_normal().unwrap());
-                    let end_pos = pos + scale_factor * normal.normalize();
+                    let end_pos = pos + normals_scale_factor * normal.normalize();
 
                     imm.attr_4f(
                         color_attr,
@@ -307,7 +313,8 @@ fn main() {
 
                 imm.end();
             }
-            {
+
+            if draw_tangent {
                 imm.begin(
                     rt::gpu_immediate::GPUPrimType::Lines,
                     mesh.get_verticies().len() * 2,
@@ -317,7 +324,7 @@ fn main() {
                 mesh.get_verticies().iter().for_each(|vert| {
                     let pos: glm::Vec3 = glm::convert(*vert.get_pos());
                     let tangent: glm::Vec3 = glm::convert(vert.get_tangent().unwrap());
-                    let end_pos = pos + scale_factor * tangent.normalize();
+                    let end_pos = pos + normals_scale_factor * tangent.normalize();
 
                     imm.attr_4f(
                         color_attr,
@@ -340,7 +347,8 @@ fn main() {
 
                 imm.end();
             }
-            {
+
+            if draw_bitangent {
                 imm.begin(
                     rt::gpu_immediate::GPUPrimType::Lines,
                     mesh.get_verticies().len() * 2,
@@ -350,7 +358,7 @@ fn main() {
                 mesh.get_verticies().iter().for_each(|vert| {
                     let pos: glm::Vec3 = glm::convert(*vert.get_pos());
                     let bitangent: glm::Vec3 = glm::convert(vert.get_bitangent().unwrap());
-                    let end_pos = pos + scale_factor * bitangent.normalize();
+                    let end_pos = pos + normals_scale_factor * bitangent.normalize();
 
                     imm.attr_4f(
                         color_attr,
@@ -484,9 +492,19 @@ fn main() {
                     ui.label(format!("fps: {:.2}", fps.update_and_get(Some(60.0))));
 
                     ui.checkbox(&mut draw_bvh, "Draw BVH");
+                    ui.checkbox(&mut draw_normal, "Draw Normals");
+                    ui.checkbox(&mut draw_tangent, "Draw Tangents");
+                    ui.checkbox(&mut draw_bitangent, "Draw Bi-Tangents");
                     ui.add(egui::Slider::new(&mut bvh_draw_level, 0..=15).text("BVH Draw Level"));
                     color_edit_button_dvec4(ui, "BVH Color", &mut bvh_color);
                     color_edit_button_dvec4(ui, "BVH Ray Color", &mut bvh_ray_color);
+                    color_edit_button_dvec4(ui, "Normal Color", &mut normal_color);
+                    color_edit_button_dvec4(ui, "Tangent Color", &mut tangent_color);
+                    color_edit_button_dvec4(ui, "Bi-Tangent Color", &mut bitangent_color);
+                    ui.add(
+                        egui::Slider::new(&mut normals_scale_factor, 0.0..=1.0)
+                            .text("Normal Scale Factor"),
+                    );
 
                     if ui.button("Delete Rays").clicked() {
                         bvh_ray_intersection.clear();
