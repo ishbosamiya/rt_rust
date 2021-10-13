@@ -46,13 +46,38 @@ pub fn sample_aniso_glossy(k : f64, s : f64) -> f64 {
 // Here glossy and diffuse are reflectance values
 // Unsure of exact variables in disney bsdf
 pub fn sample_micro(outgoing : &glm::DVec3, 
-    glossy : f64, 
-    diffuse : f64, 
-    aniso : f64,
+    roughness : f64, 
+    alpha_x : f64, 
+    alpha_y : f64,
     normal : &glm::DVec3,
     vertex : &glm::DVec3
 ) -> glm::DVec3 {
 
+    let mut incoming = glm::zero();
+    let wo = glm::vec3(outgoing.dot(outgoing), outgoing.dot(normal), outgoing.dot(vertex));
+
+    // assert_ne!(wo[2], 0.0); Clippy shows weird error despite it working
+    let mut rng = thread_rng();
+    let x: f64 = rng.gen_range(0.0..1.0);
+    let y: f64 = rng.gen_range(0.0..1.0);
+    let s = glm::vec2(x, y);
+
+    let alpha = alpha_x.clamp(0.001, 0.999);
+    let alpha_2 = alpha.powf(2.0);
+    let a = alpha_2.powf(1.0 - s[0]);
+    let cos_theta_2 = a / (1.0 - alpha_2);
+    let cos_theta = cos_theta_2.sqrt();
+    let sin_theta = (glm::max2_scalar(0.0, cos_theta_2)).sqrt();
+
+    let phi: f64 = s[1] * 2.0 * std::f64::consts::PI;
+    let cos_phi: f64 = phi.cos();
+    let sin_phi: f64 = phi.sin();
+
+    let m = glm::vec3(cos_phi * sin_theta, cos_theta, sin_phi * sin_theta);
+
+    // TODO Compute reflection
+
+    /* 
     let rd = glossy.clamp(0.0, 1.0);
     let rg = diffuse.clamp(0.0, 1.0);
 
@@ -82,7 +107,6 @@ pub fn sample_micro(outgoing : &glm::DVec3,
     let z : f64 = rng.gen_range(0.0..1.0);
 
     let s = glm::vec3(x, y, z);
-    let mut incoming = glm::zero();
     let mut h_vec = glm::zero();
     let exp : f64;
 
@@ -107,6 +131,7 @@ pub fn sample_micro(outgoing : &glm::DVec3,
         incoming = (outgoing - 2.0_f64 * outgoing.dot(&h_vec) * h_vec).normalize();
     }
     h_vec = (incoming + outgoing).normalize();
+    */
 
     incoming
 }
