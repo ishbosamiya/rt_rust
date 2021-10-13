@@ -2,42 +2,40 @@ use crate::glm;
 use egui::emath::Numeric;
 use rand::Rng;
 extern crate rand;
-use rand::thread_rng;
 use crate::sampler;
+use rand::thread_rng;
 
-pub fn microfacet_alpha_from_roughness(roughness : f64, 
-    aniso : f64, 
-    alpha_x : &mut f64, 
-    alpha_y : &mut f64) {
-        let sqr_rough = roughness.powf(2.0);
+pub fn microfacet_alpha_from_roughness(
+    roughness: f64,
+    aniso: f64,
+    alpha_x: &mut f64,
+    alpha_y: &mut f64,
+) {
+    let sqr_rough = roughness.powf(2.0);
 
-        if aniso >= 0.0_f64 {
-            let aspect = (1.0_f64 - aniso * 0.9_f64).sqrt();
-            *alpha_x = glm::max2_scalar(0.001_f64, sqr_rough / aspect);
-            *alpha_y = glm::max2_scalar(0.001_f64, sqr_rough * aspect);
-        }
-        else {
-            let aspect = (1.0_f64 + aniso * 0.9_f64).sqrt();
-            *alpha_x = glm::max2_scalar(0.001_f64, sqr_rough * aspect);
-            *alpha_y = glm::max2_scalar(0.001_f64, sqr_rough / aspect);
-        }
+    if aniso >= 0.0_f64 {
+        let aspect = (1.0_f64 - aniso * 0.9_f64).sqrt();
+        *alpha_x = glm::max2_scalar(0.001_f64, sqr_rough / aspect);
+        *alpha_y = glm::max2_scalar(0.001_f64, sqr_rough * aspect);
+    } else {
+        let aspect = (1.0_f64 + aniso * 0.9_f64).sqrt();
+        *alpha_x = glm::max2_scalar(0.001_f64, sqr_rough * aspect);
+        *alpha_y = glm::max2_scalar(0.001_f64, sqr_rough / aspect);
+    }
 }
 
-pub fn sample_aniso_glossy(k : f64, s : f64) -> f64 {
-    let hpi : f64 = glm::half_pi();
+pub fn sample_aniso_glossy(k: f64, s: f64) -> f64 {
+    let hpi: f64 = glm::half_pi();
     if s < 0.25 {
         let b: f64 = (hpi * 4.0_f64 * s).tan();
         (k * b).atan()
-    }
-    else if s < 0.5 {
+    } else if s < 0.5 {
         let b: f64 = (hpi * (4.0_f64 * s - 1.0)).tan();
         (k * b).atan() + hpi
-    }
-    else if s < 0.75 {
+    } else if s < 0.75 {
         let b: f64 = (hpi * (4.0_f64 * s - 2.0)).tan();
         (k * b).atan() + std::f64::consts::PI
-    }
-    else {
+    } else {
         let b: f64 = (hpi * (4.0_f64 * s - 3.0)).tan();
         (k * b).atan() + std::f64::consts::PI + hpi
     }
@@ -45,16 +43,20 @@ pub fn sample_aniso_glossy(k : f64, s : f64) -> f64 {
 
 // Here glossy and diffuse are reflectance values
 // Unsure of exact variables in disney bsdf
-pub fn sample_micro(outgoing : &glm::DVec3, 
-    roughness : f64, 
-    alpha_x : f64, 
-    alpha_y : f64,
-    normal : &glm::DVec3,
-    vertex : &glm::DVec3
+pub fn sample_micro(
+    outgoing: &glm::DVec3,
+    roughness: f64,
+    alpha_x: f64,
+    alpha_y: f64,
+    normal: &glm::DVec3,
+    vertex: &glm::DVec3,
 ) -> glm::DVec3 {
-
     let mut incoming = glm::zero();
-    let wo = glm::vec3(outgoing.dot(outgoing), outgoing.dot(normal), outgoing.dot(vertex));
+    let wo = glm::vec3(
+        outgoing.dot(outgoing),
+        outgoing.dot(normal),
+        outgoing.dot(vertex),
+    );
 
     // assert_ne!(wo[2], 0.0); Clippy shows weird error despite it working
     let mut rng = thread_rng();
@@ -82,12 +84,12 @@ pub fn sample_micro(outgoing : &glm::DVec3,
 
     incoming = wi;
 
-    /* 
+    /*
     let rd = glossy.clamp(0.0, 1.0);
     let rg = diffuse.clamp(0.0, 1.0);
 
     let avg_sum = rd + rg;
-    
+
     assert!(avg_sum > 0.0);
 
     let m_pd = rd / avg_sum;

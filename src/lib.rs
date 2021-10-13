@@ -1,7 +1,10 @@
 pub mod blinn;
+pub mod blinnphong;
 pub mod bsdf;
+pub mod bsdfutils;
 pub mod bvh;
 pub mod camera;
+pub mod disney;
 pub mod drawable;
 pub mod fps;
 pub mod gl_camera;
@@ -9,21 +12,18 @@ pub mod gpu_immediate;
 pub mod gpu_utils;
 pub mod image;
 pub mod intersectable;
+pub mod lambert;
 pub mod math;
 pub mod mesh;
 pub mod meshio;
+pub mod microfacet;
 pub mod ray;
+pub mod sampler;
 pub mod scene;
 pub mod shader;
 pub mod sphere;
 pub mod texture;
 pub mod util;
-pub mod blinnphong;
-pub mod disney;
-pub mod bsdfutils;
-pub mod lambert;
-pub mod sampler;
-pub mod microfacet;
 
 pub use nalgebra_glm as glm;
 
