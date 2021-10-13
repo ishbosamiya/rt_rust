@@ -13,5 +13,5 @@ pub fn random_in_unit_sphere() -> glm::DVec3 {
 }
 
 pub fn saturate(a: f64) -> f64 {
-    return a.clamp(0.0, 1.0);
+    a.clamp(0.0, 1.0)
 }
