@@ -7,31 +7,38 @@ impl BSDF for BlinnPhong {
     fn new() -> Self {
         BlinnPhong {}
     }
+
     fn sample(&self, _out: &glm::DVec3, _vertex: &glm::DVec3) -> glm::DVec3 {
         todo!("BlinnPhong sample still needs to be calculated")
     }
 
     fn eval(
         &self,
-        l: &glm::DVec3,
-        v: &glm::DVec3,
-        n: &glm::DVec3,
-        x: &glm::DVec3,
-        y: &glm::DVec3,
+        incident_vector: &glm::DVec3,
+        view_vector: &glm::DVec3,
+        normal_vector: &glm::DVec3,
+        _tangent: &glm::DVec3,
+        _bitangent: &glm::DVec3,
     ) -> glm::DVec3 {
-        let divide_by_ndot_l: bool = true;
+        // l: incident_vector
+        // v: view_vector
+        // n: normal_vector
+        // x: tangent
+        // y: bitangent
+        // h: incident_plus_view_normalized
 
-        let s = l + v;
-        let h = s.normalize();
-        let ndot_h = n.dot(&h);
-        let ndot_l = n.dot(l);
+        let divide_by_ndot_l = true;
+
+        let h = (incident_vector + view_vector).normalize();
+        let ndot_h = normal_vector.dot(&h);
+        let ndot_l = normal_vector.dot(incident_vector);
 
         let mut val = ndot_h.powf(100.0_f64);
 
         if divide_by_ndot_l {
-            val = val / ndot_l
+            val /= ndot_l
         }
 
-        return glm::vec3(val, val, val);
+        glm::vec3(val, val, val)
     }
 }
