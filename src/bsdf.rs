@@ -29,9 +29,9 @@ impl BSDFTemplate {
         // let mut b = s;
         b = glm::max2(&b, &glm::zero());
 
-        b = b * n.dot(l);
+        b *= n.dot(l);
 
-        return b;
+        b
     }
     // Finish this function from main of above file
     pub fn setup(&self, ray: &glm::DVec3, vertex: &glm::DVec3) -> glm::DVec3 {
@@ -44,16 +44,14 @@ impl BSDFTemplate {
         let surfacepos: glm::DVec3 = vertex.normalize();
 
         let viewvec = glm::vec3(0.0_f64, 0.0_f64, 1.0_f64);
-        let mut b = self.compute_with_directional_light(
+        let b = self.compute_with_directional_light(
             &surfacepos,
             ray,
             &viewvec,
             &normal,
             &tangent,
             &bitangent,
-        );
-
-        b = b * self.brightness;
+        ) * self.brightness;
 
         // Calculate exposure - TBD
         // b = b * self.opacity.powf(2.0)
@@ -61,13 +59,11 @@ impl BSDFTemplate {
         let gamma_factor = 1.0_f64 / self.roughness;
         let gamma_vec = glm::vec3(gamma_factor, gamma_factor, gamma_factor);
 
-        b = glm::pow(&b, &gamma_vec);
+        glm::pow(&b, &gamma_vec)
 
         // Check this once more
         // let maxvec = glm::vec3(1.0, 1.0, 1.0);
         // let frag_color = glm::vec4(glm::clamp_vec(&b, &glm::zero(), &maxvec), 1.0);
-
-        return b;
     }
 }
 
