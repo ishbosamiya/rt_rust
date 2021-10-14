@@ -21,7 +21,6 @@ pub mod texture;
 pub mod util;
 
 use bsdf::BSDF;
-use bsdfs::lambert::Lambert;
 use intersectable::IntersectInfo;
 pub use nalgebra_glm as glm;
 
@@ -46,14 +45,15 @@ fn shade_environment(ray: &Ray, camera: &Camera) -> glm::DVec3 {
 ///
 /// Returns the (color, next ray)
 fn shade_hit(ray: &Ray, intersect_info: &IntersectInfo) -> (glm::DVec3, Ray) {
-    let lambert = Lambert::new(glm::vec4(1.0, 1.0, 1.0, 1.0));
+    // let shader = bsdfs::lambert::Lambert::new(glm::vec4(1.0, 1.0, 1.0, 1.0));
+    let shader = bsdfs::glossy::Glossy::new(glm::vec4(1.0, 1.0, 1.0, 1.0));
 
     // wo: outgoing ray direction
     let wo = ray.get_direction();
     // wi: incoming way direction
-    let wi = lambert.sample(ray.get_direction(), intersect_info);
+    let wi = shader.sample(ray.get_direction(), intersect_info);
 
-    let color = lambert.eval(&wi, wo, intersect_info);
+    let color = shader.eval(&wi, wo, intersect_info);
     (color, Ray::new(*intersect_info.get_point(), wi))
 }
 
