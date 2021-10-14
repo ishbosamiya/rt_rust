@@ -21,6 +21,7 @@ pub mod texture;
 pub mod util;
 
 use bsdf::BSDF;
+use enumflags2::BitFlags;
 use intersectable::IntersectInfo;
 pub use nalgebra_glm as glm;
 
@@ -51,7 +52,9 @@ fn shade_hit(ray: &Ray, intersect_info: &IntersectInfo) -> (glm::DVec3, Ray) {
     // wo: outgoing ray direction
     let wo = ray.get_direction();
     // wi: incoming way direction
-    let wi = shader.sample(ray.get_direction(), intersect_info);
+    let wi = shader
+        .sample(ray.get_direction(), intersect_info, BitFlags::all())
+        .expect("todo: need to handle the case where the sample returns None");
 
     let color = shader.eval(&wi, wo, intersect_info);
     (color, Ray::new(*intersect_info.get_point(), wi))
