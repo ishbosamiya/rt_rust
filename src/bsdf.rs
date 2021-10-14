@@ -8,6 +8,11 @@ pub trait BSDF {
     /// `wi`: incoming ray direction
     /// `intersect_info`: information at the point of intersection
     ///
+    /// Need to calculate the incoming ray direction since in ray
+    /// tracing, we are moving from the camera into the scene, not
+    /// from the light sources towards the camera. So it is reversed,
+    /// we have the outgoing ray but don't have the incoming ray.
+    ///
     /// TODO: need to send sampling type(s) as well (diffuse or glossy
     /// or reflection) when max number bounces for each of these types
     /// is implemented.

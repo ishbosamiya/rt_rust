@@ -1,4 +1,5 @@
 pub mod bsdf;
+pub mod bsdfs;
 pub mod bvh;
 pub mod camera;
 pub mod drawable;
@@ -19,6 +20,8 @@ pub mod sphere;
 pub mod texture;
 pub mod util;
 
+use bsdf::BSDF;
+use bsdfs::lambert::Lambert;
 use intersectable::IntersectInfo;
 pub use nalgebra_glm as glm;
 
@@ -42,21 +45,16 @@ fn shade_environment(ray: &Ray, camera: &Camera) -> glm::DVec3 {
 /// Shade the point of intersection when the ray hits an object
 ///
 /// Returns the (color, next ray)
-fn shade_hit(_ray: &Ray, intersect_info: &IntersectInfo) -> (glm::DVec3, Ray) {
-    // diffuse shader
-    let target = intersect_info.get_point()
-        + intersect_info.get_normal().unwrap()
-        + math::random_in_unit_sphere();
+fn shade_hit(ray: &Ray, intersect_info: &IntersectInfo) -> (glm::DVec3, Ray) {
+    let lambert = Lambert::new(glm::vec4(1.0, 1.0, 1.0, 1.0));
 
-    let color = glm::vec3(1.0, 1.0, 1.0);
+    // wo: outgoing ray direction
+    let wo = ray.get_direction();
+    // wi: incoming way direction
+    let wi = lambert.sample(ray.get_direction(), intersect_info);
 
-    (
-        color,
-        Ray::new(
-            *intersect_info.get_point(),
-            target - intersect_info.get_point(),
-        ),
-    )
+    let color = lambert.eval(&wi, wo, intersect_info);
+    (color, Ray::new(*intersect_info.get_point(), wi))
 }
 
 // x: current point
