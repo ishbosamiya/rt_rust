@@ -2,7 +2,7 @@ use rt::bvh::BVHTree;
 use rt::camera::Camera;
 use rt::glm;
 use rt::gpu_utils::draw_plane_with_image;
-use rt::image::Image;
+use rt::image::{Image, PPM};
 use rt::scene::Scene;
 use rt::sphere::{Sphere, SphereDrawData};
 
@@ -154,6 +154,7 @@ fn main() {
     let mut image_height = 1000;
     let mut trace_max_depth = 5;
     let mut samples_per_pixel = 5;
+    let mut save_image_location = "test.ppm".to_string();
 
     let sphere = Sphere::new(glm::vec3(1.0, 0.0, 0.0), 0.4);
 
@@ -343,6 +344,18 @@ fn main() {
                             trace_max_depth,
                             samples_per_pixel,
                         ));
+                    }
+
+                    ui.horizontal(|ui| {
+                        ui.label("Save Location");
+                        ui.text_edit_singleline(&mut save_image_location);
+                    });
+
+                    if ui.button("Save Ray Traced Image").clicked() {
+                        let image = Image::from_texture_rgba_float(&image);
+                        PPM::new(&image)
+                            .write_to_file(&save_image_location)
+                            .unwrap();
                     }
                 });
                 let _output = egui.end_frame(glm::vec2(window_width as _, window_height as _));
