@@ -15,11 +15,11 @@ use lazy_static::lazy_static;
 lazy_static! {
     static ref SCENE: Scene = {
         let mut scene = Scene::new();
-        scene.add_object(Box::new(Sphere::new(glm::vec3(0.0, 0.0, -2.0), 0.5)));
-        scene.add_object(Box::new(Sphere::new(glm::vec3(0.0, 1.0, -2.0), 0.5)));
-        scene.add_object(Box::new(Sphere::new(glm::vec3(0.0, -1.0, -2.0), 0.5)));
-        scene.add_object(Box::new(Sphere::new(glm::vec3(1.0, 0.0, -2.0), 0.5)));
-        scene.add_object(Box::new(Sphere::new(glm::vec3(-1.0, 0.0, -2.0), 0.5)));
+        scene.add_object(Box::new(Sphere::new(glm::vec3(0.0, 0.0, -2.0), 0.45)));
+        scene.add_object(Box::new(Sphere::new(glm::vec3(0.0, 1.0, -2.0), 0.45)));
+        scene.add_object(Box::new(Sphere::new(glm::vec3(0.0, -1.0, -2.0), 0.45)));
+        scene.add_object(Box::new(Sphere::new(glm::vec3(1.0, 0.0, -2.0), 0.45)));
+        scene.add_object(Box::new(Sphere::new(glm::vec3(-1.0, 0.0, -2.0), 0.45)));
         scene
     };
 }

@@ -45,8 +45,8 @@ fn shade_environment(ray: &Ray, camera: &Camera) -> glm::DVec3 {
 ///
 /// Returns the (color, next ray)
 fn shade_hit(ray: &Ray, intersect_info: &IntersectInfo) -> (glm::DVec3, Ray) {
-    // let shader = bsdfs::lambert::Lambert::new(glm::vec4(1.0, 1.0, 1.0, 1.0));
-    let shader = bsdfs::glossy::Glossy::new(glm::vec4(1.0, 1.0, 1.0, 1.0));
+    // let shader = bsdfs::lambert::Lambert::new(glm::vec4(0.0, 1.0, 1.0, 1.0));
+    let shader = bsdfs::glossy::Glossy::new(glm::vec4(0.0, 1.0, 1.0, 1.0));
 
     // wo: outgoing ray direction
     let wo = ray.get_direction();
@@ -71,7 +71,12 @@ pub fn trace_ray(ray: &Ray, camera: &Camera, scene: &'static Scene, depth: usize
     let val;
     if let Some(info) = scene.hit(ray, 0.01, 1000.0) {
         let (color, next_ray) = shade_hit(ray, &info);
-        val = glm::lerp(&color, &trace_ray(&next_ray, camera, scene, depth - 1), 0.5);
+        let traced_color = trace_ray(&next_ray, camera, scene, depth - 1);
+        val = glm::vec3(
+            color[0] * traced_color[0],
+            color[1] * traced_color[1],
+            color[2] * traced_color[2],
+        );
     } else {
         val = shade_environment(ray, camera);
     }
