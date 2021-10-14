@@ -1,6 +1,17 @@
 use crate::glm;
 use crate::intersectable::IntersectInfo;
 
+use enumflags2::bitflags;
+
+#[bitflags]
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum SamplingTypes {
+    Diffuse,
+    Glossy,
+    Reflection,
+}
+
 pub trait BSDF {
     /// Calculates `wi` given `wo`.
     ///

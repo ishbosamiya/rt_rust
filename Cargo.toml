@@ -7,18 +7,19 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-nalgebra-glm = "0.13.0"
-rand = "0.8.3"
+nalgebra-glm = "0.13"
+rand = "0.8"
 crossbeam-channel = "0.5"
-crossbeam = "0.8.0"
-lazy_static = "1.4.0"
-gl = "0.14.0"
+crossbeam = "0.8"
+lazy_static = "1.4"
+gl = "0.14"
 paste = "1.0"
 generational-arena = "0.2.8"
 itertools = "0.10"
 glfw = "0.41"
 egui = "0.13"
 egui_glfw = { git = "ssh://git@github.com/ishbosamiya/egui_glfw.git" }
+enumflags2 = "0.7"
 
 [dev-dependencies]
 criterion = { version = "0.3.4", features = ["html_reports"]}
