@@ -49,63 +49,6 @@ fn ray_trace_scene(width: usize, height: usize, trace_max_depth: usize) -> Image
         }
     }
 
-    // {
-    //     let num_threads = 12;
-    //     let mut slabs = image.get_slabs(num_threads);
-
-    //     println!("slabs: {:?}", slabs);
-
-    //     crossbeam::thread::scope(|s| {
-    //         let mut handles = Vec::new();
-
-    //         for slab in &mut slabs {
-    //             let handle = s.spawn(move |_| {
-    //                 let mut pixels = Vec::new();
-    //                 for i in 0..slab.width {
-    //                     let mut pixels_inner = Vec::new();
-    //                     for j in 0..slab.height {
-    //                         let j = j + slab.y_start;
-    //                         let j = height - j;
-    //                         let i = i + slab.x_start;
-
-    //                         // use opengl coords, (0.0, 0.0) is center; (1.0, 1.0) is
-    //                         // top right; (-1.0, -1.0) is bottom left
-    //                         let u = ((i as f64 / (width - 1) as f64) - 0.5) * 2.0;
-    //                         let v = ((j as f64 / (height - 1) as f64) - 0.5) * 2.0;
-
-    //                         let ray = camera.get_ray(u, v);
-
-    //                         let pixel = trace_ray(&ray, camera, &SCENE, 2000);
-    //                         pixels_inner.push(pixel);
-    //                     }
-    //                     pixels.push(pixels_inner);
-    //                 }
-
-    //                 slab.set_pixels(pixels);
-    //             });
-
-    //             handles.push(handle);
-    //         }
-
-    //         for handle in handles {
-    //             handle.join().unwrap();
-    //         }
-    //     })
-    //     .unwrap();
-
-    //     for slab in slabs {
-    //         for i in 0..slab.width {
-    //             for j in 0..slab.height {
-    //                 let pixel = slab.get_pixels()[i][j];
-    //                 let j = j + slab.y_start;
-    //                 let i = i + slab.x_start;
-
-    //                 image.set_pixel(j, i, pixel);
-    //             }
-    //         }
-    //     }
-    // }
-
     image
 }
 
