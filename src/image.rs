@@ -2,6 +2,7 @@ use std::fs::File;
 use std::io::prelude::*;
 
 use crate::glm;
+use crate::texture::TextureRGBAFloat;
 
 pub struct Image {
     pixels: Vec<Vec<glm::DVec3>>,
@@ -20,6 +21,22 @@ impl Image {
             pixels,
             width,
             height,
+        }
+    }
+
+    pub fn from_texture_rgba_float(tex: &TextureRGBAFloat) -> Image {
+        Self {
+            pixels: tex
+                .get_pixels()
+                .chunks(tex.get_height())
+                .map(|row| {
+                    row.iter()
+                        .map(|(r, g, b, _a)| glm::vec3(*r as f64, *g as f64, *b as f64))
+                        .collect()
+                })
+                .collect(),
+            width: tex.get_width(),
+            height: tex.get_height(),
         }
     }
 

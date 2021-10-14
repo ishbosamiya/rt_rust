@@ -174,6 +174,10 @@ impl TextureRGBAFloat {
     pub fn get_height(&self) -> usize {
         self.height
     }
+
+    pub fn get_pixels(&self) -> &Vec<(f32, f32, f32, f32)> {
+        &self.pixels
+    }
 }
 
 impl Drop for TextureRGBAFloat {
