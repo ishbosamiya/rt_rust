@@ -119,6 +119,7 @@ use rt::drawable::Drawable;
 use rt::fps::FPS;
 use rt::gl_camera;
 use rt::gpu_immediate::GPUImmediate;
+use rt::infinite_grid::{InfiniteGrid, InfiniteGridDrawData};
 use rt::mesh;
 use rt::mesh::{MeshDrawData, MeshUseShader};
 use rt::shader;
@@ -203,6 +204,8 @@ fn main() {
 
     let sphere = Sphere::new(glm::vec3(1.0, 0.0, 0.0), 0.4);
 
+    let infinite_grid = InfiniteGrid::default();
+
     let mut image = TextureRGBAFloat::new_empty(100, 100);
 
     while !window.should_close() {
@@ -259,7 +262,7 @@ fn main() {
             .unwrap();
 
         draw_plane_with_image(
-            &glm::vec3(2.0, 0.0, 0.0),
+            &glm::vec3(2.0, 1.0, 0.0),
             &glm::vec3(2.0 * (image_width as f64 / image_height as f64), 2.0, 2.0),
             &glm::vec3(0.0, 0.0, 1.0),
             &mut image,
@@ -350,6 +353,10 @@ fn main() {
                 gl::Enable(gl::BLEND);
                 gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
             }
+
+            infinite_grid
+                .draw(&mut InfiniteGridDrawData::new(&mut imm))
+                .unwrap();
 
             // GUI starts
             {

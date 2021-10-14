@@ -6,6 +6,7 @@ pub mod gl_camera;
 pub mod gpu_immediate;
 pub mod gpu_utils;
 pub mod image;
+pub mod infinite_grid;
 pub mod intersectable;
 pub mod math;
 pub mod mesh;

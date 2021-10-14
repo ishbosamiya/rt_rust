@@ -63,6 +63,12 @@ load_builtin_shader_easy!(
     "../../shaders/smooth_sphere.frag"
 );
 
+load_builtin_shader_easy!(
+    infinite_grid;
+    "../../shaders/infinite_grid.vert";
+    "../../shaders/infinite_grid.frag"
+);
+
 pub fn display_uniform_and_attribute_info() {
     {
         let directional_light_shader = get_directional_light_shader().as_ref().unwrap();
@@ -111,6 +117,16 @@ pub fn display_uniform_and_attribute_info() {
             "smooth_sphere: uniforms: {:?} attributes: {:?}",
             smooth_sphere_shader.get_uniforms(),
             smooth_sphere_shader.get_attributes(),
+        );
+    }
+
+    {
+        let infinite_grid_shader = get_infinite_grid_shader().as_ref().unwrap();
+
+        println!(
+            "smooth_sphere: uniforms: {:?} attributes: {:?}",
+            infinite_grid_shader.get_uniforms(),
+            infinite_grid_shader.get_attributes(),
         );
     }
 }
@@ -172,5 +188,13 @@ pub fn setup_shaders(camera: &Camera, window_width: usize, window_height: usize)
         smooth_sphere_shader.use_shader();
         smooth_sphere_shader.set_mat4("projection\0", projection_matrix);
         smooth_sphere_shader.set_mat4("view\0", view_matrix);
+    }
+
+    {
+        let infinite_grid_shader = get_infinite_grid_shader().as_ref().unwrap();
+
+        infinite_grid_shader.use_shader();
+        infinite_grid_shader.set_mat4("projection\0", projection_matrix);
+        infinite_grid_shader.set_mat4("view\0", view_matrix);
     }
 }
