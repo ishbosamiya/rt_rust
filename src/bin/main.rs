@@ -24,9 +24,7 @@ lazy_static! {
     };
 }
 
-fn ray_trace_scene() -> Image {
-    let width = 1000;
-    let height = 1000;
+fn ray_trace_scene(width: usize, height: usize, trace_max_depth: usize) -> Image {
     let mut image = Image::new(width, height);
 
     let viewport_height = 2.0;
@@ -35,6 +33,21 @@ fn ray_trace_scene() -> Image {
     let origin = glm::vec3(0.0, 0.0, 0.0);
     let camera = Camera::new(viewport_height, aspect_ratio, focal_length, origin);
     let camera = &camera;
+
+    for (j, row) in image.get_pixels_mut().iter_mut().enumerate() {
+        for (i, pixel) in row.iter_mut().enumerate() {
+            let j = height - j - 1;
+
+            // use opengl coords, (0.0, 0.0) is center; (1.0, 1.0) is
+            // top right; (-1.0, -1.0) is bottom left
+            let u = ((i as f64 / (width - 1) as f64) - 0.5) * 2.0;
+            let v = ((j as f64 / (height - 1) as f64) - 0.5) * 2.0;
+
+            let ray = camera.get_ray(u, v);
+
+            *pixel = trace_ray(&ray, camera, &SCENE, trace_max_depth);
+        }
+    }
 
     // {
     //     let num_threads = 12;
@@ -92,21 +105,6 @@ fn ray_trace_scene() -> Image {
     //         }
     //     }
     // }
-
-    for (j, row) in image.get_pixels_mut().iter_mut().enumerate() {
-        for (i, pixel) in row.iter_mut().enumerate() {
-            let j = height - j - 1;
-
-            // use opengl coords, (0.0, 0.0) is center; (1.0, 1.0) is
-            // top right; (-1.0, -1.0) is bottom left
-            let u = ((i as f64 / (width - 1) as f64) - 0.5) * 2.0;
-            let v = ((j as f64 / (height - 1) as f64) - 0.5) * 2.0;
-
-            let ray = camera.get_ray(u, v);
-
-            *pixel = trace_ray(&ray, camera, &SCENE, 2);
-        }
-    }
 
     image
 }
@@ -199,6 +197,9 @@ fn main() {
     let mut bvh_color = glm::vec4(0.9, 0.5, 0.2, 1.0);
     let mut bvh_ray_color: glm::DVec4 = glm::vec4(0.2, 0.5, 0.9, 1.0);
     let mut bvh_ray_intersection = Vec::new();
+    let mut image_width = 1000;
+    let mut image_height = 1000;
+    let mut trace_max_depth = 5;
 
     let sphere = Sphere::new(glm::vec3(1.0, 0.0, 0.0), 0.4);
 
@@ -259,7 +260,7 @@ fn main() {
 
         draw_plane_with_image(
             &glm::vec3(2.0, 0.0, 0.0),
-            &glm::vec3(2.0, 2.0, 2.0),
+            &glm::vec3(2.0 * (image_width as f64 / image_height as f64), 2.0, 2.0),
             &glm::vec3(0.0, 0.0, 1.0),
             &mut image,
             &mut imm,
@@ -366,8 +367,20 @@ fn main() {
                         bvh_ray_intersection.clear();
                     }
 
+                    ui.separator();
+
+                    ui.add(egui::Slider::new(&mut image_width, 0..=1000).text("Image Width"));
+                    ui.add(egui::Slider::new(&mut image_height, 0..=1000).text("Image Height"));
+                    ui.add(
+                        egui::Slider::new(&mut trace_max_depth, 0..=1000).text("Trace Max Depth"),
+                    );
+
                     if ui.button("Ray Trace Scene").clicked() {
-                        image = TextureRGBAFloat::from_image(&ray_trace_scene());
+                        image = TextureRGBAFloat::from_image(&ray_trace_scene(
+                            image_width,
+                            image_height,
+                            trace_max_depth,
+                        ));
                     }
                 });
                 let _output = egui.end_frame(glm::vec2(window_width as _, window_height as _));
