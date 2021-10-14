@@ -17,6 +17,7 @@ pub mod sphere;
 pub mod texture;
 pub mod util;
 
+use intersectable::IntersectInfo;
 pub use nalgebra_glm as glm;
 
 use crate::camera::Camera;
@@ -24,7 +25,7 @@ use crate::intersectable::Intersectable;
 use crate::ray::Ray;
 use crate::scene::Scene;
 
-fn get_background_color(ray: &Ray, camera: &Camera) -> glm::DVec3 {
+fn shade_environment(ray: &Ray, camera: &Camera) -> glm::DVec3 {
     let color_1 = glm::vec3(0.8, 0.8, 0.8);
     let color_2 = glm::vec3(0.2, 0.2, 0.8);
 
@@ -34,6 +35,26 @@ fn get_background_color(ray: &Ray, camera: &Camera) -> glm::DVec3 {
     let y_val = (y_val + 1.0) / 2.0;
 
     glm::lerp(&color_1, &color_2, y_val)
+}
+
+/// Shade the point of intersection when the ray hits an object
+///
+/// Returns the (color, next ray)
+fn shade_hit(_ray: &Ray, intersect_info: &IntersectInfo) -> (glm::DVec3, Ray) {
+    // diffuse shader
+    let target = intersect_info.get_point()
+        + intersect_info.get_normal().unwrap()
+        + math::random_in_unit_sphere();
+
+    let color = glm::vec3(1.0, 1.0, 1.0);
+
+    (
+        color,
+        Ray::new(
+            *intersect_info.get_point(),
+            target - intersect_info.get_point(),
+        ),
+    )
 }
 
 // x: current point
@@ -49,17 +70,10 @@ pub fn trace_ray(ray: &Ray, camera: &Camera, scene: &'static Scene, depth: usize
     }
     let val;
     if let Some(info) = scene.hit(ray, 0.01, 1000.0) {
-        // diffuse shader
-        let target = info.get_point() + info.get_normal().unwrap() + math::random_in_unit_sphere();
-        val = 0.5
-            * trace_ray(
-                &Ray::new(*info.get_point(), target - info.get_point()),
-                camera,
-                scene,
-                depth - 1,
-            );
+        let (color, next_ray) = shade_hit(ray, &info);
+        val = glm::lerp(&color, &trace_ray(&next_ray, camera, scene, depth - 1), 0.5);
     } else {
-        val = get_background_color(ray, camera);
+        val = shade_environment(ray, camera);
     }
     val
 }
