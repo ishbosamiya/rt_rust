@@ -262,8 +262,8 @@ fn main() {
             .unwrap();
 
         draw_plane_with_image(
-            &glm::vec3(2.0, 1.0, 0.0),
-            &glm::vec3(2.0 * (image_width as f64 / image_height as f64), 2.0, 2.0),
+            &glm::vec3(2.0, image_height as f64 / 1000.0, 0.0),
+            &glm::vec3(image_width as f64 / 500.0, 2.0, image_height as f64 / 500.0),
             &glm::vec3(0.0, 0.0, 1.0),
             &mut image,
             &mut imm,
