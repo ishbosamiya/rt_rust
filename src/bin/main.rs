@@ -24,7 +24,12 @@ lazy_static! {
     };
 }
 
-fn ray_trace_scene(width: usize, height: usize, trace_max_depth: usize) -> Image {
+fn ray_trace_scene(
+    width: usize,
+    height: usize,
+    trace_max_depth: usize,
+    samples_per_pixel: usize,
+) -> Image {
     let mut image = Image::new(width, height);
 
     let viewport_height = 2.0;
@@ -36,16 +41,20 @@ fn ray_trace_scene(width: usize, height: usize, trace_max_depth: usize) -> Image
 
     for (j, row) in image.get_pixels_mut().iter_mut().enumerate() {
         for (i, pixel) in row.iter_mut().enumerate() {
-            let j = height - j - 1;
+            *pixel = glm::vec3(0.0, 0.0, 0.0);
+            for _ in 0..samples_per_pixel {
+                let j = height - j - 1;
 
-            // use opengl coords, (0.0, 0.0) is center; (1.0, 1.0) is
-            // top right; (-1.0, -1.0) is bottom left
-            let u = ((i as f64 / (width - 1) as f64) - 0.5) * 2.0;
-            let v = ((j as f64 / (height - 1) as f64) - 0.5) * 2.0;
+                // use opengl coords, (0.0, 0.0) is center; (1.0, 1.0) is
+                // top right; (-1.0, -1.0) is bottom left
+                let u = (((i as f64 + rand::random::<f64>()) / (width - 1) as f64) - 0.5) * 2.0;
+                let v = (((j as f64 + rand::random::<f64>()) / (height - 1) as f64) - 0.5) * 2.0;
 
-            let ray = camera.get_ray(u, v);
+                let ray = camera.get_ray(u, v);
 
-            *pixel = trace_ray(&ray, camera, &SCENE, trace_max_depth);
+                *pixel += trace_ray(&ray, camera, &SCENE, trace_max_depth);
+            }
+            *pixel /= samples_per_pixel as f64;
         }
     }
 
@@ -144,6 +153,7 @@ fn main() {
     let mut image_width = 1000;
     let mut image_height = 1000;
     let mut trace_max_depth = 5;
+    let mut samples_per_pixel = 5;
 
     let sphere = Sphere::new(glm::vec3(1.0, 0.0, 0.0), 0.4);
 
@@ -319,10 +329,11 @@ fn main() {
 
                     ui.separator();
 
-                    ui.add(egui::Slider::new(&mut image_width, 0..=1000).text("Image Width"));
-                    ui.add(egui::Slider::new(&mut image_height, 0..=1000).text("Image Height"));
+                    ui.add(egui::Slider::new(&mut image_width, 1..=1000).text("Image Width"));
+                    ui.add(egui::Slider::new(&mut image_height, 1..=1000).text("Image Height"));
+                    ui.add(egui::Slider::new(&mut trace_max_depth, 1..=10).text("Trace Max Depth"));
                     ui.add(
-                        egui::Slider::new(&mut trace_max_depth, 0..=1000).text("Trace Max Depth"),
+                        egui::Slider::new(&mut samples_per_pixel, 1..=10).text("Samples Per Pixel"),
                     );
 
                     if ui.button("Ray Trace Scene").clicked() {
@@ -330,6 +341,7 @@ fn main() {
                             image_width,
                             image_height,
                             trace_max_depth,
+                            samples_per_pixel,
                         ));
                     }
                 });
