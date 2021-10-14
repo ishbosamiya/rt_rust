@@ -1,3 +1,4 @@
+pub mod bsdf;
 pub mod bvh;
 pub mod camera;
 pub mod drawable;
