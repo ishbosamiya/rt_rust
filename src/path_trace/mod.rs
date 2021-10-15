@@ -3,6 +3,7 @@ pub mod bsdfs;
 pub mod camera;
 pub mod intersectable;
 pub mod ray;
+pub mod shader_list;
 
 use enumflags2::BitFlags;
 
