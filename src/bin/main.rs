@@ -9,6 +9,7 @@ use rt::sphere::{Sphere, SphereDrawData};
 
 extern crate lazy_static;
 use lazy_static::lazy_static;
+use rayon::prelude::*;
 
 lazy_static! {
     static ref SCENE: Scene = {
@@ -37,24 +38,29 @@ fn ray_trace_scene(
     let camera = Camera::new(viewport_height, aspect_ratio, focal_length, origin);
     let camera = &camera;
 
-    for (j, row) in image.get_pixels_mut().iter_mut().enumerate() {
-        for (i, pixel) in row.iter_mut().enumerate() {
-            *pixel = glm::vec3(0.0, 0.0, 0.0);
-            for _ in 0..samples_per_pixel {
-                let j = height - j - 1;
+    image
+        .get_pixels_mut()
+        .par_iter_mut()
+        .enumerate()
+        .for_each(|(j, row)| {
+            row.par_iter_mut().enumerate().for_each(|(i, pixel)| {
+                *pixel = glm::vec3(0.0, 0.0, 0.0);
+                for _ in 0..samples_per_pixel {
+                    let j = height - j - 1;
 
-                // use opengl coords, (0.0, 0.0) is center; (1.0, 1.0) is
-                // top right; (-1.0, -1.0) is bottom left
-                let u = (((i as f64 + rand::random::<f64>()) / (width - 1) as f64) - 0.5) * 2.0;
-                let v = (((j as f64 + rand::random::<f64>()) / (height - 1) as f64) - 0.5) * 2.0;
+                    // use opengl coords, (0.0, 0.0) is center; (1.0, 1.0) is
+                    // top right; (-1.0, -1.0) is bottom left
+                    let u = (((i as f64 + rand::random::<f64>()) / (width - 1) as f64) - 0.5) * 2.0;
+                    let v =
+                        (((j as f64 + rand::random::<f64>()) / (height - 1) as f64) - 0.5) * 2.0;
 
-                let ray = camera.get_ray(u, v);
+                    let ray = camera.get_ray(u, v);
 
-                *pixel += rt::trace_ray(&ray, camera, &SCENE, trace_max_depth);
-            }
-            *pixel /= samples_per_pixel as f64;
-        }
-    }
+                    *pixel += rt::trace_ray(&ray, camera, &SCENE, trace_max_depth);
+                }
+                *pixel /= samples_per_pixel as f64;
+            });
+        });
 
     image
 }
