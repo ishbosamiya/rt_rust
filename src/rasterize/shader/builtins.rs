@@ -3,7 +3,7 @@ use paste::paste;
 
 use super::{Shader, ShaderError};
 use crate::glm;
-use crate::rasterize::gl_camera::Camera;
+use crate::rasterize::camera::Camera;
 
 macro_rules! load_builtin_shader {
     ( $get_shader:ident ; $get_vert_code:ident ; $get_frag_code:ident ; $vert_location:tt ; $frag_location:tt ; $static_name:ident ) => {

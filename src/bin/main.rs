@@ -68,8 +68,8 @@ use glfw::{Action, Context, Key};
 use rt::fps::FPS;
 use rt::mesh;
 use rt::mesh::{MeshDrawData, MeshUseShader};
+use rt::rasterize::camera::Camera as RasterizeCamera;
 use rt::rasterize::drawable::Drawable;
-use rt::rasterize::gl_camera;
 use rt::rasterize::gpu_immediate::GPUImmediate;
 use rt::rasterize::infinite_grid::{InfiniteGrid, InfiniteGridDrawData};
 use rt::rasterize::shader;
@@ -122,7 +122,7 @@ fn main() {
 
     let mesh = mesh::builtins::get_monkey_subd_01();
 
-    let mut camera = gl_camera::Camera::new(
+    let mut camera = RasterizeCamera::new(
         glm::vec3(0.0, 0.0, 3.0),
         glm::vec3(0.0, 1.0, 0.0),
         -90.0,
@@ -369,7 +369,7 @@ fn main() {
 fn handle_window_event(
     event: &glfw::WindowEvent,
     window: &mut glfw::Window,
-    camera: &mut gl_camera::Camera,
+    camera: &mut RasterizeCamera,
     should_cast_ray: &mut bool,
     last_cursor: &mut (f64, f64),
 ) {
