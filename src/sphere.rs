@@ -1,8 +1,8 @@
 use crate::glm;
-use crate::intersectable::{IntersectInfo, Intersectable};
+use crate::path_trace::intersectable::{IntersectInfo, Intersectable};
+use crate::path_trace::ray::Ray;
 use crate::rasterize::gpu_utils::draw_smooth_sphere_at;
 use crate::rasterize::{drawable::Drawable, gpu_immediate::GPUImmediate};
-use crate::ray::Ray;
 
 pub struct Sphere {
     center: glm::DVec3,

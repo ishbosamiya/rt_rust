@@ -1,5 +1,5 @@
+use super::ray::Ray;
 use crate::glm;
-use crate::ray::Ray;
 
 #[derive(Debug, Copy, Clone)]
 pub struct IntersectInfo {

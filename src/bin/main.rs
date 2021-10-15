@@ -1,7 +1,7 @@
 use rt::bvh::BVHTree;
-use rt::camera::Camera;
 use rt::glm;
 use rt::image::{Image, PPM};
+use rt::path_trace::camera::Camera as PathTraceCamera;
 use rt::rasterize::gpu_utils::draw_plane_with_image;
 use rt::rasterize::texture::TextureRGBAFloat;
 use rt::scene::Scene;
@@ -35,8 +35,7 @@ fn ray_trace_scene(
     let aspect_ratio = width as f64 / height as f64;
     let focal_length = 1.0;
     let origin = glm::vec3(0.0, 0.0, 0.0);
-    let camera = Camera::new(viewport_height, aspect_ratio, focal_length, origin);
-    let camera = &camera;
+    let camera = &PathTraceCamera::new(viewport_height, aspect_ratio, focal_length, origin);
 
     image
         .get_pixels_mut()

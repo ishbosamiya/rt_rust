@@ -1,5 +1,5 @@
-use crate::intersectable::{IntersectInfo, Intersectable};
-use crate::ray::Ray;
+use crate::path_trace::intersectable::{IntersectInfo, Intersectable};
+use crate::path_trace::ray::Ray;
 
 type Object = Box<dyn Intersectable + Send + Sync>;
 

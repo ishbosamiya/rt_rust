@@ -1,5 +1,5 @@
+use super::intersectable::IntersectInfo;
 use crate::glm;
-use crate::intersectable::IntersectInfo;
 
 use enumflags2::{bitflags, BitFlags};
 

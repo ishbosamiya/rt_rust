@@ -1,33 +1,33 @@
 use enumflags2::BitFlags;
 
-use crate::bsdf::{SampleData, SamplingTypes, BSDF};
+use super::super::bsdf::{SampleData, SamplingTypes, BSDF};
+use super::super::intersectable::IntersectInfo;
 use crate::glm;
-use crate::intersectable::IntersectInfo;
-use crate::math;
 
-pub struct Lambert {
+// TODO: add roughness parameter, right now it is purely reflective
+pub struct Glossy {
     color: glm::DVec4,
 }
 
-impl Lambert {
+impl Glossy {
     pub fn new(color: glm::DVec4) -> Self {
         Self { color }
     }
 }
 
-impl BSDF for Lambert {
+impl BSDF for Glossy {
     fn sample(
         &self,
-        _wo: &glm::DVec3,
+        wo: &glm::DVec3,
         intersect_info: &IntersectInfo,
         sampling_types: BitFlags<SamplingTypes>,
     ) -> Option<SampleData> {
-        // TODO: make this random in hemisphere instead of using a
-        // sphere for better performance
-        if sampling_types.contains(SamplingTypes::Diffuse) {
+        if sampling_types.contains(SamplingTypes::Reflection) {
+            // need to consider the inverse of the outgoing direction
+            // during reflection
             Some(SampleData::new(
-                intersect_info.get_normal().unwrap() + math::random_in_unit_sphere(),
-                SamplingTypes::Diffuse,
+                glm::reflect_vec(&-wo, intersect_info.get_normal().as_ref().unwrap()),
+                SamplingTypes::Reflection,
             ))
         } else {
             None
@@ -38,7 +38,7 @@ impl BSDF for Lambert {
         &self,
         _wi: &glm::DVec3,
         _wo: &glm::DVec3,
-        _intersect_info: &crate::intersectable::IntersectInfo,
+        _intersect_info: &IntersectInfo,
     ) -> glm::DVec3 {
         #[allow(clippy::let_and_return)]
         let color = glm::vec4_to_vec3(&self.color);

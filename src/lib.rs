@@ -1,27 +1,23 @@
-pub mod bsdf;
-pub mod bsdfs;
 pub mod bvh;
-pub mod camera;
 pub mod fps;
 pub mod image;
-pub mod intersectable;
 pub mod math;
 pub mod mesh;
 pub mod meshio;
+pub mod path_trace;
 pub mod rasterize;
-pub mod ray;
 pub mod scene;
 pub mod sphere;
 pub mod util;
 
-use bsdf::{SamplingTypes, BSDF};
 use enumflags2::BitFlags;
-use intersectable::IntersectInfo;
 pub use nalgebra_glm as glm;
+use path_trace::bsdf::{SamplingTypes, BSDF};
+use path_trace::intersectable::IntersectInfo;
 
-use crate::camera::Camera;
-use crate::intersectable::Intersectable;
-use crate::ray::Ray;
+use crate::path_trace::camera::Camera;
+use crate::path_trace::intersectable::Intersectable;
+use crate::path_trace::ray::Ray;
 use crate::scene::Scene;
 
 /// Data that is returned during the `shade_hit()` calculation
@@ -73,8 +69,8 @@ fn shade_environment(ray: &Ray, camera: &Camera) -> glm::DVec3 {
 
 /// Shade the point of intersection when the ray hits an object
 fn shade_hit(ray: &Ray, intersect_info: &IntersectInfo) -> ShadeHitData {
-    // let shader = bsdfs::lambert::Lambert::new(glm::vec4(0.0, 1.0, 1.0, 1.0));
-    let shader = bsdfs::glossy::Glossy::new(glm::vec4(0.0, 1.0, 1.0, 1.0));
+    // let shader = path_trace::bsdfs::lambert::Lambert::new(glm::vec4(0.0, 1.0, 1.0, 1.0));
+    let shader = path_trace::bsdfs::glossy::Glossy::new(glm::vec4(0.0, 1.0, 1.0, 1.0));
 
     // wo: outgoing ray direction
     //
@@ -134,52 +130,4 @@ pub fn trace_ray(ray: &Ray, camera: &Camera, scene: &'static Scene, depth: usize
         val = shade_environment(ray, camera);
     }
     val
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn single_ray_vs_scene_mt() {
-        use crate::glm;
-        use crate::intersectable::Intersectable;
-        use crate::ray::Ray;
-        use crate::sphere::Sphere;
-        use rand::prelude::*;
-
-        fn rng_scaled(rng: &mut ThreadRng, scale_factor: f64) -> f64 {
-            (rng.gen::<f64>() - 0.5) * 2.0 * scale_factor
-        }
-
-        fn random_vec3(rng: &mut ThreadRng, scale_factor: f64) -> glm::DVec3 {
-            let x = rng_scaled(rng, scale_factor);
-            let y = rng_scaled(rng, scale_factor);
-            let z = rng_scaled(rng, scale_factor);
-            glm::vec3(x, y, z)
-        }
-
-        let ray = Ray::new(glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 0.0, -1.0));
-        let mut scene: Vec<Box<dyn Intersectable + Send + Sync>> =
-            vec![Box::new(Sphere::new(glm::vec3(0.0, 0.0, -2.0), 1.5))];
-        let mut rng = rand::thread_rng();
-        let num_objects = 1;
-        let scale_factor = 5.0;
-        for _ in 0..num_objects {
-            scene.push(Box::new(Sphere::new(
-                random_vec3(&mut rng, scale_factor),
-                rng_scaled(&mut rng, scale_factor),
-            )));
-        }
-        let (t_min, t_max) = (0.01, 1000.0);
-
-        let mut chunk_size = scene.len();
-        if chunk_size == 0 {
-            chunk_size = 1;
-        }
-
-        for objects in scene.chunks(chunk_size) {
-            objects.iter().for_each(|object| {
-                object.hit(&ray, t_min, t_max);
-            })
-        }
-    }
 }
