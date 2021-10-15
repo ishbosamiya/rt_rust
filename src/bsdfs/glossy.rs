@@ -23,8 +23,10 @@ impl BSDF for Glossy {
         sampling_types: BitFlags<SamplingTypes>,
     ) -> Option<glm::DVec3> {
         if sampling_types.contains(SamplingTypes::Reflection) {
+            // need to consider the inverse of the outgoing direction
+            // during reflection
             Some(glm::reflect_vec(
-                wo,
+                &-wo,
                 intersect_info.get_normal().as_ref().unwrap(),
             ))
         } else {

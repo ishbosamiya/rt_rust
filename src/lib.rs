@@ -50,13 +50,25 @@ fn shade_hit(ray: &Ray, intersect_info: &IntersectInfo) -> (glm::DVec3, Ray) {
     let shader = bsdfs::glossy::Glossy::new(glm::vec4(0.0, 1.0, 1.0, 1.0));
 
     // wo: outgoing ray direction
-    let wo = ray.get_direction();
+    //
+    // Outgoing ray direction must be the inverse of the current ray since
+    // the current ray are travelling from camera into the scene and the
+    // BSDF need not care about that. It must receive only the outgoing
+    // direction.
+    let wo = -ray.get_direction();
+
     // wi: incoming way direction
     let wi = shader
         .sample(ray.get_direction(), intersect_info, BitFlags::all())
         .expect("todo: need to handle the case where the sample returns None");
 
-    let color = shader.eval(&wi, wo, intersect_info);
+    // BSDF returns the incoming ray direction at the point of
+    // intersection but for the next ray that is shot in the opposite
+    // direction (into the scene), thus need to take the inverse of
+    // `wi`.
+    let wi = -wi;
+
+    let color = shader.eval(&wi, &wo, intersect_info);
     (color, Ray::new(*intersect_info.get_point(), wi))
 }
 
