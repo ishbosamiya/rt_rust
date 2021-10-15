@@ -1,6 +1,7 @@
 use rt::bvh::BVHTree;
 use rt::glm;
 use rt::image::{Image, PPM};
+use rt::path_trace;
 use rt::path_trace::camera::Camera as PathTraceCamera;
 use rt::rasterize::gpu_utils::draw_plane_with_image;
 use rt::rasterize::texture::TextureRGBAFloat;
@@ -55,7 +56,7 @@ fn ray_trace_scene(
 
                     let ray = camera.get_ray(u, v);
 
-                    *pixel += rt::trace_ray(&ray, camera, &SCENE, trace_max_depth);
+                    *pixel += path_trace::trace_ray(&ray, camera, &SCENE, trace_max_depth);
                 }
                 *pixel /= samples_per_pixel as f64;
             });
