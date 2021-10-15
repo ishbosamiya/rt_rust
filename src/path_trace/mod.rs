@@ -4,6 +4,7 @@ pub mod camera;
 pub mod intersectable;
 pub mod ray;
 pub mod shader_list;
+pub mod shaders;
 
 use enumflags2::BitFlags;
 
