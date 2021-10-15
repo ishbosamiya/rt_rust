@@ -4,10 +4,10 @@ use lazy_static::lazy_static;
 use std::cmp::PartialOrd;
 use std::fmt::Debug;
 
-use crate::drawable::Drawable;
 use crate::glm;
-use crate::gpu_immediate::*;
-use crate::shader;
+use crate::rasterize::drawable::Drawable;
+use crate::rasterize::gpu_immediate::*;
+use crate::rasterize::shader;
 
 const MAX_TREETYPE: u8 = 32;
 

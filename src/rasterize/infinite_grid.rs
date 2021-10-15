@@ -1,8 +1,10 @@
 use crate::{
-    drawable::Drawable,
     glm,
-    gpu_immediate::{GPUImmediate, GPUPrimType, GPUVertCompType, GPUVertFetchMode},
-    shader,
+    rasterize::{
+        drawable::Drawable,
+        gpu_immediate::{GPUImmediate, GPUPrimType, GPUVertCompType, GPUVertFetchMode},
+        shader,
+    },
 };
 
 /// Generates an infinite grid in the xz plane through some shader

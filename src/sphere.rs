@@ -1,8 +1,7 @@
-use crate::drawable::Drawable;
 use crate::glm;
-use crate::gpu_immediate::GPUImmediate;
-use crate::gpu_utils::draw_smooth_sphere_at;
 use crate::intersectable::{IntersectInfo, Intersectable};
+use crate::rasterize::gpu_utils::draw_smooth_sphere_at;
+use crate::rasterize::{drawable::Drawable, gpu_immediate::GPUImmediate};
 use crate::ray::Ray;
 
 pub struct Sphere {

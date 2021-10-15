@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::prelude::*;
 
 use crate::glm;
-use crate::texture::TextureRGBAFloat;
+use crate::rasterize::texture::TextureRGBAFloat;
 
 pub struct Image {
     pixels: Vec<Vec<glm::DVec3>>,

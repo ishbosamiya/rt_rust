@@ -2,7 +2,7 @@
 
 use std::convert::TryInto;
 
-use crate::shader::Shader;
+use crate::rasterize::shader::Shader;
 use crate::util::str_to_cstr;
 
 const GPU_VERT_ATTR_MAX_LEN: usize = 16;

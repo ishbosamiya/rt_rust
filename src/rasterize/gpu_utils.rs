@@ -1,9 +1,11 @@
 use lazy_static::lazy_static;
 
 use crate::glm;
-use crate::gpu_immediate::{GPUImmediate, GPUPrimType, GPUVertCompType, GPUVertFetchMode};
-use crate::shader::{self, Shader};
-use crate::texture::TextureRGBAFloat;
+use crate::rasterize::gpu_immediate::{
+    GPUImmediate, GPUPrimType, GPUVertCompType, GPUVertFetchMode,
+};
+use crate::rasterize::shader::{self, Shader};
+use crate::rasterize::texture::TextureRGBAFloat;
 
 lazy_static! {
     static ref SCREEN_PLANE_VERT_LIST_F32: Vec<(glm::Vec3, glm::Vec2)> = vec![

@@ -2,8 +2,8 @@ use lazy_static::lazy_static;
 use paste::paste;
 
 use super::{Shader, ShaderError};
-use crate::gl_camera::Camera;
 use crate::glm;
+use crate::rasterize::gl_camera::Camera;
 
 macro_rules! load_builtin_shader {
     ( $get_shader:ident ; $get_vert_code:ident ; $get_frag_code:ident ; $vert_location:tt ; $frag_location:tt ; $static_name:ident ) => {
@@ -36,37 +36,37 @@ macro_rules! load_builtin_shader_easy {
 
 load_builtin_shader_easy!(
     directional_light;
-    "../../shaders/directional_light.vert";
-    "../../shaders/directional_light.frag"
+    "../../../shaders/directional_light.vert";
+    "../../../shaders/directional_light.frag"
 );
 
 load_builtin_shader_easy!(
     smooth_color_3d;
-    "../../shaders/shader_3D_smooth_color.vert";
-    "../../shaders/shader_3D_smooth_color.frag");
+    "../../../shaders/shader_3D_smooth_color.vert";
+    "../../../shaders/shader_3D_smooth_color.frag");
 
 load_builtin_shader_easy!(
     face_orientation;
-    "../../shaders/face_orientation.vert";
-    "../../shaders/face_orientation.frag"
+    "../../../shaders/face_orientation.vert";
+    "../../../shaders/face_orientation.frag"
 );
 
 load_builtin_shader_easy!(
     flat_texture;
-    "../../shaders/flat_texture.vert";
-    "../../shaders/flat_texture.frag"
+    "../../../shaders/flat_texture.vert";
+    "../../../shaders/flat_texture.frag"
 );
 
 load_builtin_shader_easy!(
     smooth_sphere;
-    "../../shaders/smooth_sphere.vert";
-    "../../shaders/smooth_sphere.frag"
+    "../../../shaders/smooth_sphere.vert";
+    "../../../shaders/smooth_sphere.frag"
 );
 
 load_builtin_shader_easy!(
     infinite_grid;
-    "../../shaders/infinite_grid.vert";
-    "../../shaders/infinite_grid.frag"
+    "../../../shaders/infinite_grid.vert";
+    "../../../shaders/infinite_grid.frag"
 );
 
 pub fn display_uniform_and_attribute_info() {

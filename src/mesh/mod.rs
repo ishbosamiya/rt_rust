@@ -7,11 +7,13 @@ use itertools::Itertools;
 
 use crate::{
     bvh::{BVHDrawData, BVHTree},
-    drawable::Drawable,
     glm,
-    gpu_immediate::{GPUImmediate, GPUPrimType, GPUVertCompType, GPUVertFetchMode},
     meshio::{self, MeshIO},
-    shader,
+    rasterize::{
+        drawable::Drawable,
+        gpu_immediate::{GPUImmediate, GPUPrimType, GPUVertCompType, GPUVertFetchMode},
+        shader,
+    },
 };
 
 pub struct Vertex {

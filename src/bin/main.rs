@@ -1,13 +1,11 @@
 use rt::bvh::BVHTree;
 use rt::camera::Camera;
 use rt::glm;
-use rt::gpu_utils::draw_plane_with_image;
 use rt::image::{Image, PPM};
+use rt::rasterize::gpu_utils::draw_plane_with_image;
+use rt::rasterize::texture::TextureRGBAFloat;
 use rt::scene::Scene;
 use rt::sphere::{Sphere, SphereDrawData};
-
-use rt::texture::TextureRGBAFloat;
-use rt::trace_ray;
 
 extern crate lazy_static;
 use lazy_static::lazy_static;
@@ -52,7 +50,7 @@ fn ray_trace_scene(
 
                 let ray = camera.get_ray(u, v);
 
-                *pixel += trace_ray(&ray, camera, &SCENE, trace_max_depth);
+                *pixel += rt::trace_ray(&ray, camera, &SCENE, trace_max_depth);
             }
             *pixel /= samples_per_pixel as f64;
         }
@@ -67,14 +65,14 @@ use egui::{FontDefinitions, FontFamily, TextStyle};
 use egui_glfw::EguiBackend;
 use glfw::{Action, Context, Key};
 
-use rt::drawable::Drawable;
 use rt::fps::FPS;
-use rt::gl_camera;
-use rt::gpu_immediate::GPUImmediate;
-use rt::infinite_grid::{InfiniteGrid, InfiniteGridDrawData};
 use rt::mesh;
 use rt::mesh::{MeshDrawData, MeshUseShader};
-use rt::shader;
+use rt::rasterize::drawable::Drawable;
+use rt::rasterize::gl_camera;
+use rt::rasterize::gpu_immediate::GPUImmediate;
+use rt::rasterize::infinite_grid::{InfiniteGrid, InfiniteGridDrawData};
+use rt::rasterize::shader;
 
 fn main() {
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
@@ -255,19 +253,19 @@ fn main() {
                 let format = imm.get_cleared_vertex_format();
                 let pos_attr = format.add_attribute(
                     "in_pos\0".to_string(),
-                    rt::gpu_immediate::GPUVertCompType::F32,
+                    rt::rasterize::gpu_immediate::GPUVertCompType::F32,
                     3,
-                    rt::gpu_immediate::GPUVertFetchMode::Float,
+                    rt::rasterize::gpu_immediate::GPUVertFetchMode::Float,
                 );
                 let color_attr = format.add_attribute(
                     "in_color\0".to_string(),
-                    rt::gpu_immediate::GPUVertCompType::F32,
+                    rt::rasterize::gpu_immediate::GPUVertCompType::F32,
                     4,
-                    rt::gpu_immediate::GPUVertFetchMode::Float,
+                    rt::rasterize::gpu_immediate::GPUVertFetchMode::Float,
                 );
 
                 imm.begin(
-                    rt::gpu_immediate::GPUPrimType::Lines,
+                    rt::rasterize::gpu_immediate::GPUPrimType::Lines,
                     bvh_ray_intersection.len() * 2,
                     smooth_color_3d_shader,
                 );
