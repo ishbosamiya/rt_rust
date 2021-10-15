@@ -12,8 +12,31 @@ pub enum SamplingTypes {
     Reflection,
 }
 
+/// Stores information about the incoming ray direction (`wi`) and the
+/// type of sampling used to get `wi`.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct SampleData {
+    wi: glm::DVec3,
+    sampling_type: SamplingTypes,
+}
+
+impl SampleData {
+    pub fn new(wi: glm::DVec3, sampling_type: SamplingTypes) -> Self {
+        Self { wi, sampling_type }
+    }
+
+    pub fn get_wi(&self) -> &glm::DVec3 {
+        &self.wi
+    }
+
+    pub fn get_sampling_type(&self) -> SamplingTypes {
+        self.sampling_type
+    }
+}
+
 pub trait BSDF {
-    /// Calculates `wi` given `wo`.
+    /// Calculates `wi` given `wo` and specifies the type of sampling
+    /// used.
     ///
     /// `wo`: outgoing ray direction
     /// `wi`: incoming ray direction
@@ -26,14 +49,14 @@ pub trait BSDF {
     /// we have the outgoing ray but don't have the incoming ray.
     ///
     /// If the shader is going to sample a diffuse type of sample,
-    /// `sample()` should return `wi` only if SamplingTypes::Diffuse
-    /// is contained in `sampling_types`.
+    /// `sample()` should return `SampleData` only if
+    /// SamplingTypes::Diffuse is contained in `sampling_types`.
     fn sample(
         &self,
         wo: &glm::DVec3,
         intersect_info: &IntersectInfo,
         sampling_types: BitFlags<SamplingTypes>,
-    ) -> Option<glm::DVec3>;
+    ) -> Option<SampleData>;
 
     /// Calculates the colour/intensity of light that moves from `wi` towards `wo`.
     ///

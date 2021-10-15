@@ -1,6 +1,6 @@
 use enumflags2::BitFlags;
 
-use crate::bsdf::{SamplingTypes, BSDF};
+use crate::bsdf::{SampleData, SamplingTypes, BSDF};
 use crate::glm;
 use crate::intersectable::IntersectInfo;
 
@@ -21,13 +21,13 @@ impl BSDF for Glossy {
         wo: &glm::DVec3,
         intersect_info: &IntersectInfo,
         sampling_types: BitFlags<SamplingTypes>,
-    ) -> Option<glm::DVec3> {
+    ) -> Option<SampleData> {
         if sampling_types.contains(SamplingTypes::Reflection) {
             // need to consider the inverse of the outgoing direction
             // during reflection
-            Some(glm::reflect_vec(
-                &-wo,
-                intersect_info.get_normal().as_ref().unwrap(),
+            Some(SampleData::new(
+                glm::reflect_vec(&-wo, intersect_info.get_normal().as_ref().unwrap()),
+                SamplingTypes::Reflection,
             ))
         } else {
             None

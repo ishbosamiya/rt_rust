@@ -20,7 +20,7 @@ pub mod sphere;
 pub mod texture;
 pub mod util;
 
-use bsdf::BSDF;
+use bsdf::{SamplingTypes, BSDF};
 use enumflags2::BitFlags;
 use intersectable::IntersectInfo;
 pub use nalgebra_glm as glm;
@@ -29,6 +29,41 @@ use crate::camera::Camera;
 use crate::intersectable::Intersectable;
 use crate::ray::Ray;
 use crate::scene::Scene;
+
+/// Data that is returned during the `shade_hit()` calculation
+#[derive(Debug, Clone, PartialEq)]
+pub struct ShadeHitData {
+    /// color information that should be propagated forward
+    color: glm::DVec3,
+    /// the next ray to continue the ray tracing, calculated from the
+    /// `BSDF`
+    next_ray: Ray,
+    /// type of sampling performed to generate the next ray by the
+    /// `BSDF`
+    sampling_type: SamplingTypes,
+}
+
+impl ShadeHitData {
+    pub fn new(color: glm::DVec3, next_ray: Ray, sampling_type: SamplingTypes) -> Self {
+        Self {
+            color,
+            next_ray,
+            sampling_type,
+        }
+    }
+
+    pub fn get_color(&self) -> &glm::DVec3 {
+        &self.color
+    }
+
+    pub fn get_next_ray(&self) -> &Ray {
+        &self.next_ray
+    }
+
+    pub fn get_sampling_type(&self) -> SamplingTypes {
+        self.sampling_type
+    }
+}
 
 fn shade_environment(ray: &Ray, camera: &Camera) -> glm::DVec3 {
     let color_1 = glm::vec3(0.8, 0.8, 0.8);
@@ -43,9 +78,7 @@ fn shade_environment(ray: &Ray, camera: &Camera) -> glm::DVec3 {
 }
 
 /// Shade the point of intersection when the ray hits an object
-///
-/// Returns the (color, next ray)
-fn shade_hit(ray: &Ray, intersect_info: &IntersectInfo) -> (glm::DVec3, Ray) {
+fn shade_hit(ray: &Ray, intersect_info: &IntersectInfo) -> ShadeHitData {
     // let shader = bsdfs::lambert::Lambert::new(glm::vec4(0.0, 1.0, 1.0, 1.0));
     let shader = bsdfs::glossy::Glossy::new(glm::vec4(0.0, 1.0, 1.0, 1.0));
 
@@ -58,9 +91,12 @@ fn shade_hit(ray: &Ray, intersect_info: &IntersectInfo) -> (glm::DVec3, Ray) {
     let wo = -ray.get_direction();
 
     // wi: incoming way direction
-    let wi = shader
+    let sample_data = shader
         .sample(ray.get_direction(), intersect_info, BitFlags::all())
         .expect("todo: need to handle the case where the sample returns None");
+
+    let wi = sample_data.get_wi();
+    let sampling_type = sample_data.get_sampling_type();
 
     // BSDF returns the incoming ray direction at the point of
     // intersection but for the next ray that is shot in the opposite
@@ -69,7 +105,11 @@ fn shade_hit(ray: &Ray, intersect_info: &IntersectInfo) -> (glm::DVec3, Ray) {
     let wi = -wi;
 
     let color = shader.eval(&wi, &wo, intersect_info);
-    (color, Ray::new(*intersect_info.get_point(), wi))
+    ShadeHitData::new(
+        color,
+        Ray::new(*intersect_info.get_point(), wi),
+        sampling_type,
+    )
 }
 
 // x: current point
@@ -85,7 +125,11 @@ pub fn trace_ray(ray: &Ray, camera: &Camera, scene: &'static Scene, depth: usize
     }
     let val;
     if let Some(info) = scene.hit(ray, 0.01, 1000.0) {
-        let (color, next_ray) = shade_hit(ray, &info);
+        let ShadeHitData {
+            color,
+            next_ray,
+            sampling_type: _,
+        } = shade_hit(ray, &info);
         let traced_color = trace_ray(&next_ray, camera, scene, depth - 1);
         val = glm::vec3(
             color[0] * traced_color[0],

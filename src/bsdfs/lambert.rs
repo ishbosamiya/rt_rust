@@ -1,6 +1,6 @@
 use enumflags2::BitFlags;
 
-use crate::bsdf::{SamplingTypes, BSDF};
+use crate::bsdf::{SampleData, SamplingTypes, BSDF};
 use crate::glm;
 use crate::intersectable::IntersectInfo;
 use crate::math;
@@ -21,11 +21,14 @@ impl BSDF for Lambert {
         _wo: &glm::DVec3,
         intersect_info: &IntersectInfo,
         sampling_types: BitFlags<SamplingTypes>,
-    ) -> Option<glm::DVec3> {
+    ) -> Option<SampleData> {
         // TODO: make this random in hemisphere instead of using a
         // sphere for better performance
         if sampling_types.contains(SamplingTypes::Diffuse) {
-            Some(intersect_info.get_normal().unwrap() + math::random_in_unit_sphere())
+            Some(SampleData::new(
+                intersect_info.get_normal().unwrap() + math::random_in_unit_sphere(),
+                SamplingTypes::Diffuse,
+            ))
         } else {
             None
         }

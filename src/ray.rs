@@ -1,6 +1,6 @@
 use crate::glm;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Ray {
     origin: glm::DVec3,
     direction: glm::DVec3,
