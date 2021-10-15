@@ -12,10 +12,10 @@ pub mod util;
 
 use enumflags2::BitFlags;
 pub use nalgebra_glm as glm;
-use path_trace::bsdf::{SamplingTypes, BSDF};
-use path_trace::intersectable::IntersectInfo;
 
+use crate::path_trace::bsdf::{SamplingTypes, BSDF};
 use crate::path_trace::camera::Camera;
+use crate::path_trace::intersectable::IntersectInfo;
 use crate::path_trace::intersectable::Intersectable;
 use crate::path_trace::ray::Ray;
 use crate::scene::Scene;
