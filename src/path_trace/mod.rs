@@ -9,12 +9,14 @@ pub mod shaders;
 use enumflags2::BitFlags;
 
 use crate::glm;
-use crate::path_trace::bsdf::{SamplingTypes, BSDF};
+use crate::path_trace::bsdf::SamplingTypes;
 use crate::path_trace::camera::Camera;
 use crate::path_trace::intersectable::IntersectInfo;
 use crate::path_trace::intersectable::Intersectable;
 use crate::path_trace::ray::Ray;
 use crate::scene::Scene;
+
+use self::shader_list::ShaderList;
 
 /// Data that is returned during the `shade_hit()` calculation
 #[derive(Debug, Clone, PartialEq)]
@@ -65,8 +67,28 @@ fn shade_environment(ray: &Ray, camera: &Camera) -> glm::DVec3 {
 
 /// Shade the point of intersection when the ray hits an object
 fn shade_hit(ray: &Ray, intersect_info: &IntersectInfo) -> ShadeHitData {
-    // let shader = bsdfs::lambert::Lambert::new(glm::vec4(0.0, 1.0, 1.0, 1.0));
-    let shader = bsdfs::glossy::Glossy::new(glm::vec4(0.0, 1.0, 1.0, 1.0));
+    let mut shader_list = ShaderList::new();
+    let lambert_shader_id = shader_list.add_shader(Box::new(shaders::Lambert::new(
+        bsdfs::lambert::Lambert::new(glm::vec4(0.0, 1.0, 1.0, 1.0)),
+    )));
+    let glossy_shader_id = shader_list.add_shader(Box::new(shaders::Glossy::new(
+        bsdfs::glossy::Glossy::new(glm::vec4(0.0, 1.0, 1.0, 1.0)),
+    )));
+
+    // TODO: need to remove `roughness_amount`, it is only a test for
+    // `ShaderList` right now, it mixes lambert and glossy shader.
+    //
+    // TODO: `shader` must be got from the `ShaderID` stored
+    // `IntersectInfo`.
+    let roughness_amount = 0.2;
+    let shader = if rand::random::<f64>() < roughness_amount {
+        shader_list
+            .get_shader(lambert_shader_id)
+            .unwrap()
+            .get_bsdf()
+    } else {
+        shader_list.get_shader(glossy_shader_id).unwrap().get_bsdf()
+    };
 
     // wo: outgoing ray direction
     //
