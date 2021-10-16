@@ -1,6 +1,8 @@
 use rt::bvh::BVHTree;
 use rt::glm;
 use rt::image::{Image, PPM};
+use rt::object::objects::Sphere as SphereObject;
+use rt::object::ObjectDrawData;
 use rt::path_trace;
 use rt::path_trace::camera::Camera as PathTraceCamera;
 use rt::rasterize::gpu_utils::draw_plane_with_image;
@@ -9,26 +11,14 @@ use rt::scene::Scene;
 use rt::sphere::{Sphere, SphereDrawData};
 
 extern crate lazy_static;
-use lazy_static::lazy_static;
 use rayon::prelude::*;
-
-lazy_static! {
-    static ref SCENE: Scene = {
-        let mut scene = Scene::new();
-        scene.add_object(Box::new(Sphere::new(glm::vec3(0.0, 0.0, -2.0), 0.45)));
-        scene.add_object(Box::new(Sphere::new(glm::vec3(0.0, 1.0, -2.0), 0.45)));
-        scene.add_object(Box::new(Sphere::new(glm::vec3(0.0, -1.0, -2.0), 0.45)));
-        scene.add_object(Box::new(Sphere::new(glm::vec3(1.0, 0.0, -2.0), 0.45)));
-        scene.add_object(Box::new(Sphere::new(glm::vec3(-1.0, 0.0, -2.0), 0.45)));
-        scene
-    };
-}
 
 fn ray_trace_scene(
     width: usize,
     height: usize,
     trace_max_depth: usize,
     samples_per_pixel: usize,
+    scene: &Scene,
 ) -> Image {
     let mut image = Image::new(width, height);
 
@@ -56,7 +46,7 @@ fn ray_trace_scene(
 
                     let ray = camera.get_ray(u, v);
 
-                    *pixel += path_trace::trace_ray(&ray, camera, &SCENE, trace_max_depth);
+                    *pixel += path_trace::trace_ray(&ray, camera, scene, trace_max_depth);
                 }
                 *pixel /= samples_per_pixel as f64;
             });
@@ -316,6 +306,41 @@ fn main() {
                 .draw(&mut InfiniteGridDrawData::new(&mut imm))
                 .unwrap();
 
+            // TODO: need to figure out a way to define the scene
+            // early, it is a lifetimes related issue :(
+            let mut scene = Scene::new();
+            scene.add_object(Box::new(SphereObject::new(
+                Sphere::new(glm::vec3(0.0, 0.0, -2.0), 0.45),
+                glm::vec4(0.0, 0.0, 1.0, 1.0),
+                glm::vec4(1.0, 0.0, 0.0, 1.0),
+            )));
+            scene.add_object(Box::new(SphereObject::new(
+                Sphere::new(glm::vec3(0.0, 0.0, -2.0), 0.45),
+                glm::vec4(0.0, 0.0, 1.0, 1.0),
+                glm::vec4(1.0, 0.0, 0.0, 1.0),
+            )));
+            scene.add_object(Box::new(SphereObject::new(
+                Sphere::new(glm::vec3(0.0, 1.0, -2.0), 0.45),
+                glm::vec4(0.0, 0.0, 1.0, 1.0),
+                glm::vec4(1.0, 0.0, 0.0, 1.0),
+            )));
+            scene.add_object(Box::new(SphereObject::new(
+                Sphere::new(glm::vec3(0.0, -1.0, -2.0), 0.45),
+                glm::vec4(0.0, 0.0, 1.0, 1.0),
+                glm::vec4(1.0, 0.0, 0.0, 1.0),
+            )));
+            scene.add_object(Box::new(SphereObject::new(
+                Sphere::new(glm::vec3(1.0, 0.0, -2.0), 0.45),
+                glm::vec4(0.0, 0.0, 1.0, 1.0),
+                glm::vec4(1.0, 0.0, 0.0, 1.0),
+            )));
+            scene.add_object(Box::new(SphereObject::new(
+                Sphere::new(glm::vec3(-1.0, 0.0, -2.0), 0.45),
+                glm::vec4(0.0, 0.0, 1.0, 1.0),
+                glm::vec4(1.0, 0.0, 0.0, 1.0),
+            )));
+            scene.draw(&mut ObjectDrawData::new(&mut imm)).unwrap();
+
             // GUI starts
             {
                 egui.begin_frame(&window, &mut glfw);
@@ -347,6 +372,7 @@ fn main() {
                             image_height,
                             trace_max_depth,
                             samples_per_pixel,
+                            &scene,
                         ));
                     }
 

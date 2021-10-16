@@ -127,7 +127,7 @@ fn shade_hit(ray: &Ray, intersect_info: &IntersectInfo) -> ShadeHitData {
 // e: intensity of emitted light by x_prime reaching x
 // i: intensity of light from x_prime to x
 // p: intensity of light scattered from x_prime_prime to x by a patch on surface at x_prime
-pub fn trace_ray(ray: &Ray, camera: &Camera, scene: &'static Scene, depth: usize) -> glm::DVec3 {
+pub fn trace_ray(ray: &Ray, camera: &Camera, scene: &Scene, depth: usize) -> glm::DVec3 {
     if depth == 0 {
         return glm::zero();
     }

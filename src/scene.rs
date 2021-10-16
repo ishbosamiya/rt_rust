@@ -1,35 +1,35 @@
+use crate::object::{DrawError, Object, ObjectDrawData};
 use crate::path_trace::intersectable::{IntersectInfo, Intersectable};
 use crate::path_trace::ray::Ray;
+use crate::rasterize::drawable::Drawable;
 
-type Object = Box<dyn Intersectable + Send + Sync>;
-
-pub struct Scene {
-    objects: Vec<Object>,
+pub struct Scene<'a> {
+    objects: Vec<Box<dyn Object<'a>>>,
 }
 
-impl Default for Scene {
+impl Default for Scene<'_> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl Scene {
+impl<'a> Scene<'a> {
     pub fn new() -> Self {
         Self {
             objects: Vec::new(),
         }
     }
 
-    pub fn add_object(&mut self, object: Object) {
+    pub fn add_object(&mut self, object: Box<dyn Object<'a>>) {
         self.objects.push(object);
     }
 
-    pub fn get_objects(&self) -> &Vec<Object> {
+    pub fn get_objects(&self) -> &Vec<Box<dyn Object<'a>>> {
         &self.objects
     }
 }
 
-impl Intersectable for Scene {
+impl Intersectable for Scene<'_> {
     fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<IntersectInfo> {
         let hit_infos: Vec<_> = self
             .objects
@@ -52,5 +52,13 @@ impl Intersectable for Scene {
         }
 
         res
+    }
+}
+
+impl<'a> Drawable<ObjectDrawData<'a>, DrawError> for Scene<'a> {
+    fn draw(&self, extra_data: &mut ObjectDrawData<'a>) -> Result<(), DrawError> {
+        self.objects
+            .iter()
+            .try_for_each(|object| object.draw(extra_data))
     }
 }

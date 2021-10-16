@@ -4,6 +4,7 @@ pub mod image;
 pub mod math;
 pub mod mesh;
 pub mod meshio;
+pub mod object;
 pub mod path_trace;
 pub mod rasterize;
 pub mod scene;
