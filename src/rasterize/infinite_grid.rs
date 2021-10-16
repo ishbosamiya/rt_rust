@@ -55,7 +55,10 @@ impl<'a> InfiniteGridDrawData<'a> {
     }
 }
 
-impl Drawable<InfiniteGridDrawData<'_>, ()> for InfiniteGrid {
+impl<'a> Drawable<'a> for InfiniteGrid {
+    type ExtraData = InfiniteGridDrawData<'a>;
+    type Error = ();
+
     fn draw(&self, extra_data: &mut InfiniteGridDrawData) -> Result<(), ()> {
         let imm = &mut extra_data.imm;
 

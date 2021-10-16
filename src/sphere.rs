@@ -73,7 +73,10 @@ impl<'a> SphereDrawData<'a> {
     }
 }
 
-impl Drawable<SphereDrawData<'_>, ()> for Sphere {
+impl<'a> Drawable<'a> for Sphere {
+    type ExtraData = SphereDrawData<'a>;
+    type Error = ();
+
     fn draw(&self, extra_data: &mut SphereDrawData) -> Result<(), ()> {
         draw_smooth_sphere_at(
             self.center,

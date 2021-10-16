@@ -1271,10 +1271,13 @@ impl<'a> BVHDrawData<'a> {
     }
 }
 
-impl<T> Drawable<BVHDrawData<'_>, ()> for BVHTree<T>
+impl<'a, T> Drawable<'a> for BVHTree<T>
 where
     T: Copy,
 {
+    type ExtraData = BVHDrawData<'a>;
+    type Error = ();
+
     fn draw(&self, draw_data: &mut BVHDrawData) -> Result<(), ()> {
         let imm = &mut draw_data.imm;
         let smooth_color_3d_shader = shader::builtins::get_smooth_color_3d_shader()

@@ -358,7 +358,10 @@ impl<'a> MeshDrawData<'a> {
     }
 }
 
-impl Drawable<MeshDrawData<'_>, MeshDrawError> for Mesh {
+impl<'a> Drawable<'a> for Mesh {
+    type ExtraData = MeshDrawData<'a>;
+    type Error = MeshDrawError;
+
     fn draw(&self, draw_data: &mut MeshDrawData<'_>) -> Result<(), MeshDrawError> {
         match draw_data.use_shader {
             MeshUseShader::DirectionalLight => self.draw_directional_light_shader(draw_data)?,

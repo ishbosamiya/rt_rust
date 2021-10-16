@@ -201,7 +201,7 @@ fn main() {
         ))
         .unwrap();
 
-        sphere
+        (&sphere)
             .draw(&mut SphereDrawData::new(
                 &mut imm,
                 glm::vec4(0.0, 0.0, 1.0, 1.0),
@@ -302,10 +302,6 @@ fn main() {
                 gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
             }
 
-            infinite_grid
-                .draw(&mut InfiniteGridDrawData::new(&mut imm))
-                .unwrap();
-
             // TODO: need to figure out a way to define the scene
             // early, it is a lifetimes related issue :(
             let mut scene = Scene::new();
@@ -340,6 +336,10 @@ fn main() {
                 glm::vec4(1.0, 0.0, 0.0, 1.0),
             )));
             scene.draw(&mut ObjectDrawData::new(&mut imm)).unwrap();
+
+            infinite_grid
+                .draw(&mut InfiniteGridDrawData::new(&mut imm))
+                .unwrap();
 
             // GUI starts
             {

@@ -24,7 +24,7 @@ impl<'a> ObjectDrawData<'a> {
     }
 }
 
-pub trait Object<'a>: Intersectable + Drawable<ObjectDrawData<'a>, DrawError> + Sync {
+pub trait Object<'a>: Intersectable + Drawable<'a> + Sync {
     fn set_path_trace_shader_id(&mut self, shader_id: PathTraceShaderID);
     fn get_path_trace_shader_id(&self) -> PathTraceShaderID;
 }
@@ -71,9 +71,12 @@ pub mod objects {
         }
     }
 
-    impl Drawable<ObjectDrawData<'_>, DrawError> for Sphere {
+    impl<'a> Drawable<'a> for Sphere {
+        type ExtraData = ObjectDrawData<'a>;
+        type Error = DrawError;
+
         fn draw(&self, extra_data: &mut ObjectDrawData<'_>) -> Result<(), DrawError> {
-            self.data
+            (&self.data)
                 .draw(&mut SphereDrawData::new(
                     extra_data.get_imm(),
                     self.outside_color,
@@ -83,7 +86,7 @@ pub mod objects {
         }
 
         fn draw_wireframe(&self, extra_data: &mut ObjectDrawData<'_>) -> Result<(), DrawError> {
-            self.data
+            (&self.data)
                 .draw_wireframe(&mut SphereDrawData::new(
                     extra_data.imm,
                     self.outside_color,
@@ -93,7 +96,7 @@ pub mod objects {
         }
     }
 
-    impl<'a> Object<'a> for Sphere {
+    impl Object<'_> for Sphere {
         fn set_path_trace_shader_id(&mut self, shader_id: ShaderID) {
             self.shader_id = Some(shader_id)
         }
