@@ -6,6 +6,8 @@ use std::{fmt::Display, rc::Rc};
 
 use itertools::Itertools;
 
+use crate::path_trace::intersectable::{IntersectInfo, Intersectable};
+use crate::path_trace::ray::Ray;
 use crate::{
     bvh::{BVHDrawData, BVHTree},
     glm,
@@ -17,6 +19,7 @@ use crate::{
     },
 };
 
+#[derive(Debug, Clone)]
 pub struct Vertex {
     pos: glm::DVec3,
     uv: Option<glm::DVec2>,
@@ -110,6 +113,7 @@ impl From<meshio::MeshIOError> for Error {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Mesh {
     vertices: Vec<Vertex>,
     faces: Vec<Vec<usize>>,
@@ -383,5 +387,27 @@ impl Drawable for Mesh {
 
     fn draw_wireframe(&self, _draw_data: &mut MeshDrawData) -> Result<(), MeshDrawError> {
         todo!()
+    }
+}
+
+impl Intersectable for Mesh {
+    fn hit(&self, ray: &Ray, _t_min: f64, _t_max: f64) -> Option<IntersectInfo> {
+        // TODO: make this work correct, this is just a hack to test
+        // if the trace is working.
+        self.get_bvh()
+            .as_ref()
+            .unwrap()
+            .ray_cast(
+                *ray.get_origin(),
+                *ray.get_direction(),
+                None::<&fn((&glm::DVec3, &glm::DVec3), _) -> Option<crate::bvh::RayHitData<_>>>,
+            )
+            .map(|hit_data| {
+                let mut intersect_info =
+                    IntersectInfo::new(hit_data.dist, hit_data.data.unwrap().co);
+                // intersect_info.set_normal(ray, &hit_data.normal.unwrap());
+                intersect_info.set_normal(ray, &glm::vec3(0.0, 0.0, 1.0));
+                intersect_info
+            })
     }
 }

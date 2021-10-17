@@ -30,79 +30,181 @@ pub trait Object:
 }
 
 pub mod objects {
-    use crate::{
-        glm,
-        path_trace::{
-            intersectable::{IntersectInfo, Intersectable},
-            ray::Ray,
-            shader_list::ShaderID,
-        },
-        rasterize::drawable::Drawable,
-        sphere::{Sphere as SphereData, SphereDrawData},
-    };
+    pub use mesh::Mesh;
+    pub use sphere::Sphere;
 
-    use super::{DrawError, Object, ObjectDrawData};
+    mod sphere {
+        use crate::{
+            glm,
+            path_trace::{
+                intersectable::{IntersectInfo, Intersectable},
+                ray::Ray,
+                shader_list::ShaderID,
+            },
+            rasterize::drawable::Drawable,
+            sphere::{Sphere as SphereData, SphereDrawData},
+        };
 
-    pub struct Sphere {
-        data: SphereData,
-        shader_id: Option<ShaderID>,
+        use super::super::{DrawError, Object, ObjectDrawData};
 
-        // TODO: since this is a partial copy of SphereDrawData, it
-        // might make sense to store this in a separate structure and
-        // use that
-        outside_color: glm::Vec4,
-        inside_color: glm::Vec4,
-    }
+        pub struct Sphere {
+            data: SphereData,
+            shader_id: Option<ShaderID>,
 
-    impl Sphere {
-        pub fn new(data: SphereData, outside_color: glm::Vec4, inside_color: glm::Vec4) -> Self {
-            Self {
-                data,
-                shader_id: None,
-                outside_color,
-                inside_color,
+            // TODO: since this is a partial copy of SphereDrawData, it
+            // might make sense to store this in a separate structure and
+            // use that
+            outside_color: glm::Vec4,
+            inside_color: glm::Vec4,
+        }
+
+        impl Sphere {
+            pub fn new(
+                data: SphereData,
+                outside_color: glm::Vec4,
+                inside_color: glm::Vec4,
+            ) -> Self {
+                Self {
+                    data,
+                    shader_id: None,
+                    outside_color,
+                    inside_color,
+                }
+            }
+        }
+
+        impl Intersectable for Sphere {
+            fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<IntersectInfo> {
+                self.data.hit(ray, t_min, t_max)
+            }
+        }
+
+        impl Drawable for Sphere {
+            type ExtraData = ObjectDrawData;
+            type Error = DrawError;
+
+            fn draw(&self, extra_data: &mut ObjectDrawData) -> Result<(), DrawError> {
+                self.data
+                    .draw(&mut SphereDrawData::new(
+                        extra_data.imm.clone(),
+                        self.outside_color,
+                        self.inside_color,
+                    ))
+                    .map_err(|_error| DrawError::Sphere(()))
+            }
+
+            fn draw_wireframe(&self, extra_data: &mut ObjectDrawData) -> Result<(), DrawError> {
+                self.data
+                    .draw_wireframe(&mut SphereDrawData::new(
+                        extra_data.imm.clone(),
+                        self.outside_color,
+                        self.inside_color,
+                    ))
+                    .map_err(|_error| DrawError::Sphere(()))
+            }
+        }
+
+        impl Object for Sphere {
+            fn set_path_trace_shader_id(&mut self, shader_id: ShaderID) {
+                self.shader_id = Some(shader_id)
+            }
+
+            fn get_path_trace_shader_id(&self) -> ShaderID {
+                self.shader_id.unwrap()
             }
         }
     }
 
-    impl Intersectable for Sphere {
-        fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<IntersectInfo> {
-            self.data.hit(ray, t_min, t_max)
-        }
-    }
+    mod mesh {
+        use crate::{
+            glm,
+            mesh::{Mesh as MeshData, MeshDrawData, MeshUseShader},
+            path_trace::{
+                intersectable::{IntersectInfo, Intersectable},
+                ray::Ray,
+                shader_list::ShaderID,
+            },
+            rasterize::drawable::Drawable,
+        };
 
-    impl Drawable for Sphere {
-        type ExtraData = ObjectDrawData;
-        type Error = DrawError;
+        use super::super::{DrawError, Object, ObjectDrawData};
 
-        fn draw(&self, extra_data: &mut ObjectDrawData) -> Result<(), DrawError> {
-            self.data
-                .draw(&mut SphereDrawData::new(
-                    extra_data.imm.clone(),
-                    self.outside_color,
-                    self.inside_color,
-                ))
-                .map_err(|_error| DrawError::Sphere(()))
-        }
+        pub struct Mesh {
+            data: MeshData,
+            shader_id: Option<ShaderID>,
 
-        fn draw_wireframe(&self, extra_data: &mut ObjectDrawData) -> Result<(), DrawError> {
-            self.data
-                .draw_wireframe(&mut SphereDrawData::new(
-                    extra_data.imm.clone(),
-                    self.outside_color,
-                    self.inside_color,
-                ))
-                .map_err(|_error| DrawError::Sphere(()))
-        }
-    }
-
-    impl Object for Sphere {
-        fn set_path_trace_shader_id(&mut self, shader_id: ShaderID) {
-            self.shader_id = Some(shader_id)
+            // TODO: since this is a partial copy of MeshDrawData, it
+            // might make sense to store this in a separate structure and
+            // use that
+            use_shader: MeshUseShader,
+            draw_bvh: bool,
+            bvh_draw_level: usize,
+            bvh_color: glm::DVec4,
         }
 
-        fn get_path_trace_shader_id(&self) -> ShaderID {
-            self.shader_id.unwrap()
+        impl Mesh {
+            pub fn new(
+                data: MeshData,
+                use_shader: MeshUseShader,
+                draw_bvh: bool,
+                bvh_draw_level: usize,
+                bvh_color: glm::DVec4,
+            ) -> Self {
+                Self {
+                    data,
+                    shader_id: None,
+
+                    use_shader,
+                    draw_bvh,
+                    bvh_draw_level,
+                    bvh_color,
+                }
+            }
+        }
+
+        impl Intersectable for Mesh {
+            fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<IntersectInfo> {
+                self.data.hit(ray, t_min, t_max)
+            }
+        }
+
+        impl Drawable for Mesh {
+            type ExtraData = ObjectDrawData;
+            type Error = DrawError;
+
+            fn draw(&self, extra_data: &mut ObjectDrawData) -> Result<(), DrawError> {
+                self.data
+                    .draw(&mut MeshDrawData::new(
+                        extra_data.imm.clone(),
+                        self.use_shader,
+                        self.draw_bvh,
+                        self.bvh_draw_level,
+                        self.bvh_color,
+                    ))
+                    .map_err(DrawError::Mesh)
+            }
+
+            fn draw_wireframe(&self, extra_data: &mut ObjectDrawData) -> Result<(), DrawError> {
+                self.data
+                    .draw_wireframe(&mut MeshDrawData::new(
+                        extra_data.imm.clone(),
+                        MeshUseShader::DirectionalLight,
+                        self.draw_bvh,
+                        self.bvh_draw_level,
+                        self.bvh_color,
+                    ))
+                    .map_err(DrawError::Mesh)
+            }
+        }
+
+        impl Object for Mesh {
+            fn set_path_trace_shader_id(&mut self, shader_id: ShaderID) {
+                self.shader_id = Some(shader_id)
+            }
+
+            fn get_path_trace_shader_id(&self) -> ShaderID {
+                self.shader_id.unwrap()
+            }
         }
     }
 }

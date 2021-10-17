@@ -1,6 +1,7 @@
 use rt::bvh::BVHTree;
 use rt::glm;
 use rt::image::{Image, PPM};
+use rt::object::objects::Mesh as MeshObject;
 use rt::object::objects::Sphere as SphereObject;
 use rt::object::ObjectDrawData;
 use rt::path_trace;
@@ -65,7 +66,7 @@ use glfw::{Action, Context, Key};
 
 use rt::fps::FPS;
 use rt::mesh;
-use rt::mesh::{MeshDrawData, MeshUseShader};
+use rt::mesh::MeshUseShader;
 use rt::rasterize::camera::Camera as RasterizeCamera;
 use rt::rasterize::drawable::Drawable;
 use rt::rasterize::gpu_immediate::GPUImmediate;
@@ -132,10 +133,6 @@ fn main() {
 
     shader::builtins::display_uniform_and_attribute_info();
 
-    let directional_light_shader = shader::builtins::get_directional_light_shader()
-        .as_ref()
-        .unwrap();
-
     let mut last_cursor = window.get_cursor_pos();
 
     let mut fps = FPS::default();
@@ -184,6 +181,13 @@ fn main() {
             glm::vec4(0.0, 0.0, 1.0, 1.0),
             glm::vec4(1.0, 0.0, 0.0, 1.0),
         )));
+        scene.add_object(Box::new(MeshObject::new(
+            mesh.clone(),
+            MeshUseShader::DirectionalLight,
+            draw_bvh,
+            bvh_draw_level,
+            bvh_color,
+        )));
         scene
     };
 
@@ -225,17 +229,6 @@ fn main() {
         }
 
         scene.draw(&mut ObjectDrawData::new(imm.clone())).unwrap();
-
-        directional_light_shader.use_shader();
-        directional_light_shader.set_mat4("model\0", &glm::identity());
-        mesh.draw(&mut MeshDrawData::new(
-            imm.clone(),
-            MeshUseShader::DirectionalLight,
-            draw_bvh,
-            bvh_draw_level,
-            bvh_color,
-        ))
-        .unwrap();
 
         draw_plane_with_image(
             &glm::vec3(2.0, image_height as f64 / 1000.0, 0.0),

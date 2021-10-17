@@ -22,6 +22,7 @@ impl BVHNodeIndex {
     }
 }
 
+#[derive(Debug, Clone)]
 struct BVHNode<T>
 where
     T: Copy,
@@ -162,6 +163,7 @@ impl std::fmt::Display for BVHError {
 
 impl std::error::Error for BVHError {}
 
+#[derive(Debug, Clone)]
 pub struct BVHTree<T>
 where
     T: Copy,
