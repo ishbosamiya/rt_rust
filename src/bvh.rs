@@ -1,8 +1,10 @@
 use generational_arena::{Arena, Index};
 use lazy_static::lazy_static;
 
+use std::cell::RefCell;
 use std::cmp::PartialOrd;
 use std::fmt::Debug;
+use std::rc::Rc;
 
 use crate::glm;
 use crate::rasterize::drawable::Drawable;
@@ -1255,14 +1257,14 @@ fn draw_box(
     draw_line(imm, &v4, &v8, pos_attr, color_attr, color);
 }
 
-pub struct BVHDrawData<'a> {
-    imm: &'a mut GPUImmediate,
+pub struct BVHDrawData {
+    imm: Rc<RefCell<GPUImmediate>>,
     draw_level: usize,
     color: glm::DVec4,
 }
 
-impl<'a> BVHDrawData<'a> {
-    pub fn new(imm: &'a mut GPUImmediate, draw_level: usize, color: glm::DVec4) -> Self {
+impl BVHDrawData {
+    pub fn new(imm: Rc<RefCell<GPUImmediate>>, draw_level: usize, color: glm::DVec4) -> Self {
         Self {
             imm,
             draw_level,
@@ -1271,15 +1273,15 @@ impl<'a> BVHDrawData<'a> {
     }
 }
 
-impl<'a, T> Drawable<'a> for BVHTree<T>
+impl<T> Drawable for BVHTree<T>
 where
     T: Copy,
 {
-    type ExtraData = BVHDrawData<'a>;
+    type ExtraData = BVHDrawData;
     type Error = ();
 
     fn draw(&self, draw_data: &mut BVHDrawData) -> Result<(), ()> {
-        let imm = &mut draw_data.imm;
+        let imm = &mut draw_data.imm.borrow_mut();
         let smooth_color_3d_shader = shader::builtins::get_smooth_color_3d_shader()
             .as_ref()
             .unwrap();

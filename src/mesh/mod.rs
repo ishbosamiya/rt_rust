@@ -1,7 +1,8 @@
 pub mod builtins;
 
-use std::fmt::Display;
+use std::cell::RefCell;
 use std::path::Path;
+use std::{fmt::Display, rc::Rc};
 
 use itertools::Itertools;
 
@@ -182,12 +183,12 @@ impl Mesh {
             return Ok(());
         }
 
-        let imm = &mut draw_data.imm;
         let directional_light_shader = shader::builtins::get_directional_light_shader()
             .as_ref()
             .unwrap();
-
         directional_light_shader.use_shader();
+
+        let mut imm = draw_data.imm.borrow_mut();
 
         let format = imm.get_cleared_vertex_format();
         let pos_attr = format.add_attribute(
@@ -329,23 +330,21 @@ impl Display for MeshUseShader {
     }
 }
 
-pub struct MeshDrawData<'a> {
-    imm: &'a mut GPUImmediate,
+pub struct MeshDrawData {
+    imm: Rc<RefCell<GPUImmediate>>,
     use_shader: MeshUseShader,
     draw_bvh: bool,
     bvh_draw_level: usize,
     bvh_color: glm::DVec4,
-    _color: Option<glm::Vec4>,
 }
 
-impl<'a> MeshDrawData<'a> {
+impl MeshDrawData {
     pub fn new(
-        imm: &'a mut GPUImmediate,
+        imm: Rc<RefCell<GPUImmediate>>,
         use_shader: MeshUseShader,
         draw_bvh: bool,
         bvh_draw_level: usize,
         bvh_color: glm::DVec4,
-        color: Option<glm::Vec4>,
     ) -> Self {
         MeshDrawData {
             imm,
@@ -353,16 +352,15 @@ impl<'a> MeshDrawData<'a> {
             draw_bvh,
             bvh_draw_level,
             bvh_color,
-            _color: color,
         }
     }
 }
 
-impl<'a> Drawable<'a> for Mesh {
-    type ExtraData = MeshDrawData<'a>;
+impl Drawable for Mesh {
+    type ExtraData = MeshDrawData;
     type Error = MeshDrawError;
 
-    fn draw(&self, draw_data: &mut MeshDrawData<'_>) -> Result<(), MeshDrawError> {
+    fn draw(&self, draw_data: &mut MeshDrawData) -> Result<(), MeshDrawError> {
         match draw_data.use_shader {
             MeshUseShader::DirectionalLight => self.draw_directional_light_shader(draw_data)?,
             // MeshUseShader::SmoothColor3D => self.draw_smooth_color_3d_shader(draw_data),
@@ -373,7 +371,7 @@ impl<'a> Drawable<'a> for Mesh {
         if draw_data.draw_bvh {
             if let Some(bvh) = &self.bvh {
                 bvh.draw(&mut BVHDrawData::new(
-                    draw_data.imm,
+                    draw_data.imm.clone(),
                     draw_data.bvh_draw_level,
                     draw_data.bvh_color,
                 ))?
@@ -383,7 +381,7 @@ impl<'a> Drawable<'a> for Mesh {
         Ok(())
     }
 
-    fn draw_wireframe(&self, _draw_data: &mut MeshDrawData<'_>) -> Result<(), MeshDrawError> {
+    fn draw_wireframe(&self, _draw_data: &mut MeshDrawData) -> Result<(), MeshDrawError> {
         todo!()
     }
 }

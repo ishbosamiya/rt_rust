@@ -1,50 +1,35 @@
-// use std::marker::PhantomData;
-
-use std::cell::RefCell;
-use std::rc::Rc;
-
 use crate::object::{DrawError, Object, ObjectDrawData};
 use crate::path_trace::intersectable::{IntersectInfo, Intersectable};
 use crate::path_trace::ray::Ray;
 use crate::rasterize::drawable::Drawable;
-use crate::rasterize::gpu_immediate::GPUImmediate;
 
-pub struct Scene<'a> {
-    objects: Vec<Box<dyn Object<'a, ExtraData = ObjectDrawData<'a>, Error = DrawError>>>,
-    imm: Rc<RefCell<GPUImmediate>>,
-    // self_reference: PhantomData<&'s Self>,
+pub struct Scene {
+    objects: Vec<Box<dyn Object>>,
 }
 
-impl Default for Scene<'_> {
+impl Default for Scene {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<'a> Scene<'a> {
+impl Scene {
     pub fn new() -> Self {
         Self {
             objects: Vec::new(),
-            imm: Rc::new(RefCell::new(GPUImmediate::new())),
-            // self_reference: PhantomData::default(),
         }
     }
 
-    pub fn add_object(
-        &mut self,
-        object: Box<dyn Object<'a, ExtraData = ObjectDrawData<'a>, Error = DrawError>>,
-    ) {
+    pub fn add_object(&mut self, object: Box<dyn Object>) {
         self.objects.push(object);
     }
 
-    pub fn get_objects(
-        &self,
-    ) -> &Vec<Box<dyn Object<'a, ExtraData = ObjectDrawData<'a>, Error = DrawError>>> {
+    pub fn get_objects(&self) -> &Vec<Box<dyn Object>> {
         &self.objects
     }
 }
 
-impl Intersectable for Scene<'_> {
+impl Intersectable for Scene {
     fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<IntersectInfo> {
         let hit_infos: Vec<_> = self
             .objects
@@ -70,16 +55,14 @@ impl Intersectable for Scene<'_> {
     }
 }
 
-impl<'a> Drawable<'a> for Scene<'a> {
-    type ExtraData = ();
+impl Drawable for Scene {
+    type ExtraData = ObjectDrawData;
     type Error = DrawError;
 
-    fn draw(&'a self, _extra_data: &mut Self::ExtraData) -> Result<(), DrawError> {
-        let mut imm = self.imm.borrow_mut();
-        let mut draw_data = ObjectDrawData::new(&mut imm);
+    fn draw(&self, extra_data: &mut Self::ExtraData) -> Result<(), DrawError> {
         self.get_objects()
             .iter()
-            .try_for_each(|object| object.draw(&mut draw_data))?;
+            .try_for_each(|object| object.draw(extra_data))?;
         Ok(())
     }
 }

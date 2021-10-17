@@ -1,3 +1,6 @@
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use crate::glm;
 use crate::path_trace::intersectable::{IntersectInfo, Intersectable};
 use crate::path_trace::ray::Ray;
@@ -53,15 +56,15 @@ impl Intersectable for Sphere {
     }
 }
 
-pub struct SphereDrawData<'a> {
-    imm: &'a mut GPUImmediate,
+pub struct SphereDrawData {
+    imm: Rc<RefCell<GPUImmediate>>,
     outside_color: glm::Vec4,
     inside_color: glm::Vec4,
 }
 
-impl<'a> SphereDrawData<'a> {
+impl SphereDrawData {
     pub fn new(
-        imm: &'a mut GPUImmediate,
+        imm: Rc<RefCell<GPUImmediate>>,
         outside_color: glm::Vec4,
         inside_color: glm::Vec4,
     ) -> Self {
@@ -73,8 +76,8 @@ impl<'a> SphereDrawData<'a> {
     }
 }
 
-impl<'a> Drawable<'a> for Sphere {
-    type ExtraData = SphereDrawData<'a>;
+impl Drawable for Sphere {
+    type ExtraData = SphereDrawData;
     type Error = ();
 
     fn draw(&self, extra_data: &mut SphereDrawData) -> Result<(), ()> {
@@ -83,7 +86,7 @@ impl<'a> Drawable<'a> for Sphere {
             self.radius,
             extra_data.outside_color,
             extra_data.inside_color,
-            extra_data.imm,
+            &mut extra_data.imm.borrow_mut(),
         );
         Ok(())
     }

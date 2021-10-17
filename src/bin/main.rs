@@ -8,7 +8,7 @@ use rt::path_trace::camera::Camera as PathTraceCamera;
 use rt::rasterize::gpu_utils::draw_plane_with_image;
 use rt::rasterize::texture::TextureRGBAFloat;
 use rt::scene::Scene;
-use rt::sphere::{Sphere, SphereDrawData};
+use rt::sphere::Sphere;
 
 extern crate lazy_static;
 use rayon::prelude::*;
@@ -55,7 +55,9 @@ fn ray_trace_scene(
     image
 }
 
+use std::cell::RefCell;
 use std::convert::TryInto;
+use std::rc::Rc;
 
 use egui::{FontDefinitions, FontFamily, TextStyle};
 use egui_glfw::EguiBackend;
@@ -126,7 +128,7 @@ fn main() {
         45.0,
     );
 
-    let mut imm = GPUImmediate::new();
+    let imm = Rc::new(RefCell::new(GPUImmediate::new()));
 
     shader::builtins::display_uniform_and_attribute_info();
 
@@ -150,7 +152,40 @@ fn main() {
     let mut samples_per_pixel = 5;
     let mut save_image_location = "test.ppm".to_string();
 
-    let sphere = Sphere::new(glm::vec3(1.0, 0.0, 0.0), 0.4);
+    let scene = {
+        let mut scene = Scene::new();
+        scene.add_object(Box::new(SphereObject::new(
+            Sphere::new(glm::vec3(0.0, 0.0, -2.0), 0.45),
+            glm::vec4(0.0, 0.0, 1.0, 1.0),
+            glm::vec4(1.0, 0.0, 0.0, 1.0),
+        )));
+        scene.add_object(Box::new(SphereObject::new(
+            Sphere::new(glm::vec3(0.0, 0.0, -2.0), 0.45),
+            glm::vec4(0.0, 0.0, 1.0, 1.0),
+            glm::vec4(1.0, 0.0, 0.0, 1.0),
+        )));
+        scene.add_object(Box::new(SphereObject::new(
+            Sphere::new(glm::vec3(0.0, 1.0, -2.0), 0.45),
+            glm::vec4(0.0, 0.0, 1.0, 1.0),
+            glm::vec4(1.0, 0.0, 0.0, 1.0),
+        )));
+        scene.add_object(Box::new(SphereObject::new(
+            Sphere::new(glm::vec3(0.0, -1.0, -2.0), 0.45),
+            glm::vec4(0.0, 0.0, 1.0, 1.0),
+            glm::vec4(1.0, 0.0, 0.0, 1.0),
+        )));
+        scene.add_object(Box::new(SphereObject::new(
+            Sphere::new(glm::vec3(1.0, 0.0, -2.0), 0.45),
+            glm::vec4(0.0, 0.0, 1.0, 1.0),
+            glm::vec4(1.0, 0.0, 0.0, 1.0),
+        )));
+        scene.add_object(Box::new(SphereObject::new(
+            Sphere::new(glm::vec3(-1.0, 0.0, -2.0), 0.45),
+            glm::vec4(0.0, 0.0, 1.0, 1.0),
+            glm::vec4(1.0, 0.0, 0.0, 1.0),
+        )));
+        scene
+    };
 
     let infinite_grid = InfiniteGrid::default();
 
@@ -189,32 +224,25 @@ fn main() {
             gl::Disable(gl::BLEND);
         }
 
+        scene.draw(&mut ObjectDrawData::new(imm.clone())).unwrap();
+
         directional_light_shader.use_shader();
         directional_light_shader.set_mat4("model\0", &glm::identity());
         mesh.draw(&mut MeshDrawData::new(
-            &mut imm,
+            imm.clone(),
             MeshUseShader::DirectionalLight,
             draw_bvh,
             bvh_draw_level,
             bvh_color,
-            None,
         ))
         .unwrap();
-
-        (&sphere)
-            .draw(&mut SphereDrawData::new(
-                &mut imm,
-                glm::vec4(0.0, 0.0, 1.0, 1.0),
-                glm::vec4(1.0, 0.0, 0.0, 1.0),
-            ))
-            .unwrap();
 
         draw_plane_with_image(
             &glm::vec3(2.0, image_height as f64 / 1000.0, 0.0),
             &glm::vec3(image_width as f64 / 500.0, 2.0, image_height as f64 / 500.0),
             &glm::vec3(0.0, 0.0, 1.0),
             &mut image,
-            &mut imm,
+            &mut imm.borrow_mut(),
         );
 
         if should_cast_ray {
@@ -245,6 +273,8 @@ fn main() {
                     .unwrap();
                 smooth_color_3d_shader.use_shader();
                 smooth_color_3d_shader.set_mat4("model\0", &glm::identity());
+
+                let mut imm = imm.borrow_mut();
 
                 let format = imm.get_cleared_vertex_format();
                 let pos_attr = format.add_attribute(
@@ -302,43 +332,8 @@ fn main() {
                 gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
             }
 
-            // TODO: need to figure out a way to define the scene
-            // early, it is a lifetimes related issue :(
-            let mut scene = Scene::new();
-            scene.add_object(Box::new(SphereObject::new(
-                Sphere::new(glm::vec3(0.0, 0.0, -2.0), 0.45),
-                glm::vec4(0.0, 0.0, 1.0, 1.0),
-                glm::vec4(1.0, 0.0, 0.0, 1.0),
-            )));
-            scene.add_object(Box::new(SphereObject::new(
-                Sphere::new(glm::vec3(0.0, 0.0, -2.0), 0.45),
-                glm::vec4(0.0, 0.0, 1.0, 1.0),
-                glm::vec4(1.0, 0.0, 0.0, 1.0),
-            )));
-            scene.add_object(Box::new(SphereObject::new(
-                Sphere::new(glm::vec3(0.0, 1.0, -2.0), 0.45),
-                glm::vec4(0.0, 0.0, 1.0, 1.0),
-                glm::vec4(1.0, 0.0, 0.0, 1.0),
-            )));
-            scene.add_object(Box::new(SphereObject::new(
-                Sphere::new(glm::vec3(0.0, -1.0, -2.0), 0.45),
-                glm::vec4(0.0, 0.0, 1.0, 1.0),
-                glm::vec4(1.0, 0.0, 0.0, 1.0),
-            )));
-            scene.add_object(Box::new(SphereObject::new(
-                Sphere::new(glm::vec3(1.0, 0.0, -2.0), 0.45),
-                glm::vec4(0.0, 0.0, 1.0, 1.0),
-                glm::vec4(1.0, 0.0, 0.0, 1.0),
-            )));
-            scene.add_object(Box::new(SphereObject::new(
-                Sphere::new(glm::vec3(-1.0, 0.0, -2.0), 0.45),
-                glm::vec4(0.0, 0.0, 1.0, 1.0),
-                glm::vec4(1.0, 0.0, 0.0, 1.0),
-            )));
-            scene.draw(&mut ObjectDrawData::new(&mut imm)).unwrap();
-
             infinite_grid
-                .draw(&mut InfiniteGridDrawData::new(&mut imm))
+                .draw(&mut InfiniteGridDrawData::new(imm.clone()))
                 .unwrap();
 
             // GUI starts

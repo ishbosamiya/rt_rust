@@ -1,3 +1,5 @@
+use std::{cell::RefCell, rc::Rc};
+
 use crate::{
     mesh::MeshDrawError,
     path_trace::{intersectable::Intersectable, shader_list::ShaderID as PathTraceShaderID},
@@ -10,21 +12,19 @@ pub enum DrawError {
     Sphere(()),
 }
 
-pub struct ObjectDrawData<'a> {
-    imm: &'a mut GPUImmediate,
+pub struct ObjectDrawData {
+    imm: Rc<RefCell<GPUImmediate>>,
 }
 
-impl<'a> ObjectDrawData<'a> {
-    pub fn new(imm: &'a mut GPUImmediate) -> Self {
+impl ObjectDrawData {
+    pub fn new(imm: Rc<RefCell<GPUImmediate>>) -> Self {
         Self { imm }
     }
-
-    pub fn get_imm(&mut self) -> &mut GPUImmediate {
-        self.imm
-    }
 }
 
-pub trait Object<'a>: Intersectable + Drawable<'a> + Sync {
+pub trait Object:
+    Intersectable + Drawable<ExtraData = ObjectDrawData, Error = DrawError> + Sync
+{
     fn set_path_trace_shader_id(&mut self, shader_id: PathTraceShaderID);
     fn get_path_trace_shader_id(&self) -> PathTraceShaderID;
 }
@@ -71,24 +71,24 @@ pub mod objects {
         }
     }
 
-    impl<'a> Drawable<'a> for Sphere {
-        type ExtraData = ObjectDrawData<'a>;
+    impl Drawable for Sphere {
+        type ExtraData = ObjectDrawData;
         type Error = DrawError;
 
-        fn draw(&self, extra_data: &mut ObjectDrawData<'_>) -> Result<(), DrawError> {
-            (&self.data)
+        fn draw(&self, extra_data: &mut ObjectDrawData) -> Result<(), DrawError> {
+            self.data
                 .draw(&mut SphereDrawData::new(
-                    extra_data.get_imm(),
+                    extra_data.imm.clone(),
                     self.outside_color,
                     self.inside_color,
                 ))
                 .map_err(|_error| DrawError::Sphere(()))
         }
 
-        fn draw_wireframe(&self, extra_data: &mut ObjectDrawData<'_>) -> Result<(), DrawError> {
-            (&self.data)
+        fn draw_wireframe(&self, extra_data: &mut ObjectDrawData) -> Result<(), DrawError> {
+            self.data
                 .draw_wireframe(&mut SphereDrawData::new(
-                    extra_data.imm,
+                    extra_data.imm.clone(),
                     self.outside_color,
                     self.inside_color,
                 ))
@@ -96,7 +96,7 @@ pub mod objects {
         }
     }
 
-    impl Object<'_> for Sphere {
+    impl Object for Sphere {
         fn set_path_trace_shader_id(&mut self, shader_id: ShaderID) {
             self.shader_id = Some(shader_id)
         }

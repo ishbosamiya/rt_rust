@@ -1,3 +1,5 @@
+use std::{cell::RefCell, rc::Rc};
+
 use crate::{
     glm,
     rasterize::{
@@ -45,22 +47,22 @@ impl Default for InfiniteGrid {
     }
 }
 
-pub struct InfiniteGridDrawData<'a> {
-    imm: &'a mut GPUImmediate,
+pub struct InfiniteGridDrawData {
+    imm: Rc<RefCell<GPUImmediate>>,
 }
 
-impl<'a> InfiniteGridDrawData<'a> {
-    pub fn new(imm: &'a mut GPUImmediate) -> Self {
+impl InfiniteGridDrawData {
+    pub fn new(imm: Rc<RefCell<GPUImmediate>>) -> Self {
         Self { imm }
     }
 }
 
-impl<'a> Drawable<'a> for InfiniteGrid {
-    type ExtraData = InfiniteGridDrawData<'a>;
+impl Drawable for InfiniteGrid {
+    type ExtraData = InfiniteGridDrawData;
     type Error = ();
 
     fn draw(&self, extra_data: &mut InfiniteGridDrawData) -> Result<(), ()> {
-        let imm = &mut extra_data.imm;
+        let mut imm = extra_data.imm.borrow_mut();
 
         unsafe {
             gl::Enable(gl::BLEND);
