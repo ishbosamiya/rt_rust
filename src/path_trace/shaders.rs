@@ -38,3 +38,4 @@ macro_rules! ShaderFromBSDF {
 
 ShaderFromBSDF!(Lambert; bsdfs::lambert::Lambert);
 ShaderFromBSDF!(Glossy; bsdfs::glossy::Glossy);
+ShaderFromBSDF!(Emissive; bsdfs::emissive::Emissive);
