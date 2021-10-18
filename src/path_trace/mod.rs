@@ -69,10 +69,10 @@ fn shade_environment(ray: &Ray, camera: &Camera) -> glm::DVec3 {
 fn shade_hit(ray: &Ray, intersect_info: &IntersectInfo) -> ShadeHitData {
     let mut shader_list = ShaderList::new();
     let lambert_shader_id = shader_list.add_shader(Box::new(shaders::Lambert::new(
-        bsdfs::lambert::Lambert::new(glm::vec4(0.0, 1.0, 1.0, 1.0)),
+        bsdfs::lambert::Lambert::new(glm::vec4(1.0, 1.0, 1.0, 1.0)),
     )));
     let glossy_shader_id = shader_list.add_shader(Box::new(shaders::Glossy::new(
-        bsdfs::glossy::Glossy::new(glm::vec4(0.0, 1.0, 1.0, 1.0)),
+        bsdfs::glossy::Glossy::new(glm::vec4(1.0, 1.0, 1.0, 1.0)),
     )));
 
     // TODO: need to remove `roughness_amount`, it is only a test for
@@ -80,7 +80,7 @@ fn shade_hit(ray: &Ray, intersect_info: &IntersectInfo) -> ShadeHitData {
     //
     // TODO: `shader` must be got from the `ShaderID` stored
     // `IntersectInfo`.
-    let roughness_amount = 0.2;
+    let roughness_amount = 1.0;
     let shader = if rand::random::<f64>() < roughness_amount {
         shader_list
             .get_shader(lambert_shader_id)

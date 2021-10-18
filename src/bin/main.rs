@@ -27,8 +27,8 @@ fn ray_trace_scene(
 
     let viewport_height = 2.0;
     let aspect_ratio = width as f64 / height as f64;
-    let focal_length = 1.0;
-    let origin = glm::vec3(0.0, 0.0, 0.0);
+    let focal_length = 12.0;
+    let origin = glm::vec3(0.0, 0.0, 10.0);
     let camera = &PathTraceCamera::new(viewport_height, aspect_ratio, focal_length, origin);
 
     image
@@ -123,7 +123,7 @@ fn main() {
         .insert(TextStyle::Small, (FontFamily::Proportional, 15.0));
     egui.get_egui_ctx().set_fonts(fonts);
 
-    let mesh = mesh::builtins::get_monkey_subd_01();
+    let mesh = mesh::builtins::get_cube_subd_00_triangulated();
 
     let mut camera = RasterizeCamera::new(
         glm::vec3(0.0, 0.0, 3.0),
@@ -150,8 +150,8 @@ fn main() {
     let mut bvh_color = glm::vec4(0.9, 0.5, 0.2, 1.0);
     let mut bvh_ray_color: glm::DVec4 = glm::vec4(0.2, 0.5, 0.9, 1.0);
     let mut bvh_ray_intersection = Vec::new();
-    let mut image_width = 1000;
-    let mut image_height = 1000;
+    let mut image_width = 200;
+    let mut image_height = 200;
     let mut trace_max_depth = 5;
     let mut samples_per_pixel = 5;
     let mut save_image_location = "test.ppm".to_string();
