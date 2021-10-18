@@ -27,6 +27,22 @@ impl Scene {
     pub fn get_objects(&self) -> &Vec<Box<dyn Object>> {
         &self.objects
     }
+
+    pub fn get_objects_mut(&mut self) -> &mut Vec<Box<dyn Object>> {
+        &mut self.objects
+    }
+
+    pub fn apply_model_matrices(&mut self) {
+        self.objects.iter_mut().for_each(|object| {
+            object.apply_model_matrix();
+        });
+    }
+
+    pub fn unapply_model_matrices(&mut self) {
+        self.objects.iter_mut().for_each(|object| {
+            object.unapply_model_matrix();
+        });
+    }
 }
 
 impl Intersectable for Scene {
