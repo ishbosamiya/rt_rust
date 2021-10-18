@@ -3,7 +3,7 @@ use rt::glm;
 use rt::image::{Image, PPM};
 use rt::object::objects::Mesh as MeshObject;
 use rt::object::objects::Sphere as SphereObject;
-use rt::object::ObjectDrawData;
+use rt::object::{Object, ObjectDrawData};
 use rt::path_trace;
 use rt::path_trace::camera::Camera as PathTraceCamera;
 use rt::path_trace::shader_list::ShaderList;
@@ -172,7 +172,7 @@ fn main() {
         )));
         shader_ids.push(id);
         let id = shader_list.add_shader(Box::new(path_trace::shaders::Emissive::new(
-            path_trace::bsdfs::emissive::Emissive::new(glm::vec4(1.0, 1.0, 1.0, 1.0), 1.0),
+            path_trace::bsdfs::emissive::Emissive::new(glm::vec4(0.0, 1.0, 1.0, 1.0), 12.0),
         )));
         shader_ids.push(id);
 
@@ -180,42 +180,59 @@ fn main() {
     };
 
     let mut scene = Scene::new();
-    scene.add_object(Box::new(SphereObject::new(
-        Sphere::new(glm::vec3(0.0, 2.0, -2.0), 1.0),
-        glm::vec4(0.0, 0.0, 1.0, 1.0),
-        glm::vec4(1.0, 0.0, 0.0, 1.0),
-    )));
-    scene.add_object(Box::new(SphereObject::new(
-        Sphere::new(glm::vec3(0.0, -2.0, -2.0), 1.0),
-        glm::vec4(0.0, 0.0, 1.0, 1.0),
-        glm::vec4(1.0, 0.0, 0.0, 1.0),
-    )));
-    scene.add_object(Box::new(SphereObject::new(
-        Sphere::new(glm::vec3(2.0, 0.0, -2.0), 1.0),
-        glm::vec4(0.0, 0.0, 1.0, 1.0),
-        glm::vec4(1.0, 0.0, 0.0, 1.0),
-    )));
-    scene.add_object(Box::new(SphereObject::new(
-        Sphere::new(glm::vec3(-2.0, 0.0, -2.0), 1.0),
-        glm::vec4(0.0, 0.0, 1.0, 1.0),
-        glm::vec4(1.0, 0.0, 0.0, 1.0),
-    )));
-    scene.add_object(Box::new(MeshObject::new(
-        mesh.clone(),
-        MeshUseShader::DirectionalLight,
-        draw_bvh,
-        bvh_draw_level,
-        bvh_color,
-    )));
+    scene.add_object({
+        let mut object = Box::new(SphereObject::new(
+            Sphere::new(glm::vec3(0.0, 2.0, -2.0), 1.0),
+            glm::vec4(0.0, 0.0, 1.0, 1.0),
+            glm::vec4(1.0, 0.0, 0.0, 1.0),
+        ));
+        object.set_path_trace_shader_id(shader_ids[0]);
+        object
+    });
+    scene.add_object({
+        let mut object = Box::new(SphereObject::new(
+            Sphere::new(glm::vec3(0.0, -2.0, -2.0), 1.0),
+            glm::vec4(0.0, 0.0, 1.0, 1.0),
+            glm::vec4(1.0, 0.0, 0.0, 1.0),
+        ));
+        object.set_path_trace_shader_id(shader_ids[0]);
+        object
+    });
+    scene.add_object({
+        let mut object = Box::new(SphereObject::new(
+            Sphere::new(glm::vec3(2.0, 0.0, -2.0), 1.0),
+            glm::vec4(0.0, 0.0, 1.0, 1.0),
+            glm::vec4(1.0, 0.0, 0.0, 1.0),
+        ));
+        object.set_path_trace_shader_id(shader_ids[0]);
+        object
+    });
+    scene.add_object({
+        let mut object = Box::new(SphereObject::new(
+            Sphere::new(glm::vec3(-2.0, 0.0, -2.0), 1.0),
+            glm::vec4(0.0, 0.0, 1.0, 1.0),
+            glm::vec4(1.0, 0.0, 0.0, 1.0),
+        ));
+        object.set_path_trace_shader_id(shader_ids[0]);
+        object
+    });
+    scene.add_object({
+        let mut object = Box::new(MeshObject::new(
+            mesh.clone(),
+            MeshUseShader::DirectionalLight,
+            draw_bvh,
+            bvh_draw_level,
+            bvh_color,
+        ));
+        object.set_path_trace_shader_id(shader_ids[1]);
+        object
+    });
 
     scene.get_objects_mut().iter_mut().for_each(|object| {
         object.set_model_matrix(glm::identity());
     });
     scene.get_objects_mut().iter_mut().for_each(|object| {
         object.set_model_matrix(glm::translate(&glm::identity(), &glm::vec3(0.0, 0.0, -2.0)));
-    });
-    scene.get_objects_mut().iter_mut().for_each(|object| {
-        object.set_path_trace_shader_id(shader_ids[0]);
     });
 
     let infinite_grid = InfiniteGrid::default();
