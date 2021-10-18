@@ -158,27 +158,22 @@ fn main() {
 
     let mut scene = Scene::new();
     scene.add_object(Box::new(SphereObject::new(
-        Sphere::new(glm::vec3(0.0, 0.0, -2.0), 0.45),
+        Sphere::new(glm::vec3(0.0, 2.0, -2.0), 1.0),
         glm::vec4(0.0, 0.0, 1.0, 1.0),
         glm::vec4(1.0, 0.0, 0.0, 1.0),
     )));
     scene.add_object(Box::new(SphereObject::new(
-        Sphere::new(glm::vec3(0.0, 1.0, -2.0), 0.45),
+        Sphere::new(glm::vec3(0.0, -2.0, -2.0), 1.0),
         glm::vec4(0.0, 0.0, 1.0, 1.0),
         glm::vec4(1.0, 0.0, 0.0, 1.0),
     )));
     scene.add_object(Box::new(SphereObject::new(
-        Sphere::new(glm::vec3(0.0, -1.0, -2.0), 0.45),
+        Sphere::new(glm::vec3(2.0, 0.0, -2.0), 1.0),
         glm::vec4(0.0, 0.0, 1.0, 1.0),
         glm::vec4(1.0, 0.0, 0.0, 1.0),
     )));
     scene.add_object(Box::new(SphereObject::new(
-        Sphere::new(glm::vec3(1.0, 0.0, -2.0), 0.45),
-        glm::vec4(0.0, 0.0, 1.0, 1.0),
-        glm::vec4(1.0, 0.0, 0.0, 1.0),
-    )));
-    scene.add_object(Box::new(SphereObject::new(
-        Sphere::new(glm::vec3(-1.0, 0.0, -2.0), 0.45),
+        Sphere::new(glm::vec3(-2.0, 0.0, -2.0), 1.0),
         glm::vec4(0.0, 0.0, 1.0, 1.0),
         glm::vec4(1.0, 0.0, 0.0, 1.0),
     )));
@@ -194,7 +189,7 @@ fn main() {
         object.set_model_matrix(glm::identity());
     });
     scene.get_objects_mut().iter_mut().for_each(|object| {
-        object.set_model_matrix(glm::translate(&glm::identity(), &glm::vec3(0.0, 0.0, -1.0)));
+        object.set_model_matrix(glm::translate(&glm::identity(), &glm::vec3(0.0, 0.0, -2.0)));
     });
 
     let infinite_grid = InfiniteGrid::default();
