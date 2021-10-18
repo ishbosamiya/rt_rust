@@ -98,11 +98,10 @@ pub mod objects {
             type Error = DrawError;
 
             fn draw(&self, extra_data: &mut ObjectDrawData) -> Result<(), DrawError> {
-                // TODO: use model matrix
-
                 self.data
                     .draw(&mut SphereDrawData::new(
                         extra_data.imm.clone(),
+                        *self.get_model_matrix(),
                         self.outside_color,
                         self.inside_color,
                     ))
@@ -115,6 +114,7 @@ pub mod objects {
                 self.data
                     .draw_wireframe(&mut SphereDrawData::new(
                         extra_data.imm.clone(),
+                        *self.get_model_matrix(),
                         self.outside_color,
                         self.inside_color,
                     ))

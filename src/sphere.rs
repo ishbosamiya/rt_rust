@@ -63,6 +63,8 @@ impl Intersectable for Sphere {
 
 pub struct SphereDrawData {
     imm: Rc<RefCell<GPUImmediate>>,
+
+    model_matrix: glm::DMat4,
     outside_color: glm::Vec4,
     inside_color: glm::Vec4,
 }
@@ -70,11 +72,13 @@ pub struct SphereDrawData {
 impl SphereDrawData {
     pub fn new(
         imm: Rc<RefCell<GPUImmediate>>,
+        model_matrix: glm::DMat4,
         outside_color: glm::Vec4,
         inside_color: glm::Vec4,
     ) -> Self {
         Self {
             imm,
+            model_matrix,
             outside_color,
             inside_color,
         }
@@ -87,7 +91,7 @@ impl Drawable for Sphere {
 
     fn draw(&self, extra_data: &mut SphereDrawData) -> Result<(), ()> {
         draw_smooth_sphere_at(
-            self.center,
+            vec3_apply_model_matrix(&self.center, &extra_data.model_matrix),
             self.radius,
             extra_data.outside_color,
             extra_data.inside_color,

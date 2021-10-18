@@ -193,11 +193,9 @@ fn main() {
     scene.get_objects_mut().iter_mut().for_each(|object| {
         object.set_model_matrix(glm::identity());
     });
-    scene
-        .get_objects_mut()
-        .last_mut()
-        .unwrap()
-        .set_model_matrix(glm::translate(&glm::identity(), &glm::vec3(0.0, 0.0, -3.0)));
+    scene.get_objects_mut().iter_mut().for_each(|object| {
+        object.set_model_matrix(glm::translate(&glm::identity(), &glm::vec3(0.0, 0.0, -1.0)));
+    });
 
     let infinite_grid = InfiniteGrid::default();
 
