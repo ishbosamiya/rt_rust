@@ -69,4 +69,9 @@ pub trait BSDF {
     /// evaluate and update the value for each pass (diffuse, glossy,
     /// reflection).
     fn eval(&self, wi: &glm::DVec3, wo: &glm::DVec3, intersect_info: &IntersectInfo) -> glm::DVec3;
+
+    /// Calculates the colour/intensity of light produced by the object the point of intersection
+    fn emission(&self, _intersect_info: &IntersectInfo) -> Option<glm::DVec3> {
+        None
+    }
 }
