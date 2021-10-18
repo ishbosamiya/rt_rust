@@ -19,8 +19,10 @@ fn ray_trace_scene(
     height: usize,
     trace_max_depth: usize,
     samples_per_pixel: usize,
-    scene: &Scene,
+    scene: &mut Scene,
 ) -> Image {
+    scene.apply_model_matrices();
+
     let mut image = Image::new(width, height);
 
     let viewport_height = 2.0;
@@ -52,6 +54,8 @@ fn ray_trace_scene(
                 *pixel /= samples_per_pixel as f64;
             });
         });
+
+    scene.unapply_model_matrices();
 
     image
 }
@@ -137,7 +141,10 @@ fn main() {
 
     let mut fps = FPS::default();
 
-    let mut draw_bvh = true;
+    // TODO(ish): handle drawing bvh and casting rays to the bvh and
+    // such again later, right now due to the mesh defined in the
+    // scene, it becomes hard to handle it.
+    let mut draw_bvh = false;
     let mut bvh_draw_level = 0;
     let mut should_cast_ray = false;
     let mut bvh_color = glm::vec4(0.9, 0.5, 0.2, 1.0);
@@ -149,47 +156,48 @@ fn main() {
     let mut samples_per_pixel = 5;
     let mut save_image_location = "test.ppm".to_string();
 
-    let scene = {
-        let mut scene = Scene::new();
-        scene.add_object(Box::new(SphereObject::new(
-            Sphere::new(glm::vec3(0.0, 0.0, -2.0), 0.45),
-            glm::vec4(0.0, 0.0, 1.0, 1.0),
-            glm::vec4(1.0, 0.0, 0.0, 1.0),
-        )));
-        scene.add_object(Box::new(SphereObject::new(
-            Sphere::new(glm::vec3(0.0, 0.0, -2.0), 0.45),
-            glm::vec4(0.0, 0.0, 1.0, 1.0),
-            glm::vec4(1.0, 0.0, 0.0, 1.0),
-        )));
-        scene.add_object(Box::new(SphereObject::new(
-            Sphere::new(glm::vec3(0.0, 1.0, -2.0), 0.45),
-            glm::vec4(0.0, 0.0, 1.0, 1.0),
-            glm::vec4(1.0, 0.0, 0.0, 1.0),
-        )));
-        scene.add_object(Box::new(SphereObject::new(
-            Sphere::new(glm::vec3(0.0, -1.0, -2.0), 0.45),
-            glm::vec4(0.0, 0.0, 1.0, 1.0),
-            glm::vec4(1.0, 0.0, 0.0, 1.0),
-        )));
-        scene.add_object(Box::new(SphereObject::new(
-            Sphere::new(glm::vec3(1.0, 0.0, -2.0), 0.45),
-            glm::vec4(0.0, 0.0, 1.0, 1.0),
-            glm::vec4(1.0, 0.0, 0.0, 1.0),
-        )));
-        scene.add_object(Box::new(SphereObject::new(
-            Sphere::new(glm::vec3(-1.0, 0.0, -2.0), 0.45),
-            glm::vec4(0.0, 0.0, 1.0, 1.0),
-            glm::vec4(1.0, 0.0, 0.0, 1.0),
-        )));
-        scene.add_object(Box::new(MeshObject::new(
-            mesh.clone(),
-            MeshUseShader::DirectionalLight,
-            draw_bvh,
-            bvh_draw_level,
-            bvh_color,
-        )));
-        scene
-    };
+    let mut scene = Scene::new();
+    scene.add_object(Box::new(SphereObject::new(
+        Sphere::new(glm::vec3(0.0, 0.0, -2.0), 0.45),
+        glm::vec4(0.0, 0.0, 1.0, 1.0),
+        glm::vec4(1.0, 0.0, 0.0, 1.0),
+    )));
+    scene.add_object(Box::new(SphereObject::new(
+        Sphere::new(glm::vec3(0.0, 1.0, -2.0), 0.45),
+        glm::vec4(0.0, 0.0, 1.0, 1.0),
+        glm::vec4(1.0, 0.0, 0.0, 1.0),
+    )));
+    scene.add_object(Box::new(SphereObject::new(
+        Sphere::new(glm::vec3(0.0, -1.0, -2.0), 0.45),
+        glm::vec4(0.0, 0.0, 1.0, 1.0),
+        glm::vec4(1.0, 0.0, 0.0, 1.0),
+    )));
+    scene.add_object(Box::new(SphereObject::new(
+        Sphere::new(glm::vec3(1.0, 0.0, -2.0), 0.45),
+        glm::vec4(0.0, 0.0, 1.0, 1.0),
+        glm::vec4(1.0, 0.0, 0.0, 1.0),
+    )));
+    scene.add_object(Box::new(SphereObject::new(
+        Sphere::new(glm::vec3(-1.0, 0.0, -2.0), 0.45),
+        glm::vec4(0.0, 0.0, 1.0, 1.0),
+        glm::vec4(1.0, 0.0, 0.0, 1.0),
+    )));
+    scene.add_object(Box::new(MeshObject::new(
+        mesh.clone(),
+        MeshUseShader::DirectionalLight,
+        draw_bvh,
+        bvh_draw_level,
+        bvh_color,
+    )));
+
+    scene.get_objects_mut().iter_mut().for_each(|object| {
+        object.set_model_matrix(glm::identity());
+    });
+    scene
+        .get_objects_mut()
+        .last_mut()
+        .unwrap()
+        .set_model_matrix(glm::translate(&glm::identity(), &glm::vec3(0.0, 0.0, -3.0)));
 
     let infinite_grid = InfiniteGrid::default();
 
@@ -360,7 +368,7 @@ fn main() {
                             image_height,
                             trace_max_depth,
                             samples_per_pixel,
-                            &scene,
+                            &mut scene,
                         ));
                     }
 
