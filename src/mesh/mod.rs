@@ -1,14 +1,16 @@
 pub mod builtins;
 
+use itertools::Itertools;
+use rayon::prelude::*;
+
 use std::cell::RefCell;
 use std::path::Path;
 use std::{fmt::Display, rc::Rc};
 
-use itertools::Itertools;
-
 use crate::bvh::{RayHitData, RayHitOptionalData};
 use crate::path_trace::intersectable::{IntersectInfo, Intersectable};
 use crate::path_trace::ray::Ray;
+use crate::util::{normal_apply_model_matrix, vec3_apply_model_matrix};
 use crate::{
     bvh::{BVHDrawData, BVHTree},
     glm,
@@ -90,6 +92,14 @@ impl Vertex {
 
     pub fn get_normal(&self) -> &Option<glm::DVec3> {
         &self.normal
+    }
+
+    pub fn apply_model_matrix(&mut self, model: &glm::DMat4) {
+        self.pos = vec3_apply_model_matrix(&self.pos, model);
+        // self.uv doesn't need model matrix applied
+        if let Some(normal) = &self.normal {
+            self.normal = Some(normal_apply_model_matrix(normal, model));
+        }
     }
 }
 
@@ -283,6 +293,17 @@ impl Mesh {
 
     pub fn get_bvh(&self) -> &Option<BVHTree<usize>> {
         &self.bvh
+    }
+
+    pub fn apply_model_matrix(&mut self, model: &glm::DMat4) {
+        self.vertices.par_iter_mut().for_each(|vert| {
+            vert.apply_model_matrix(model);
+        });
+
+        // TODO(ish): need to set any expensive rebuild such as the
+        // bvh to be None instead of actually rebuilding, the caller
+        // should handle it.
+        self.build_bvh(0.01);
     }
 }
 
