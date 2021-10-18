@@ -89,7 +89,10 @@ pub mod objects {
 
         impl Intersectable for Sphere {
             fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<IntersectInfo> {
-                self.data.hit(ray, t_min, t_max)
+                self.data.hit(ray, t_min, t_max).map(|mut info| {
+                    info.set_shader_id(self.get_path_trace_shader_id());
+                    info
+                })
             }
         }
 
@@ -197,7 +200,10 @@ pub mod objects {
 
         impl Intersectable for Mesh {
             fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<IntersectInfo> {
-                self.data.hit(ray, t_min, t_max)
+                self.data.hit(ray, t_min, t_max).map(|mut info| {
+                    info.set_shader_id(self.get_path_trace_shader_id());
+                    info
+                })
             }
         }
 

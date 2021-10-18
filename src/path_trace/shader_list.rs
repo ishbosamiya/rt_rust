@@ -7,7 +7,7 @@ use super::bsdf::BSDF;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ShaderID(usize);
 
-pub trait Shader {
+pub trait Shader: Sync {
     /// Set the `ShaderID`, can be requested for later using
     /// `get_shader_id()`
     fn set_shader_id(&mut self, shader_id: ShaderID);
@@ -26,6 +26,10 @@ impl ShaderList {
         Self {
             shaders: HashMap::new(),
         }
+    }
+
+    pub fn get_shaders(&self) -> &HashMap<ShaderID, Box<dyn Shader>> {
+        &self.shaders
     }
 
     pub fn get_shader(&self, shader_id: ShaderID) -> Option<&dyn Shader> {

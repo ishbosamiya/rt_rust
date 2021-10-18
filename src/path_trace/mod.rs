@@ -140,40 +140,11 @@ fn shade_environment(ray: &Ray, camera: &Camera) -> glm::DVec3 {
 }
 
 /// Shade the point of intersection when the ray hits an object
-fn shade_hit(ray: &Ray, intersect_info: &IntersectInfo) -> ShadeHitData {
-    let mut shader_list = ShaderList::new();
-    let lambert_shader_id = shader_list.add_shader(Box::new(shaders::Lambert::new(
-        bsdfs::lambert::Lambert::new(glm::vec4(1.0, 1.0, 1.0, 1.0)),
-    )));
-    let glossy_shader_id = shader_list.add_shader(Box::new(shaders::Glossy::new(
-        bsdfs::glossy::Glossy::new(glm::vec4(1.0, 1.0, 1.0, 1.0)),
-    )));
-    let emissive_shader_id = shader_list.add_shader(Box::new(shaders::Emissive::new(
-        bsdfs::emissive::Emissive::new(glm::vec4(1.0, 1.0, 1.0, 1.0), 1.0),
-    )));
-
-    // TODO: need to remove `roughness_amount`, it is only a test for
-    // `ShaderList` right now, it mixes lambert and glossy shader.
-    //
-    // TODO: `shader` must be got from the `ShaderID` stored
-    // `IntersectInfo`.
-    let emission_chance = 0.2;
-    let shader = if rand::random::<f64>() < emission_chance {
-        shader_list
-            .get_shader(emissive_shader_id)
-            .unwrap()
-            .get_bsdf()
-    } else {
-        let roughness_amount = 0.4;
-        if rand::random::<f64>() < roughness_amount {
-            shader_list
-                .get_shader(lambert_shader_id)
-                .unwrap()
-                .get_bsdf()
-        } else {
-            shader_list.get_shader(glossy_shader_id).unwrap().get_bsdf()
-        }
-    };
+fn shade_hit(ray: &Ray, intersect_info: &IntersectInfo, shader_list: &ShaderList) -> ShadeHitData {
+    let shader = shader_list
+        .get_shader(intersect_info.get_shader_id().unwrap())
+        .unwrap()
+        .get_bsdf();
 
     // wo: outgoing ray direction
     //
@@ -229,20 +200,26 @@ fn shade_hit(ray: &Ray, intersect_info: &IntersectInfo) -> ShadeHitData {
 // e: intensity of emitted light by x_prime reaching x
 // i: intensity of light from x_prime to x
 // p: intensity of light scattered from x_prime_prime to x by a patch on surface at x_prime
-pub fn trace_ray(ray: &Ray, camera: &Camera, scene: &Scene, depth: usize) -> glm::DVec3 {
+pub fn trace_ray(
+    ray: &Ray,
+    camera: &Camera,
+    scene: &Scene,
+    depth: usize,
+    shader_list: &ShaderList,
+) -> glm::DVec3 {
     if depth == 0 {
         return glm::zero();
     }
     let val;
     if let Some(info) = scene.hit(ray, 0.01, 1000.0) {
-        match shade_hit(ray, &info) {
+        match shade_hit(ray, &info, shader_list) {
             ShadeHitData::Both(ShadeHitDataBoth {
                 color,
                 emission_color,
                 next_ray,
                 sampling_type: _,
             }) => {
-                let traced_color = trace_ray(&next_ray, camera, scene, depth - 1);
+                let traced_color = trace_ray(&next_ray, camera, scene, depth - 1, shader_list);
                 val = emission_color
                     + glm::vec3(
                         color[0] * traced_color[0],
@@ -255,7 +232,7 @@ pub fn trace_ray(ray: &Ray, camera: &Camera, scene: &Scene, depth: usize) -> glm
                 next_ray,
                 sampling_type: _,
             }) => {
-                let traced_color = trace_ray(&next_ray, camera, scene, depth - 1);
+                let traced_color = trace_ray(&next_ray, camera, scene, depth - 1, shader_list);
                 val = glm::vec3(
                     color[0] * traced_color[0],
                     color[1] * traced_color[1],

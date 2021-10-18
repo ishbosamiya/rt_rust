@@ -6,6 +6,7 @@ use rt::object::objects::Sphere as SphereObject;
 use rt::object::ObjectDrawData;
 use rt::path_trace;
 use rt::path_trace::camera::Camera as PathTraceCamera;
+use rt::path_trace::shader_list::ShaderList;
 use rt::rasterize::gpu_utils::draw_plane_with_image;
 use rt::rasterize::texture::TextureRGBAFloat;
 use rt::scene::Scene;
@@ -20,6 +21,7 @@ fn ray_trace_scene(
     trace_max_depth: usize,
     samples_per_pixel: usize,
     scene: &mut Scene,
+    shader_list: &ShaderList,
 ) -> Image {
     scene.apply_model_matrices();
 
@@ -49,7 +51,8 @@ fn ray_trace_scene(
 
                     let ray = camera.get_ray(u, v);
 
-                    *pixel += path_trace::trace_ray(&ray, camera, scene, trace_max_depth);
+                    *pixel +=
+                        path_trace::trace_ray(&ray, camera, scene, trace_max_depth, shader_list);
                 }
                 *pixel /= samples_per_pixel as f64;
             });
@@ -123,7 +126,7 @@ fn main() {
         .insert(TextStyle::Small, (FontFamily::Proportional, 15.0));
     egui.get_egui_ctx().set_fonts(fonts);
 
-    let mesh = mesh::builtins::get_cube_subd_00_triangulated();
+    let mesh = mesh::builtins::get_monkey_subd_00_triangulated();
 
     let mut camera = RasterizeCamera::new(
         glm::vec3(0.0, 0.0, 3.0),
@@ -155,6 +158,26 @@ fn main() {
     let mut trace_max_depth = 5;
     let mut samples_per_pixel = 5;
     let mut save_image_location = "test.ppm".to_string();
+
+    let (shader_list, shader_ids) = {
+        let mut shader_list = ShaderList::new();
+        let mut shader_ids = Vec::new();
+
+        let id = shader_list.add_shader(Box::new(path_trace::shaders::Lambert::new(
+            path_trace::bsdfs::lambert::Lambert::new(glm::vec4(1.0, 1.0, 1.0, 1.0)),
+        )));
+        shader_ids.push(id);
+        let id = shader_list.add_shader(Box::new(path_trace::shaders::Glossy::new(
+            path_trace::bsdfs::glossy::Glossy::new(glm::vec4(1.0, 1.0, 1.0, 1.0)),
+        )));
+        shader_ids.push(id);
+        let id = shader_list.add_shader(Box::new(path_trace::shaders::Emissive::new(
+            path_trace::bsdfs::emissive::Emissive::new(glm::vec4(1.0, 1.0, 1.0, 1.0), 1.0),
+        )));
+        shader_ids.push(id);
+
+        (shader_list, shader_ids)
+    };
 
     let mut scene = Scene::new();
     scene.add_object(Box::new(SphereObject::new(
@@ -190,6 +213,9 @@ fn main() {
     });
     scene.get_objects_mut().iter_mut().for_each(|object| {
         object.set_model_matrix(glm::translate(&glm::identity(), &glm::vec3(0.0, 0.0, -2.0)));
+    });
+    scene.get_objects_mut().iter_mut().for_each(|object| {
+        object.set_path_trace_shader_id(shader_ids[0]);
     });
 
     let infinite_grid = InfiniteGrid::default();
@@ -362,6 +388,7 @@ fn main() {
                             trace_max_depth,
                             samples_per_pixel,
                             &mut scene,
+                            &shader_list,
                         ));
                     }
 

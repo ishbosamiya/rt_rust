@@ -1,10 +1,11 @@
-use super::ray::Ray;
+use super::{ray::Ray, shader_list::ShaderID};
 use crate::glm;
 
 #[derive(Debug, Copy, Clone)]
 pub struct IntersectInfo {
     t: f64,
     point: glm::DVec3,
+    shader_id: Option<ShaderID>,
     normal: Option<glm::DVec3>,
     front_face: bool,
 }
@@ -14,6 +15,7 @@ impl IntersectInfo {
         Self {
             t,
             point,
+            shader_id: None,
             normal: None,
             front_face: false,
         }
@@ -25,6 +27,14 @@ impl IntersectInfo {
 
     pub fn get_point(&self) -> &glm::DVec3 {
         &self.point
+    }
+
+    pub fn set_shader_id(&mut self, shader_id: ShaderID) {
+        self.shader_id = Some(shader_id);
+    }
+
+    pub fn get_shader_id(&self) -> Option<ShaderID> {
+        self.shader_id
     }
 
     pub fn get_normal(&self) -> &Option<glm::DVec3> {
