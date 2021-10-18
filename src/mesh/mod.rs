@@ -6,6 +6,7 @@ use std::{fmt::Display, rc::Rc};
 
 use itertools::Itertools;
 
+use crate::bvh::{RayHitData, RayHitOptionalData};
 use crate::path_trace::intersectable::{IntersectInfo, Intersectable};
 use crate::path_trace::ray::Ray;
 use crate::{
@@ -392,22 +393,52 @@ impl Drawable for Mesh {
 
 impl Intersectable for Mesh {
     fn hit(&self, ray: &Ray, _t_min: f64, _t_max: f64) -> Option<IntersectInfo> {
-        // TODO: make this work correct, this is just a hack to test
-        // if the trace is working.
+        let mesh_ray_cast_callback = |(_co, _dir): (&glm::DVec3, &glm::DVec3),
+                                      face_index: usize| {
+            let face = &self.faces[face_index];
+            let v1_index = face[0];
+            let v1 = &self.vertices[v1_index];
+            for (v2_index, v3_index) in face.iter().skip(1).tuple_windows() {
+                let v2 = &self.vertices[*v2_index];
+                let v3 = &self.vertices[*v3_index];
+
+                if let Some((dist, bary_coords)) =
+                    ray.intersect_triangle(v1.get_pos(), v2.get_pos(), v3.get_pos(), f64::EPSILON)
+                {
+                    let n1 = v1.get_normal().as_ref().unwrap();
+                    let n2 = v2.get_normal().as_ref().unwrap();
+                    let n3 = v3.get_normal().as_ref().unwrap();
+                    let mut hit_data = RayHitData::new(dist);
+                    hit_data.normal = Some(vec3_apply_bary_coord(n1, n2, n3, &bary_coords));
+                    hit_data.set_data(RayHitOptionalData::new(face_index, ray.at(dist)));
+                    return Some(hit_data);
+                }
+            }
+            None
+        };
+
         self.get_bvh()
             .as_ref()
             .unwrap()
             .ray_cast(
                 *ray.get_origin(),
                 *ray.get_direction(),
-                None::<&fn((&glm::DVec3, &glm::DVec3), _) -> Option<crate::bvh::RayHitData<_>>>,
+                Some(&mesh_ray_cast_callback),
             )
             .map(|hit_data| {
                 let mut intersect_info =
                     IntersectInfo::new(hit_data.dist, hit_data.data.unwrap().co);
-                // intersect_info.set_normal(ray, &hit_data.normal.unwrap());
-                intersect_info.set_normal(ray, &glm::vec3(0.0, 0.0, 1.0));
+                intersect_info.set_normal(ray, &hit_data.normal.unwrap());
                 intersect_info
             })
     }
+}
+
+fn vec3_apply_bary_coord(
+    v1: &glm::DVec3,
+    v2: &glm::DVec3,
+    v3: &glm::DVec3,
+    bary_coord: &glm::DVec3,
+) -> glm::DVec3 {
+    v1 * bary_coord[0] + v2 * bary_coord[1] + v3 * bary_coord[2]
 }

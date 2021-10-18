@@ -302,7 +302,7 @@ where
         }
     }
 
-    fn set_data(&mut self, data: RayHitOptionalData<T>) {
+    pub fn set_data(&mut self, data: RayHitOptionalData<T>) {
         self.data = Some(data);
     }
 }
