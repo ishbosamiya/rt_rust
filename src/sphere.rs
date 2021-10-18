@@ -6,6 +6,7 @@ use crate::path_trace::intersectable::{IntersectInfo, Intersectable};
 use crate::path_trace::ray::Ray;
 use crate::rasterize::gpu_utils::draw_smooth_sphere_at;
 use crate::rasterize::{drawable::Drawable, gpu_immediate::GPUImmediate};
+use crate::util::vec3_apply_model_matrix;
 
 pub struct Sphere {
     center: glm::DVec3,
@@ -23,6 +24,10 @@ impl Sphere {
 
     pub fn get_radius(&self) -> f64 {
         self.radius
+    }
+
+    pub fn apply_model_matrix(&mut self, model: &glm::DMat4) {
+        self.center = vec3_apply_model_matrix(self.get_center(), model);
     }
 }
 
