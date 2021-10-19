@@ -138,6 +138,7 @@ fn shade_environment(ray: &Ray, camera: &Camera) -> glm::DVec3 {
     let camera_vertical_range = camera.get_vertical()[1];
     let y_val = (camera_origin_y + ray.get_direction()[1]) / camera_vertical_range;
     let y_val = (y_val + 1.0) / 2.0;
+    let y_val = y_val.clamp(0.0, 1.0);
 
     glm::lerp(&color_1, &color_2, y_val)
 }
