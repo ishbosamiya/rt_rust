@@ -23,16 +23,11 @@ fn ray_trace_scene(
     samples_per_pixel: usize,
     scene: &mut Scene,
     shader_list: &ShaderList,
+    camera: &PathTraceCamera,
 ) -> Image {
     scene.apply_model_matrices();
 
     let mut image = Image::new(width, height);
-
-    let viewport_height = 2.0;
-    let aspect_ratio = width as f64 / height as f64;
-    let focal_length = 12.0;
-    let origin = glm::vec3(0.0, 0.0, 10.0);
-    let camera = &PathTraceCamera::new(viewport_height, aspect_ratio, focal_length, origin);
 
     image
         .get_pixels_mut()
@@ -259,6 +254,14 @@ fn main() {
             );
         });
 
+        let path_trace_camera = {
+            let viewport_height = 2.0;
+            let aspect_ratio = image_width as f64 / image_height as f64;
+            let focal_length = 12.0;
+            let origin = glm::vec3(0.0, 0.0, 10.0);
+            PathTraceCamera::new(viewport_height, aspect_ratio, focal_length, origin)
+        };
+
         unsafe {
             gl::ClearColor(0.0, 0.0, 0.0, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
@@ -419,6 +422,7 @@ fn main() {
                             samples_per_pixel,
                             &mut scene,
                             &shader_list,
+                            &path_trace_camera,
                         ));
                     }
 
@@ -443,16 +447,6 @@ fn main() {
                     ui.checkbox(&mut show_ray_traversal_info, "Show Ray Traversal Info");
                     if ui.button("Trace Ray").clicked() {
                         scene.apply_model_matrices();
-                        let viewport_height = 2.0;
-                        let aspect_ratio = image_width as f64 / image_height as f64;
-                        let focal_length = 12.0;
-                        let origin = glm::vec3(0.0, 0.0, 10.0);
-                        let camera = &PathTraceCamera::new(
-                            viewport_height,
-                            aspect_ratio,
-                            focal_length,
-                            origin,
-                        );
 
                         // use opengl coords, (0.0, 0.0) is center; (1.0, 1.0) is
                         // top right; (-1.0, -1.0) is bottom left
@@ -465,11 +459,11 @@ fn main() {
                             - 0.5)
                             * 2.0;
 
-                        let ray = camera.get_ray(u, v);
+                        let ray = path_trace_camera.get_ray(u, v);
 
                         let (_color, traversal_info) = path_trace::trace_ray(
                             &ray,
-                            camera,
+                            &path_trace_camera,
                             &scene,
                             trace_max_depth,
                             &shader_list,
