@@ -7,6 +7,7 @@ use rt::object::{Object, ObjectDrawData};
 use rt::path_trace;
 use rt::path_trace::camera::Camera as PathTraceCamera;
 use rt::path_trace::shader_list::ShaderList;
+use rt::path_trace::traversal_info::{TraversalInfo, TraversalInfoDrawData};
 use rt::rasterize::gpu_utils::draw_plane_with_image;
 use rt::rasterize::texture::TextureRGBAFloat;
 use rt::scene::Scene;
@@ -160,6 +161,9 @@ fn main() {
     let mut trace_max_depth = 5;
     let mut samples_per_pixel = 5;
     let mut save_image_location = "test.ppm".to_string();
+    let mut ray_traversal_info: Option<TraversalInfo> = None;
+    let mut ray_from_pixel = (0, 0);
+    let mut show_ray_traversal_info = true;
 
     let (shader_list, shader_ids) = {
         let mut shader_list = ShaderList::new();
@@ -275,6 +279,14 @@ fn main() {
         }
 
         scene.draw(&mut ObjectDrawData::new(imm.clone())).unwrap();
+
+        if show_ray_traversal_info {
+            if let Some(ray_traversal_info) = &ray_traversal_info {
+                ray_traversal_info
+                    .draw(&mut TraversalInfoDrawData::new(imm.clone()))
+                    .unwrap();
+            }
+        }
 
         draw_plane_with_image(
             &glm::vec3(2.0, image_height as f64 / 1000.0, 0.0),
@@ -421,6 +433,51 @@ fn main() {
                         PPM::new(&image)
                             .write_to_file(&save_image_location)
                             .unwrap();
+                    }
+
+                    ui.separator();
+
+                    ui.label("Ray From Pixel");
+                    ui.add(egui::Slider::new(&mut ray_from_pixel.0, 0..=image_width).text("x"));
+                    ui.add(egui::Slider::new(&mut ray_from_pixel.1, 0..=image_height).text("y"));
+
+                    ui.checkbox(&mut show_ray_traversal_info, "Show Ray Traversal Info");
+                    if ui.button("Trace Ray").clicked() {
+                        scene.apply_model_matrices();
+                        let viewport_height = 2.0;
+                        let aspect_ratio = image_width as f64 / image_height as f64;
+                        let focal_length = 12.0;
+                        let origin = glm::vec3(0.0, 0.0, 10.0);
+                        let camera = &PathTraceCamera::new(
+                            viewport_height,
+                            aspect_ratio,
+                            focal_length,
+                            origin,
+                        );
+
+                        // use opengl coords, (0.0, 0.0) is center; (1.0, 1.0) is
+                        // top right; (-1.0, -1.0) is bottom left
+                        let u = (((ray_from_pixel.0 as f64 + rand::random::<f64>())
+                            / (image_width - 1) as f64)
+                            - 0.5)
+                            * 2.0;
+                        let v = (((ray_from_pixel.1 as f64 + rand::random::<f64>())
+                            / (image_height - 1) as f64)
+                            - 0.5)
+                            * 2.0;
+
+                        let ray = camera.get_ray(u, v);
+
+                        let (_color, traversal_info) = path_trace::trace_ray(
+                            &ray,
+                            camera,
+                            &scene,
+                            trace_max_depth,
+                            &shader_list,
+                        );
+                        ray_traversal_info = Some(traversal_info);
+
+                        scene.unapply_model_matrices();
                     }
                 });
                 let _output = egui.end_frame(glm::vec2(window_width as _, window_height as _));
