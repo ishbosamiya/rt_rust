@@ -51,8 +51,10 @@ fn ray_trace_scene(
 
                     let ray = camera.get_ray(u, v);
 
-                    *pixel +=
+                    let (color, _traversal_info) =
                         path_trace::trace_ray(&ray, camera, scene, trace_max_depth, shader_list);
+
+                    *pixel += color;
                 }
                 *pixel /= samples_per_pixel as f64;
             });

@@ -5,6 +5,7 @@ pub mod intersectable;
 pub mod ray;
 pub mod shader_list;
 pub mod shaders;
+pub mod traversal_info;
 
 use enumflags2::BitFlags;
 
@@ -17,6 +18,8 @@ use crate::path_trace::ray::Ray;
 use crate::scene::Scene;
 
 use self::shader_list::ShaderList;
+use self::traversal_info::SingleRayInfo;
+use self::traversal_info::TraversalInfo;
 
 pub enum ShadeHitData {
     Both(ShadeHitDataBoth),
@@ -200,17 +203,19 @@ fn shade_hit(ray: &Ray, intersect_info: &IntersectInfo, shader_list: &ShaderList
 // e: intensity of emitted light by x_prime reaching x
 // i: intensity of light from x_prime to x
 // p: intensity of light scattered from x_prime_prime to x by a patch on surface at x_prime
+/// Traces the given ray into the scene and returns the
+/// colour/intensity of light propagated by the given along with the
+/// path traced till that point
 pub fn trace_ray(
     ray: &Ray,
     camera: &Camera,
     scene: &Scene,
     depth: usize,
     shader_list: &ShaderList,
-) -> glm::DVec3 {
+) -> (glm::DVec3, TraversalInfo) {
     if depth == 0 {
-        return glm::zero();
+        return (glm::zero(), TraversalInfo::new());
     }
-    let val;
     if let Some(info) = scene.hit(ray, 0.01, 1000.0) {
         match shade_hit(ray, &info, shader_list) {
             ShadeHitData::Both(ShadeHitDataBoth {
@@ -219,35 +224,44 @@ pub fn trace_ray(
                 next_ray,
                 sampling_type: _,
             }) => {
-                let traced_color = trace_ray(&next_ray, camera, scene, depth - 1, shader_list);
-                val = emission_color
+                let (traced_color, mut traversal_info) = trace_ray(&next_ray, camera, scene, depth - 1, shader_list);
+                let val = emission_color
                     + glm::vec3(
                         color[0] * traced_color[0],
                         color[1] * traced_color[1],
                         color[2] * traced_color[2],
                     );
+                traversal_info.add_ray(SingleRayInfo::new(*ray, Some(*info.get_point()), val));
+                (val, traversal_info)
             }
             ShadeHitData::ScatterOnly(ShadeHitDataScatterOnly {
                 color,
                 next_ray,
                 sampling_type: _,
             }) => {
-                let traced_color = trace_ray(&next_ray, camera, scene, depth - 1, shader_list);
-                val = glm::vec3(
+                let (traced_color, mut traversal_info) = trace_ray(&next_ray, camera, scene, depth - 1, shader_list);
+                let val = glm::vec3(
                     color[0] * traced_color[0],
                     color[1] * traced_color[1],
                     color[2] * traced_color[2],
                 );
+                traversal_info.add_ray(SingleRayInfo::new(*ray, Some(*info.get_point()), val));
+                (val, traversal_info)
             }
             ShadeHitData::EmissionOnly(ShadeHitDataEmissionOnly { emission_color }) => {
-                val = emission_color;
+                let val = emission_color;
+                let mut traversal_info = TraversalInfo::new();
+                traversal_info.add_ray(SingleRayInfo::new(*ray, Some(*info.get_point()), val));
+                (val, traversal_info)
             }
             ShadeHitData::None => unreachable!(
                 "No shade_hit() should return ShadeHitData::None, it must either scatter or emit or both"
             ),
         }
     } else {
-        val = shade_environment(ray, camera);
+        let mut traversal_info = TraversalInfo::new();
+        let color = shade_environment(ray, camera);
+        traversal_info.add_ray(SingleRayInfo::new(*ray, None, color));
+        (color, traversal_info)
     }
-    val
 }
