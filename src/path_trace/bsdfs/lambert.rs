@@ -25,8 +25,9 @@ impl BSDF for Lambert {
         // TODO: make this random in hemisphere instead of using a
         // sphere for better performance
         if sampling_types.contains(SamplingTypes::Diffuse) {
+            // need to return `wi` which should point towards the hitpoint
             Some(SampleData::new(
-                intersect_info.get_normal().unwrap() + math::random_in_unit_sphere(),
+                -(intersect_info.get_normal().unwrap() + math::random_in_unit_sphere()),
                 SamplingTypes::Diffuse,
             ))
         } else {
