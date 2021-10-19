@@ -27,11 +27,11 @@ pub trait Object:
     Intersectable + Drawable<ExtraData = ObjectDrawData, Error = DrawError> + Sync
 {
     fn set_model_matrix(&mut self, model: glm::DMat4);
-    fn get_model_matrix(&self) -> &glm::DMat4;
+    fn get_model_matrix(&self) -> &Option<glm::DMat4>;
     fn apply_model_matrix(&mut self);
     fn unapply_model_matrix(&mut self) {
-        let inv_model = glm::inverse(self.get_model_matrix());
-        let model = *self.get_model_matrix();
+        let inv_model = glm::inverse(&self.get_model_matrix().unwrap());
+        let model = self.get_model_matrix().unwrap();
         self.set_model_matrix(inv_model);
         self.apply_model_matrix();
         self.set_model_matrix(model);
@@ -104,7 +104,7 @@ pub mod objects {
                 self.data
                     .draw(&mut SphereDrawData::new(
                         extra_data.imm.clone(),
-                        *self.get_model_matrix(),
+                        self.get_model_matrix().unwrap(),
                         self.outside_color,
                         self.inside_color,
                     ))
@@ -117,7 +117,7 @@ pub mod objects {
                 self.data
                     .draw_wireframe(&mut SphereDrawData::new(
                         extra_data.imm.clone(),
-                        *self.get_model_matrix(),
+                        self.get_model_matrix().unwrap(),
                         self.outside_color,
                         self.inside_color,
                     ))
@@ -130,12 +130,12 @@ pub mod objects {
                 self.model_matrix = Some(model);
             }
 
-            fn get_model_matrix(&self) -> &glm::DMat4 {
-                self.model_matrix.as_ref().unwrap()
+            fn get_model_matrix(&self) -> &Option<glm::DMat4> {
+                &self.model_matrix
             }
 
             fn apply_model_matrix(&mut self) {
-                let model = *self.get_model_matrix();
+                let model = self.get_model_matrix().unwrap();
                 self.data.apply_model_matrix(&model);
             }
 
@@ -223,7 +223,7 @@ pub mod objects {
                     _ => todo!(),
                 };
 
-                shader.set_mat4("model\0", &glm::convert(*self.get_model_matrix()));
+                shader.set_mat4("model\0", &glm::convert(self.get_model_matrix().unwrap()));
 
                 self.data
                     .draw(&mut MeshDrawData::new(
@@ -254,12 +254,12 @@ pub mod objects {
                 self.model_matrix = Some(model);
             }
 
-            fn get_model_matrix(&self) -> &glm::DMat4 {
-                self.model_matrix.as_ref().unwrap()
+            fn get_model_matrix(&self) -> &Option<glm::DMat4> {
+                &self.model_matrix
             }
 
             fn apply_model_matrix(&mut self) {
-                let model = *self.get_model_matrix();
+                let model = self.get_model_matrix().unwrap();
                 self.data.apply_model_matrix(&model);
             }
 
