@@ -232,7 +232,7 @@ pub fn trace_ray(
                         color[1] * traced_color[1],
                         color[2] * traced_color[2],
                     );
-                traversal_info.add_ray(SingleRayInfo::new(*ray, Some(*info.get_point()), val));
+                traversal_info.add_ray(SingleRayInfo::new(*ray, Some(*info.get_point()), val, Some(info.get_normal().unwrap())));
                 (val, traversal_info)
             }
             ShadeHitData::ScatterOnly(ShadeHitDataScatterOnly {
@@ -246,13 +246,13 @@ pub fn trace_ray(
                     color[1] * traced_color[1],
                     color[2] * traced_color[2],
                 );
-                traversal_info.add_ray(SingleRayInfo::new(*ray, Some(*info.get_point()), val));
+                traversal_info.add_ray(SingleRayInfo::new(*ray, Some(*info.get_point()), val, Some(info.get_normal().unwrap())));
                 (val, traversal_info)
             }
             ShadeHitData::EmissionOnly(ShadeHitDataEmissionOnly { emission_color }) => {
                 let val = emission_color;
                 let mut traversal_info = TraversalInfo::new();
-                traversal_info.add_ray(SingleRayInfo::new(*ray, Some(*info.get_point()), val));
+                traversal_info.add_ray(SingleRayInfo::new(*ray, Some(*info.get_point()), val, Some(info.get_normal().unwrap())));
                 (val, traversal_info)
             }
             ShadeHitData::None => unreachable!(
@@ -262,7 +262,7 @@ pub fn trace_ray(
     } else {
         let mut traversal_info = TraversalInfo::new();
         let color = shade_environment(ray, camera);
-        traversal_info.add_ray(SingleRayInfo::new(*ray, None, color));
+        traversal_info.add_ray(SingleRayInfo::new(*ray, None, color, None));
         (color, traversal_info)
     }
 }

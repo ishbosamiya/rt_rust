@@ -285,7 +285,12 @@ fn main() {
         if show_ray_traversal_info {
             if let Some(ray_traversal_info) = &ray_traversal_info {
                 ray_traversal_info
-                    .draw(&mut TraversalInfoDrawData::new(imm.clone()))
+                    .draw(&mut TraversalInfoDrawData::new(
+                        imm.clone(),
+                        true,
+                        0.4,
+                        glm::vec4(1.0, 1.0, 1.0, 1.0),
+                    ))
                     .unwrap();
             }
         }

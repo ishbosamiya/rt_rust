@@ -21,12 +21,24 @@ pub struct SingleRayInfo {
     co: Option<glm::DVec3>,
     /// color/intensity of light of the ray
     color: glm::DVec3,
+    /// normal at co if co exists
+    normal: Option<glm::DVec3>,
 }
 
 impl SingleRayInfo {
     /// Creates new `SingleRayInfo`
-    pub fn new(ray: Ray, co: Option<glm::DVec3>, color: glm::DVec3) -> Self {
-        Self { ray, co, color }
+    pub fn new(
+        ray: Ray,
+        co: Option<glm::DVec3>,
+        color: glm::DVec3,
+        normal: Option<glm::DVec3>,
+    ) -> Self {
+        Self {
+            ray,
+            co,
+            color,
+            normal,
+        }
     }
 
     /// Get a reference to the single ray info's color.
@@ -42,6 +54,11 @@ impl SingleRayInfo {
     /// Get a reference to the single ray info's color.
     pub fn get_color(&self) -> &glm::DVec3 {
         &self.color
+    }
+
+    /// Get a reference to the single ray info's normal.
+    pub fn get_normal(&self) -> &Option<glm::DVec3> {
+        &self.normal
     }
 }
 
@@ -75,11 +92,24 @@ impl Default for TraversalInfo {
 
 pub struct TraversalInfoDrawData {
     imm: Rc<RefCell<GPUImmediate>>,
+    draw_normal_at_hit_points: bool,
+    normals_size: f64,
+    normals_color: glm::DVec4,
 }
 
 impl TraversalInfoDrawData {
-    pub fn new(imm: Rc<RefCell<GPUImmediate>>) -> Self {
-        Self { imm }
+    pub fn new(
+        imm: Rc<RefCell<GPUImmediate>>,
+        draw_normal_at_hit_points: bool,
+        normals_size: f64,
+        normals_color: glm::DVec4,
+    ) -> Self {
+        Self {
+            imm,
+            draw_normal_at_hit_points,
+            normals_size,
+            normals_color,
+        }
     }
 }
 
@@ -135,6 +165,34 @@ impl Drawable for TraversalInfo {
         });
 
         imm.end();
+
+        if extra_data.draw_normal_at_hit_points {
+            imm.begin_at_most(
+                GPUPrimType::Lines,
+                self.get_traversal().len() * 2,
+                smooth_color_3d_shader,
+            );
+
+            self.get_traversal().iter().for_each(|info| {
+                let p1 = if let Some(co) = info.get_co() {
+                    *co
+                } else {
+                    return;
+                };
+                let p2 = p1 + (info.get_normal().unwrap().normalize() * extra_data.normals_size);
+                let p1: glm::Vec3 = glm::convert(p1);
+                let p2: glm::Vec3 = glm::convert(p2);
+                let color: glm::Vec4 = glm::convert(extra_data.normals_color);
+
+                imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+                imm.vertex_3f(pos_attr, p1[0], p1[1], p1[2]);
+
+                imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+                imm.vertex_3f(pos_attr, p2[0], p2[1], p2[2]);
+            });
+
+            imm.end();
+        }
 
         Ok(())
     }
