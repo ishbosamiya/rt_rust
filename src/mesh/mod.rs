@@ -417,83 +417,97 @@ impl Intersectable for Mesh {
         // TODO: need to fix BVH ray cast, it is buggy, does not cast
         // to the closest point always, especially where the distance
         // between the hit points is small :(
-        let mut best_hit = None;
-        let mut best_hit_dist = t_max;
-        self.faces
-            .iter()
-            .enumerate()
-            .for_each(|(face_index, face)| {
-                let v1_index = face[0];
-                let v1 = &self.vertices[v1_index];
-                for (v2_index, v3_index) in face.iter().skip(1).tuple_windows() {
-                    let v2 = &self.vertices[*v2_index];
-                    let v3 = &self.vertices[*v3_index];
+        #[cfg(feature = "mesh_no_bvh")]
+        {
+            let mut best_hit = None;
+            let mut best_hit_dist = t_max;
+            self.faces
+                .iter()
+                .enumerate()
+                .for_each(|(face_index, face)| {
+                    let v1_index = face[0];
+                    let v1 = &self.vertices[v1_index];
+                    for (v2_index, v3_index) in face.iter().skip(1).tuple_windows() {
+                        let v2 = &self.vertices[*v2_index];
+                        let v3 = &self.vertices[*v3_index];
 
-                    if let Some((dist, bary_coords)) = ray.intersect_triangle(
-                        v1.get_pos(),
-                        v2.get_pos(),
-                        v3.get_pos(),
-                        f64::EPSILON,
-                    ) {
-                        if dist > t_min && dist < best_hit_dist {
-                            let n1 = v1.get_normal().as_ref().unwrap();
-                            let n2 = v2.get_normal().as_ref().unwrap();
-                            let n3 = v3.get_normal().as_ref().unwrap();
-                            let mut hit_data = RayHitData::new(dist);
-                            hit_data.normal = Some(vec3_apply_bary_coord(n1, n2, n3, &bary_coords));
-                            hit_data.set_data(RayHitOptionalData::new(face_index, ray.at(dist)));
-                            best_hit = Some(hit_data);
-                            best_hit_dist = dist;
+                        if let Some((dist, bary_coords)) = ray.intersect_triangle(
+                            v1.get_pos(),
+                            v2.get_pos(),
+                            v3.get_pos(),
+                            f64::EPSILON,
+                        ) {
+                            if dist > t_min && dist < best_hit_dist {
+                                let n1 = v1.get_normal().as_ref().unwrap();
+                                let n2 = v2.get_normal().as_ref().unwrap();
+                                let n3 = v3.get_normal().as_ref().unwrap();
+                                let mut hit_data = RayHitData::new(dist);
+                                hit_data.normal =
+                                    Some(vec3_apply_bary_coord(n1, n2, n3, &bary_coords));
+                                hit_data
+                                    .set_data(RayHitOptionalData::new(face_index, ray.at(dist)));
+                                best_hit = Some(hit_data);
+                                best_hit_dist = dist;
+                            }
                         }
                     }
-                }
-            });
-        best_hit.map(|hit_data| {
-            let mut intersect_info = IntersectInfo::new(hit_data.dist, hit_data.data.unwrap().co);
-            intersect_info.set_normal(ray, &hit_data.normal.unwrap());
-            intersect_info
-        })
+                });
+            best_hit.map(|hit_data| {
+                let mut intersect_info =
+                    IntersectInfo::new(hit_data.dist, hit_data.data.unwrap().co);
+                intersect_info.set_normal(ray, &hit_data.normal.unwrap());
+                intersect_info
+            })
+        }
 
-        // let mesh_ray_cast_callback = |(_co, _dir): (&glm::DVec3, &glm::DVec3),
-        //                               face_index: usize| {
-        //     let face = &self.faces[face_index];
-        //     let v1_index = face[0];
-        //     let v1 = &self.vertices[v1_index];
-        //     for (v2_index, v3_index) in face.iter().skip(1).tuple_windows() {
-        //         let v2 = &self.vertices[*v2_index];
-        //         let v3 = &self.vertices[*v3_index];
+        #[cfg(not(feature = "mesh_no_bvh"))]
+        {
+            let mesh_ray_cast_callback =
+                |(_co, _dir): (&glm::DVec3, &glm::DVec3), face_index: usize| {
+                    let face = &self.faces[face_index];
+                    let v1_index = face[0];
+                    let v1 = &self.vertices[v1_index];
+                    for (v2_index, v3_index) in face.iter().skip(1).tuple_windows() {
+                        let v2 = &self.vertices[*v2_index];
+                        let v3 = &self.vertices[*v3_index];
 
-        //         if let Some((dist, bary_coords)) =
-        //             ray.intersect_triangle(v1.get_pos(), v2.get_pos(), v3.get_pos(), f64::EPSILON)
-        //         {
-        //             if dist > t_min && dist < t_max {
-        //                 let n1 = v1.get_normal().as_ref().unwrap();
-        //                 let n2 = v2.get_normal().as_ref().unwrap();
-        //                 let n3 = v3.get_normal().as_ref().unwrap();
-        //                 let mut hit_data = RayHitData::new(dist);
-        //                 hit_data.normal = Some(vec3_apply_bary_coord(n1, n2, n3, &bary_coords));
-        //                 hit_data.set_data(RayHitOptionalData::new(face_index, ray.at(dist)));
-        //                 return Some(hit_data);
-        //             }
-        //         }
-        //     }
-        //     None
-        // };
+                        if let Some((dist, bary_coords)) = ray.intersect_triangle(
+                            v1.get_pos(),
+                            v2.get_pos(),
+                            v3.get_pos(),
+                            f64::EPSILON,
+                        ) {
+                            if dist > t_min && dist < t_max {
+                                let n1 = v1.get_normal().as_ref().unwrap();
+                                let n2 = v2.get_normal().as_ref().unwrap();
+                                let n3 = v3.get_normal().as_ref().unwrap();
+                                let mut hit_data = RayHitData::new(dist);
+                                hit_data.normal =
+                                    Some(vec3_apply_bary_coord(n1, n2, n3, &bary_coords));
+                                hit_data
+                                    .set_data(RayHitOptionalData::new(face_index, ray.at(dist)));
+                                return Some(hit_data);
+                            }
+                        }
+                    }
+                    None
+                };
 
-        // self.get_bvh()
-        //     .as_ref()
-        //     .unwrap()
-        //     .ray_cast(
-        //         *ray.get_origin(),
-        //         *ray.get_direction(),
-        //         Some(&mesh_ray_cast_callback),
-        //     )
-        //     .map(|hit_data| {
-        //         let mut intersect_info =
-        //             IntersectInfo::new(hit_data.dist, hit_data.data.unwrap().co);
-        //         intersect_info.set_normal(ray, &hit_data.normal.unwrap());
-        //         intersect_info
-        //     })
+            self.get_bvh()
+                .as_ref()
+                .unwrap()
+                .ray_cast(
+                    *ray.get_origin(),
+                    *ray.get_direction(),
+                    Some(&mesh_ray_cast_callback),
+                )
+                .map(|hit_data| {
+                    let mut intersect_info =
+                        IntersectInfo::new(hit_data.dist, hit_data.data.unwrap().co);
+                    intersect_info.set_normal(ray, &hit_data.normal.unwrap());
+                    intersect_info
+                })
+        }
     }
 }
 
