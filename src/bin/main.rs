@@ -159,6 +159,9 @@ fn main() {
     let mut ray_traversal_info: Option<TraversalInfo> = None;
     let mut ray_from_pixel = (0, 0);
     let mut show_ray_traversal_info = true;
+    let mut draw_normal_at_hit_points = true;
+    let mut normals_size = 0.4;
+    let mut normals_color = glm::vec4(1.0, 1.0, 1.0, 1.0);
 
     let (shader_list, shader_ids) = {
         let mut shader_list = ShaderList::new();
@@ -287,9 +290,9 @@ fn main() {
                 ray_traversal_info
                     .draw(&mut TraversalInfoDrawData::new(
                         imm.clone(),
-                        true,
-                        0.4,
-                        glm::vec4(1.0, 1.0, 1.0, 1.0),
+                        draw_normal_at_hit_points,
+                        normals_size,
+                        normals_color,
                     ))
                     .unwrap();
             }
@@ -448,8 +451,12 @@ fn main() {
                     ui.label("Ray From Pixel");
                     ui.add(egui::Slider::new(&mut ray_from_pixel.0, 0..=image_width).text("x"));
                     ui.add(egui::Slider::new(&mut ray_from_pixel.1, 0..=image_height).text("y"));
-
                     ui.checkbox(&mut show_ray_traversal_info, "Show Ray Traversal Info");
+
+                    ui.checkbox(&mut draw_normal_at_hit_points, "Draw Normal at Hit Points");
+                    ui.add(egui::Slider::new(&mut normals_size, 0.0..=2.0).text("Normals Size"));
+                    color_edit_button_dvec4(ui, "Normals Color", &mut normals_color);
+
                     if ui.button("Trace Ray").clicked() {
                         scene.apply_model_matrices();
 
