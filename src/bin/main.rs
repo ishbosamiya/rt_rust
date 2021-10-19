@@ -171,12 +171,16 @@ fn main() {
             path_trace::bsdfs::lambert::Lambert::new(glm::vec4(1.0, 1.0, 1.0, 1.0)),
         )));
         shader_ids.push(id);
+        let id = shader_list.add_shader(Box::new(path_trace::shaders::Lambert::new(
+            path_trace::bsdfs::lambert::Lambert::new(glm::vec4(1.0, 0.0, 0.0, 1.0)),
+        )));
+        shader_ids.push(id);
         let id = shader_list.add_shader(Box::new(path_trace::shaders::Glossy::new(
             path_trace::bsdfs::glossy::Glossy::new(glm::vec4(1.0, 1.0, 1.0, 1.0)),
         )));
         shader_ids.push(id);
         let id = shader_list.add_shader(Box::new(path_trace::shaders::Emissive::new(
-            path_trace::bsdfs::emissive::Emissive::new(glm::vec4(0.0, 1.0, 1.0, 1.0), 12.0),
+            path_trace::bsdfs::emissive::Emissive::new(glm::vec4(1.0, 0.4, 1.0, 1.0), 5.0),
         )));
         shader_ids.push(id);
 
@@ -231,6 +235,33 @@ fn main() {
         object.set_path_trace_shader_id(shader_ids[1]);
         object
     });
+    // scene.add_object({
+    //     let mut object = Box::new(SphereObject::new(
+    //         Sphere::new(glm::vec3(0.0, 0.0, -2.0), 0.9),
+    //         glm::vec4(0.0, 0.0, 1.0, 1.0),
+    //         glm::vec4(1.0, 0.0, 0.0, 1.0),
+    //     ));
+    //     object.set_path_trace_shader_id(shader_ids[3]);
+    //     object
+    // });
+    // scene.add_object({
+    //     let mut object = Box::new(MeshObject::new(
+    //         mesh::builtins::get_plane_subd_00().clone(),
+    //         MeshUseShader::DirectionalLight,
+    //         draw_bvh,
+    //         bvh_draw_level,
+    //         bvh_color,
+    //     ));
+    //     object.set_path_trace_shader_id(shader_ids[2]);
+    //     object.set_model_matrix(glm::rotate_x(
+    //         &glm::scale(
+    //             &glm::translate(&glm::identity(), &glm::vec3(0.0, 0.0, 5.0)),
+    //             &glm::vec3(5.0, 5.0, 5.0),
+    //         ),
+    //         glm::radians(&glm::vec1(90.0))[0],
+    //     ));
+    //     object
+    // });
 
     scene.get_objects_mut().iter_mut().for_each(|object| {
         if object.get_model_matrix().is_none() {
