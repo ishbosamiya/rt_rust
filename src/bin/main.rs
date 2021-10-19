@@ -188,7 +188,7 @@ fn main() {
     let mut scene = Scene::new();
     scene.add_object({
         let mut object = Box::new(SphereObject::new(
-            Sphere::new(glm::vec3(0.0, 2.0, -2.0), 1.0),
+            Sphere::new(glm::vec3(0.0, 2.0, -2.0), 0.9),
             glm::vec4(0.0, 0.0, 1.0, 1.0),
             glm::vec4(1.0, 0.0, 0.0, 1.0),
         ));
@@ -197,7 +197,7 @@ fn main() {
     });
     scene.add_object({
         let mut object = Box::new(SphereObject::new(
-            Sphere::new(glm::vec3(0.0, -2.0, -2.0), 1.0),
+            Sphere::new(glm::vec3(0.0, -2.0, -2.0), 0.9),
             glm::vec4(0.0, 0.0, 1.0, 1.0),
             glm::vec4(1.0, 0.0, 0.0, 1.0),
         ));
@@ -206,7 +206,7 @@ fn main() {
     });
     scene.add_object({
         let mut object = Box::new(SphereObject::new(
-            Sphere::new(glm::vec3(2.0, 0.0, -2.0), 1.0),
+            Sphere::new(glm::vec3(2.0, 0.0, -2.0), 0.9),
             glm::vec4(0.0, 0.0, 1.0, 1.0),
             glm::vec4(1.0, 0.0, 0.0, 1.0),
         ));
@@ -215,7 +215,7 @@ fn main() {
     });
     scene.add_object({
         let mut object = Box::new(SphereObject::new(
-            Sphere::new(glm::vec3(-2.0, 0.0, -2.0), 1.0),
+            Sphere::new(glm::vec3(-2.0, 0.0, -2.0), 0.9),
             glm::vec4(0.0, 0.0, 1.0, 1.0),
             glm::vec4(1.0, 0.0, 0.0, 1.0),
         ));
