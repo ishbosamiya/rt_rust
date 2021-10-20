@@ -89,6 +89,9 @@ pub fn draw_plane_with_image(
     alpha: f64,
     imm: &mut GPUImmediate,
 ) {
+    if alpha == 0.0 {
+        return;
+    }
     let flat_texture_shader = shader::builtins::get_flat_texture_shader()
         .as_ref()
         .unwrap();
