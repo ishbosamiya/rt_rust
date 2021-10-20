@@ -1085,7 +1085,12 @@ where
                     if let Some(hit_data) =
                         callback((&data.co, &data.dir), node.elem_index.unwrap())
                     {
-                        *r_hit_data = hit_data;
+                        // update r_hit_data only if the current
+                        // recorded distance is lesser than the
+                        // distance got from the callback
+                        if hit_data.dist < r_hit_data.dist {
+                            *r_hit_data = hit_data;
+                        }
                     }
                 } else {
                     let optional_data = RayHitOptionalData::new(
