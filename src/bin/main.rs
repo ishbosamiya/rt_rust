@@ -348,6 +348,7 @@ fn main() {
             &glm::vec3(image_width as f64 / 500.0, 2.0, image_height as f64 / 500.0),
             &glm::vec3(0.0, 0.0, 1.0),
             &mut image,
+            1.0,
             &mut imm.borrow_mut(),
         );
 

@@ -86,6 +86,7 @@ pub fn draw_plane_with_image(
     scale: &glm::DVec3,
     normal: &glm::DVec3,
     image: &mut TextureRGBAFloat,
+    alpha: f64,
     imm: &mut GPUImmediate,
 ) {
     let flat_texture_shader = shader::builtins::get_flat_texture_shader()
@@ -103,6 +104,7 @@ pub fn draw_plane_with_image(
     let model = glm::convert(glm::scale(&rotated_mat, scale));
     flat_texture_shader.set_mat4("model\0", &model);
     flat_texture_shader.set_int("image\0", 31);
+    flat_texture_shader.set_float("alpha\0", alpha as _);
     image.activate(31);
 
     let format = imm.get_cleared_vertex_format();
