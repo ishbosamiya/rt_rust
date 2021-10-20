@@ -1,3 +1,5 @@
+use itertools::enumerate;
+
 use crate::glm;
 
 use std::fs::File;
@@ -13,6 +15,7 @@ pub struct MeshIO {
     pub face_has_uv: bool,
     pub face_has_normal: bool,
     pub line_indices: Vec<Vec<usize>>,
+    pub face_starting: Vec<usize>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -50,6 +53,7 @@ impl MeshIO {
             face_has_uv: false,
             face_has_normal: false,
             line_indices: Vec::new(),
+            face_starting: Vec::new(),
         }
     }
 
@@ -81,6 +85,7 @@ impl MeshIO {
         let mut face_has_uv = false;
         let mut face_has_normal = false;
         let mut line_indices = Vec::new();
+        let mut face_starting = Vec::new();
 
         for line in lines {
             Self::process_line(
@@ -103,6 +108,7 @@ impl MeshIO {
             face_has_uv,
             face_has_normal,
             line_indices,
+            face_starting,
         })
     }
 
@@ -115,6 +121,61 @@ impl MeshIO {
         let mut face_has_uv = false;
         let mut face_has_normal = false;
         let mut line_indices = Vec::new();
+        let mut face_starting = Vec::new();
+        face_starting.insert(0,0);
+        face_starting.insert(1, 0);
+        face_starting.insert(2, 0);
+
+        let mut file_data = std::fs::File::open(path).unwrap();
+        let mut contents = String::new();
+        file_data.read_to_string(&mut contents).unwrap();
+
+        let split = contents.split('\n');
+        let split_string: Vec<&str> = split.collect();
+        // let string_vec: Vec<_> = split_string.iter().map(|&x| x.split('\n')).collect();
+
+        for iter in split_string {
+            let line: Vec<&str> = iter.split(' ').collect();
+            if line[0] == "o" {
+                // Add to starting
+            }
+            else if line[0] == "v" {
+                let v1 = line[1].parse::<f64>().unwrap();
+                let v2 = line[2].parse::<f64>().unwrap();
+                let v3 = line[3].parse::<f64>().unwrap();
+                positions.push(glm::vec3(v1, v2, v3));
+                face_starting[0] += 1;
+            }
+            else if line[0] == "vt" {
+                face_has_uv = true;
+                let v1 = line[1].parse::<f64>().unwrap();
+                let v2 = line[2].parse::<f64>().unwrap();
+                uvs.push(glm::vec2(v1, v2));
+                face_starting[1] += 1;
+            }
+            else if line[0] == "vn"{
+                face_has_normal = true;
+                let v1 = line[1].parse::<f64>().unwrap();
+                let v2 = line[2].parse::<f64>().unwrap();
+                let v3 = line[3].parse::<f64>().unwrap();
+                normals.push(glm::vec3(v1, v2, v3));
+                face_starting[2] += 1;
+            }
+            else if line[0] == "f" {
+                for (pos, e) in line.iter().enumerate() {
+                    let mut face_row = Vec::new();
+                    if pos != 0 {
+                        let face_split: Vec<&str> = e.split('/').collect();
+                        let f1 = face_split[0].parse::<usize>().unwrap();
+                        let f2 = face_split[1].parse::<usize>().unwrap();
+                        let f3 = face_split[2].parse::<usize>().unwrap();
+                        face_row.push((f1, f2, f3));
+                    }
+                    face_indices.push(face_row);
+                }
+
+            }
+        }
 
         let reader = BufReader::new(fin);
 
@@ -141,6 +202,7 @@ impl MeshIO {
             face_has_uv,
             face_has_normal,
             line_indices,
+            face_starting,
         })
     }
 
