@@ -486,9 +486,18 @@ fn main() {
                 gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
             }
 
+            let rc_refcell_image = Rc::new(RefCell::new(image));
             path_trace_camera
-                .draw(&mut PathTraceCameraDrawData::new(imm.clone()))
+                .draw(&mut PathTraceCameraDrawData::new(
+                    imm.clone(),
+                    Some(rc_refcell_image.clone()),
+                    0.5,
+                ))
                 .unwrap();
+            image = match Rc::try_unwrap(rc_refcell_image) {
+                Ok(refcell_image) => refcell_image.into_inner(),
+                Err(_) => unreachable!("rc_refcell_image should not be in a borrowed state now"),
+            };
 
             infinite_grid
                 .draw(&mut InfiniteGridDrawData::new(imm.clone()))

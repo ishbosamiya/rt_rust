@@ -6,7 +6,9 @@ use crate::{
     rasterize::{
         drawable::Drawable,
         gpu_immediate::{GPUImmediate, GPUPrimType, GPUVertCompType, GPUVertFetchMode},
+        gpu_utils::draw_plane_with_image,
         shader,
+        texture::TextureRGBAFloat,
     },
 };
 
@@ -64,11 +66,21 @@ impl Camera {
 
 pub struct CameraDrawData {
     imm: Rc<RefCell<GPUImmediate>>,
+    image: Option<Rc<RefCell<TextureRGBAFloat>>>,
+    alpha_value: f64,
 }
 
 impl CameraDrawData {
-    pub fn new(imm: Rc<RefCell<GPUImmediate>>) -> Self {
-        Self { imm }
+    pub fn new(
+        imm: Rc<RefCell<GPUImmediate>>,
+        image: Option<Rc<RefCell<TextureRGBAFloat>>>,
+        alpha_value: f64,
+    ) -> Self {
+        Self {
+            imm,
+            image,
+            alpha_value,
+        }
     }
 }
 
@@ -197,6 +209,20 @@ impl Drawable for Camera {
         );
 
         imm.end();
+
+        // draw image in the camera plane
+        if let Some(image) = &extra_data.image {
+            let scale_x = (camera_plane_top_left - camera_plane_top_right).norm() as _;
+            let scale_z = (camera_plane_top_left - camera_plane_bottom_left).norm() as _;
+            draw_plane_with_image(
+                &self.camera_plane_center,
+                &glm::vec3(scale_x, 1.0, scale_z),
+                &-(self.camera_plane_center - self.origin).normalize(),
+                &mut image.borrow_mut(),
+                extra_data.alpha_value,
+                imm,
+            )
+        }
 
         Ok(())
     }
