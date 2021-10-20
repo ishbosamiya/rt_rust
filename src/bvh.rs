@@ -124,7 +124,8 @@ where
         true
     }
 
-    fn ray_hit(&self, data: &RayCastData, r_dist: &mut f64) -> bool {
+    /// Tests if ray hits the node. On hit it returns the distance.
+    fn ray_hit(&self, data: &RayCastData, dist: f64) -> Option<f64> {
         let bv = &self.bv;
 
         let t1x = (bv[data.index[0]] - data.co[0]) * data.idot_axis[0];
@@ -136,13 +137,12 @@ where
 
         if (t1x > t2y || t2x < t1y || t1x > t2z || t2x < t1z || t1y > t2z || t2y < t1z)
             || (t2x < 0.0 || t2y < 0.0 || t2z < 0.0)
-            || (t1x > *r_dist || t1y > *r_dist || t1z > *r_dist)
+            || (t1x > dist || t1y > dist || t1z > dist)
         {
-            return false;
+            None
+        } else {
+            Some(t1x.max(t1y).max(t1z))
         }
-
-        *r_dist = t1x.max(t1y).max(t1z);
-        true
     }
 }
 
@@ -1074,9 +1074,8 @@ where
     ) where
         F: Fn((&glm::DVec3, &glm::DVec3), T) -> Option<RayHitData<T>>,
     {
-        let mut dist = r_hit_data.dist;
         let node = self.node_array.get(node_index.0).unwrap();
-        if node.ray_hit(data, &mut dist) {
+        if let Some(dist) = node.ray_hit(data, r_hit_data.dist) {
             if dist >= r_hit_data.dist {
                 return;
             }
