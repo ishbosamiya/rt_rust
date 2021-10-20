@@ -158,7 +158,7 @@ fn main() {
     let mut trace_max_depth = 5;
     let mut samples_per_pixel = 5;
     let mut save_image_location = "test.ppm".to_string();
-    let mut ray_traversal_info: Option<TraversalInfo> = None;
+    let mut ray_traversal_info: Vec<TraversalInfo> = Vec::new();
     let mut ray_from_pixel = (0, 0);
     let mut show_ray_traversal_info = true;
     let mut draw_normal_at_hit_points = true;
@@ -320,16 +320,15 @@ fn main() {
         scene.draw(&mut ObjectDrawData::new(imm.clone())).unwrap();
 
         if show_ray_traversal_info {
-            if let Some(ray_traversal_info) = &ray_traversal_info {
-                ray_traversal_info
-                    .draw(&mut TraversalInfoDrawData::new(
-                        imm.clone(),
-                        draw_normal_at_hit_points,
-                        normals_size,
-                        normals_color,
-                    ))
-                    .unwrap();
-            }
+            ray_traversal_info.iter().for_each(|info| {
+                info.draw(&mut TraversalInfoDrawData::new(
+                    imm.clone(),
+                    draw_normal_at_hit_points,
+                    normals_size,
+                    normals_color,
+                ))
+                .unwrap();
+            });
         }
 
         draw_plane_with_image(
@@ -402,7 +401,8 @@ fn main() {
 
             scene.unapply_model_matrices();
 
-            ray_traversal_info = Some(traversal_info);
+            ray_traversal_info.clear();
+            ray_traversal_info.push(traversal_info);
 
             should_cast_scene_ray = false;
         }
@@ -560,7 +560,7 @@ fn main() {
                             trace_max_depth,
                             &shader_list,
                         );
-                        ray_traversal_info = Some(traversal_info);
+                        ray_traversal_info.push(traversal_info);
 
                         scene.unapply_model_matrices();
                     }
