@@ -59,10 +59,10 @@ impl MeshIO {
         }
     }
 
-    pub fn split_mesh(self) {
+    pub fn split_mesh(self) -> Vec<Self> {
         // Split each object into separate mesh io
         // Done by using face_starting and end_of_indices
-        let meshes: Vec<Self>;
+        let mut meshes: Vec<Self>;
 
         let mut index = 0;
         let mut start_pos1; 
@@ -79,27 +79,31 @@ impl MeshIO {
                 start_pos2 = 0;
                 start_pos3 = 0;
             }
-
-            let pos_new = &self.positions[start_pos1..end_pos1];
-            let uvs_new = &self.uvs[start_pos2..end_pos2];
-            let normal_new = &self.normals[start_pos3..end_pos3];
-            meshes.add(Self {
-                positions: pos_new.to_vec(),
-                uvs: uvs_new.to_vec(),
-                normals: normal_new.to_vec(),
-                face_indices: obj,
-                face_has_uv: self.face_has_uv,
-                face_has_normal: self.face_has_normal,
-                line_indices: self.line_indices,
-                face_starting: Vec::new(),
-                end_of_indices: Vec::new(),
-            });
+            else {
+                let pos_new = &self.positions[start_pos1..end_pos1];
+                let uvs_new = &self.uvs[start_pos2..end_pos2];
+                let normal_new = &self.normals[start_pos3..end_pos3];
+                let mut new_face = Vec::new();
+                new_face.push(obj);
+                meshes.push(Self {
+                    positions: pos_new.to_vec(),
+                    uvs: uvs_new.to_vec(),
+                    normals: normal_new.to_vec(),
+                    face_indices: new_face,
+                    face_has_uv: self.face_has_uv,
+                    face_has_normal: self.face_has_normal,
+                    line_indices: Vec::new(),
+                    face_starting: Vec::new(),
+                    end_of_indices: Vec::new(),
+                });
             // TODO Append new values into new meshes vector
-            start_pos1 = end_pos1;
-            start_pos2 = end_pos2;
-            start_pos3 = end_pos3;
+                start_pos1 = end_pos1;
+                start_pos2 = end_pos2;
+                start_pos3 = end_pos3;
+            }
             index += 1
         }
+        meshes
     }
 
     pub fn read(path: &Path) -> Result<Self, MeshIOError> {
