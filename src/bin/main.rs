@@ -171,6 +171,7 @@ fn main() {
     let mut normals_size = 0.4;
     let mut normals_color = glm::vec4(1.0, 1.0, 1.0, 1.0);
     let mut camera_image_alpha_value = 0.0;
+    let mut camera_focal_length = 12.0;
 
     let (shader_list, shader_ids) = {
         let mut shader_list = ShaderList::new();
@@ -301,9 +302,8 @@ fn main() {
         let path_trace_camera = {
             let viewport_height = 2.0;
             let aspect_ratio = image_width as f64 / image_height as f64;
-            let focal_length = 12.0;
             let origin = glm::vec3(0.0, 0.0, 10.0);
-            PathTraceCamera::new(viewport_height, aspect_ratio, focal_length, origin)
+            PathTraceCamera::new(viewport_height, aspect_ratio, camera_focal_length, origin)
         };
 
         unsafe {
@@ -529,6 +529,13 @@ fn main() {
                             .clamp_to_range(true)
                             .text("Camera Image Alpha"),
                     );
+
+                    ui.add(
+                        egui::Slider::new(&mut camera_focal_length, 0.0..=15.0)
+                            .text("Camera Focal Length"),
+                    );
+
+                    ui.separator();
 
                     ui.add(egui::Slider::new(&mut image_width, 1..=1000).text("Image Width"));
                     ui.add(egui::Slider::new(&mut image_height, 1..=1000).text("Image Height"));
