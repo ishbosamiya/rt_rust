@@ -16,6 +16,7 @@ pub struct MeshIO {
     pub face_has_normal: bool,
     pub line_indices: Vec<Vec<usize>>,
     pub face_starting: Vec<usize>,
+    pub end_of_indices: Vec<(usize, usize, usize)>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -54,6 +55,29 @@ impl MeshIO {
             face_has_normal: false,
             line_indices: Vec::new(),
             face_starting: Vec::new(),
+            end_of_indices: Vec::new(),
+        }
+    }
+
+    pub fn split_mesh(self) {
+        // Split each object into separate mesh io
+        // Done by using face_starting and end_of_indices
+        let meshes: Vec<Self>;
+
+        let mut index = 0;
+        for obj in self.face_indices {
+            let start_pos;
+            if index == 0 {
+                start_pos = 0;
+            }
+            else {
+                // Make new MeshIO Object
+                // Add all types of face indeces and rest to it
+                let (end_pos1, end_pos2, end_pos3) = self.end_of_indices[index];
+                // let pos_new = self.positions[start_pos..end_pos1];
+                // TODO Append new values into new meshes vector
+            }
+            index += 1
         }
     }
 
@@ -86,6 +110,7 @@ impl MeshIO {
         let mut face_has_normal = false;
         let mut line_indices = Vec::new();
         let mut face_starting = Vec::new();
+        let mut end_of_indices = Vec::new();
 
         for line in lines {
             Self::process_line(
@@ -98,6 +123,7 @@ impl MeshIO {
                 &mut face_has_normal,
                 &mut line_indices,
                 &mut face_starting,
+                &mut end_of_indices,
             )?
         }
 
@@ -110,6 +136,7 @@ impl MeshIO {
             face_has_normal,
             line_indices,
             face_starting,
+            end_of_indices,
         })
     }
 
@@ -123,6 +150,7 @@ impl MeshIO {
         let mut face_has_normal = false;
         let mut line_indices = Vec::new();
         let mut face_starting = vec![0];
+        let mut end_of_indices = vec![(0, 0, 0)];
         
 
         let mut file_data = std::fs::File::open(path).unwrap();
@@ -142,6 +170,7 @@ impl MeshIO {
                 &mut face_has_normal,
                 &mut line_indices,
                 &mut face_starting,
+                &mut end_of_indices,
             )?
         }
 
@@ -156,6 +185,7 @@ impl MeshIO {
             face_has_normal,
             line_indices,
             face_starting,
+            end_of_indices,
         })
     }
 
@@ -170,11 +200,16 @@ impl MeshIO {
         face_has_normal: &mut bool,
         line_indices: &mut Vec<Vec<usize>>,
         face_starting: &mut Vec<usize>,
+        end_of_indices: &mut Vec<(usize, usize, usize)>,
     ) -> Result<(), MeshIOError> {
         if line.starts_with('#') {
             return Ok(());
         }
         let vals: Vec<&str> = line.split(' ').collect();
+        let indice = end_of_indices.last().unwrap();
+        
+        let (mut v_cnt, mut uv_cnt, mut n_cnt) = *indice;
+        
         assert!(!vals.is_empty());
         match vals[0] {
             "v" => {
@@ -184,6 +219,7 @@ impl MeshIO {
                 let y: f64 = vals[2].parse().unwrap();
                 let z: f64 = vals[3].parse().unwrap();
                 positions.push(glm::vec3(x, y, z));
+                v_cnt += 1;
                 Ok(())
             }
             "vn" => {
@@ -193,6 +229,7 @@ impl MeshIO {
                 let y: f64 = vals[2].parse().unwrap();
                 let z: f64 = vals[3].parse().unwrap();
                 normals.push(glm::vec3(x, y, z));
+                n_cnt += 1;
                 Ok(())
             }
             "vt" => {
@@ -201,6 +238,7 @@ impl MeshIO {
                 let u: f64 = vals[1].parse().unwrap();
                 let v: f64 = vals[2].parse().unwrap();
                 uvs.push(glm::vec2(u, v));
+                uv_cnt += 1;
                 Ok(())
             }
             "f" => {
@@ -262,6 +300,7 @@ impl MeshIO {
             "o" => {
                 assert!(face_indices.len() >= 2);
                 face_starting.push(face_indices.len());
+                end_of_indices.push((v_cnt, uv_cnt, n_cnt));
                 Ok(())
             }
             _ => Ok(()),
