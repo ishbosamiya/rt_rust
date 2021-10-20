@@ -97,6 +97,7 @@ impl MeshIO {
                 &mut face_has_uv,
                 &mut face_has_normal,
                 &mut line_indices,
+                &mut face_starting,
             )?
         }
 
@@ -121,10 +122,8 @@ impl MeshIO {
         let mut face_has_uv = false;
         let mut face_has_normal = false;
         let mut line_indices = Vec::new();
-        let mut face_starting = Vec::new();
-        face_starting.insert(0,0);
-        face_starting.insert(1, 0);
-        face_starting.insert(2, 0);
+        let mut face_starting = vec![0];
+        
 
         let mut file_data = std::fs::File::open(path).unwrap();
         let mut contents = String::new();
@@ -142,6 +141,7 @@ impl MeshIO {
                 &mut face_has_uv,
                 &mut face_has_normal,
                 &mut line_indices,
+                &mut face_starting,
             )?
         }
 
@@ -169,6 +169,7 @@ impl MeshIO {
         face_has_uv: &mut bool,
         face_has_normal: &mut bool,
         line_indices: &mut Vec<Vec<usize>>,
+        face_starting: &mut Vec<usize>,
     ) -> Result<(), MeshIOError> {
         if line.starts_with('#') {
             return Ok(());
@@ -256,6 +257,11 @@ impl MeshIO {
                     indices.push(index - 1);
                 }
                 line_indices.push(indices);
+                Ok(())
+            }
+            "o" => {
+                assert!(face_indices.len() >= 2);
+                face_starting.push(face_indices.len());
                 Ok(())
             }
             _ => Ok(()),
