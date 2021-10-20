@@ -170,6 +170,7 @@ fn main() {
     let mut draw_normal_at_hit_points = true;
     let mut normals_size = 0.4;
     let mut normals_color = glm::vec4(1.0, 1.0, 1.0, 1.0);
+    let mut camera_image_alpha_value = 0.0;
 
     let (shader_list, shader_ids) = {
         let mut shader_list = ShaderList::new();
@@ -491,7 +492,7 @@ fn main() {
                 .draw(&mut PathTraceCameraDrawData::new(
                     imm.clone(),
                     Some(rc_refcell_image.clone()),
-                    0.5,
+                    camera_image_alpha_value,
                 ))
                 .unwrap();
             image = match Rc::try_unwrap(rc_refcell_image) {
@@ -522,6 +523,12 @@ fn main() {
                     }
 
                     ui.separator();
+
+                    ui.add(
+                        egui::Slider::new(&mut camera_image_alpha_value, 0.0..=1.0)
+                            .clamp_to_range(true)
+                            .text("Camera Image Alpha"),
+                    );
 
                     ui.add(egui::Slider::new(&mut image_width, 1..=1000).text("Image Width"));
                     ui.add(egui::Slider::new(&mut image_height, 1..=1000).text("Image Height"));
