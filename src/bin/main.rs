@@ -146,6 +146,7 @@ fn main() {
     // TODO(ish): handle drawing bvh and casting rays to the bvh and
     // such again later, right now due to the mesh defined in the
     // scene, it becomes hard to handle it.
+    let mut background_color = glm::vec4(0.051, 0.051, 0.051, 1.0);
     let mut draw_bvh = false;
     let mut bvh_draw_level = 0;
     let mut should_cast_bvh_ray = false;
@@ -304,7 +305,13 @@ fn main() {
         };
 
         unsafe {
-            gl::ClearColor(0.0, 0.0, 0.0, 1.0);
+            let background_color: glm::Vec4 = glm::convert(background_color);
+            gl::ClearColor(
+                background_color[0],
+                background_color[1],
+                background_color[2],
+                background_color[3],
+            );
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
         }
 
@@ -487,6 +494,8 @@ fn main() {
                 egui::Window::new("Hello world!").show(egui.get_egui_ctx(), |ui| {
                     ui.label("Hello RT Rust!");
                     ui.label(format!("fps: {:.2}", fps.update_and_get(Some(60.0))));
+
+                    color_edit_button_dvec4(ui, "Background Color", &mut background_color);
 
                     ui.checkbox(&mut draw_bvh, "Draw BVH");
                     ui.add(egui::Slider::new(&mut bvh_draw_level, 0..=15).text("BVH Draw Level"));
