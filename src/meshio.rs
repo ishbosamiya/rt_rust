@@ -65,18 +65,39 @@ impl MeshIO {
         let meshes: Vec<Self>;
 
         let mut index = 0;
+        let mut start_pos1; 
+        let mut start_pos2;
+        let mut start_pos3;
         for obj in self.face_indices {
-            let start_pos;
+            
+
+            // Make new MeshIO Object
+            // Add all types of face indeces and rest to it
+            let (end_pos1, end_pos2, end_pos3) = self.end_of_indices[index];
             if index == 0 {
-                start_pos = 0;
+                start_pos1 = 0;
+                start_pos2 = 0;
+                start_pos3 = 0;
             }
-            else {
-                // Make new MeshIO Object
-                // Add all types of face indeces and rest to it
-                let (end_pos1, end_pos2, end_pos3) = self.end_of_indices[index];
-                // let pos_new = self.positions[start_pos..end_pos1];
-                // TODO Append new values into new meshes vector
-            }
+
+            let pos_new = &self.positions[start_pos1..end_pos1];
+            let uvs_new = &self.uvs[start_pos2..end_pos2];
+            let normal_new = &self.normals[start_pos3..end_pos3];
+            meshes.add(Self {
+                positions: pos_new.to_vec(),
+                uvs: uvs_new.to_vec(),
+                normals: normal_new.to_vec(),
+                face_indices: obj,
+                face_has_uv: self.face_has_uv,
+                face_has_normal: self.face_has_normal,
+                line_indices: self.line_indices,
+                face_starting: Vec::new(),
+                end_of_indices: Vec::new(),
+            });
+            // TODO Append new values into new meshes vector
+            start_pos1 = end_pos1;
+            start_pos2 = end_pos2;
+            start_pos3 = end_pos3;
             index += 1
         }
     }
