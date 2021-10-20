@@ -6,6 +6,7 @@ use rt::object::objects::Sphere as SphereObject;
 use rt::object::{Object, ObjectDrawData};
 use rt::path_trace;
 use rt::path_trace::camera::Camera as PathTraceCamera;
+use rt::path_trace::ray::Ray;
 use rt::path_trace::shader_list::ShaderList;
 use rt::path_trace::traversal_info::{TraversalInfo, TraversalInfoDrawData};
 use rt::rasterize::gpu_utils::draw_plane_with_image;
@@ -147,7 +148,8 @@ fn main() {
     // scene, it becomes hard to handle it.
     let mut draw_bvh = false;
     let mut bvh_draw_level = 0;
-    let mut should_cast_ray = false;
+    let mut should_cast_bvh_ray = false;
+    let mut should_cast_scene_ray = false;
     let mut bvh_color = glm::vec4(0.9, 0.5, 0.2, 1.0);
     let mut bvh_ray_color: glm::DVec4 = glm::vec4(0.2, 0.5, 0.9, 1.0);
     let mut bvh_ray_intersection = Vec::new();
@@ -283,7 +285,8 @@ fn main() {
                 &event,
                 &mut window,
                 &mut camera,
-                &mut should_cast_ray,
+                &mut should_cast_bvh_ray,
+                &mut should_cast_scene_ray,
                 &mut last_cursor,
             );
         });
@@ -337,7 +340,7 @@ fn main() {
             &mut imm.borrow_mut(),
         );
 
-        if should_cast_ray {
+        if should_cast_bvh_ray {
             let ray_direction = camera.get_raycast_direction(
                 last_cursor.0,
                 last_cursor.1,
@@ -355,7 +358,32 @@ fn main() {
                 bvh_ray_intersection.push((camera.get_position(), ray_hit_info));
             }
 
-            should_cast_ray = false;
+            should_cast_bvh_ray = false;
+        }
+
+        if should_cast_scene_ray {
+            let ray_direction = camera.get_raycast_direction(
+                last_cursor.0,
+                last_cursor.1,
+                window_width,
+                window_height,
+            );
+
+            scene.apply_model_matrices();
+
+            let (_color, traversal_info) = path_trace::trace_ray(
+                &Ray::new(camera.get_position(), ray_direction),
+                &path_trace_camera,
+                &scene,
+                trace_max_depth,
+                &shader_list,
+            );
+
+            scene.unapply_model_matrices();
+
+            ray_traversal_info = Some(traversal_info);
+
+            should_cast_scene_ray = false;
         }
 
         {
@@ -530,7 +558,8 @@ fn handle_window_event(
     event: &glfw::WindowEvent,
     window: &mut glfw::Window,
     camera: &mut RasterizeCamera,
-    should_cast_ray: &mut bool,
+    should_cast_bvh_ray: &mut bool,
+    should_cast_scene_ray: &mut bool,
     last_cursor: &mut (f64, f64),
 ) {
     let cursor = window.get_cursor_pos();
@@ -582,7 +611,13 @@ fn handle_window_event(
     if window.get_mouse_button(glfw::MouseButtonLeft) == glfw::Action::Press
         && window.get_key(glfw::Key::LeftControl) == glfw::Action::Press
     {
-        *should_cast_ray = true;
+        *should_cast_bvh_ray = true;
+    }
+
+    if window.get_mouse_button(glfw::MouseButtonLeft) == glfw::Action::Press
+        && window.get_key(glfw::Key::LeftAlt) == glfw::Action::Press
+    {
+        *should_cast_scene_ray = true;
     }
 
     *last_cursor = cursor;
