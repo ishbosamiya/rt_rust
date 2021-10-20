@@ -1,5 +1,14 @@
+use std::{cell::RefCell, rc::Rc};
+
 use super::ray::Ray;
-use crate::glm;
+use crate::{
+    glm,
+    rasterize::{
+        drawable::Drawable,
+        gpu_immediate::{GPUImmediate, GPUPrimType, GPUVertCompType, GPUVertFetchMode},
+        shader,
+    },
+};
 
 pub struct Camera {
     origin: glm::DVec3,
@@ -40,10 +49,186 @@ impl Camera {
         &self.vertical
     }
 
+    /// Get a reference to the camera's camera plane center.
+    pub fn get_camera_plane_center(&self) -> &glm::DVec3 {
+        &self.camera_plane_center
+    }
+
     pub fn get_ray(&self, u: f64, v: f64) -> Ray {
         Ray::new(
             self.origin,
             self.camera_plane_center + u * self.horizontal + v * self.vertical - self.origin,
         )
     }
+}
+
+pub struct CameraDrawData {
+    imm: Rc<RefCell<GPUImmediate>>,
+}
+
+impl CameraDrawData {
+    pub fn new(imm: Rc<RefCell<GPUImmediate>>) -> Self {
+        Self { imm }
+    }
+}
+
+impl Drawable for Camera {
+    type ExtraData = CameraDrawData;
+
+    type Error = ();
+
+    fn draw(&self, extra_data: &mut Self::ExtraData) -> Result<(), Self::Error> {
+        let camera_plane_top_left: glm::Vec3 =
+            glm::convert(self.camera_plane_center + -1.0 * self.horizontal + 1.0 * self.vertical);
+        let camera_plane_top_right: glm::Vec3 =
+            glm::convert(self.camera_plane_center + 1.0 * self.horizontal + 1.0 * self.vertical);
+        let camera_plane_bottom_left: glm::Vec3 =
+            glm::convert(self.camera_plane_center + -1.0 * self.horizontal + -1.0 * self.vertical);
+        let camera_plane_bottom_right: glm::Vec3 =
+            glm::convert(self.camera_plane_center + 1.0 * self.horizontal + -1.0 * self.vertical);
+        let origin: glm::Vec3 = glm::convert(self.origin);
+        let vertical: glm::Vec3 = glm::convert(self.vertical);
+
+        let imm = &mut extra_data.imm.borrow_mut();
+        let smooth_color_3d_shader = shader::builtins::get_smooth_color_3d_shader()
+            .as_ref()
+            .unwrap();
+        let color: glm::Vec4 = glm::vec4(0.0, 0.0, 0.0, 1.0);
+        smooth_color_3d_shader.use_shader();
+        smooth_color_3d_shader.set_mat4("model\0", &glm::identity());
+
+        let format = imm.get_cleared_vertex_format();
+        let pos_attr = format.add_attribute(
+            "in_pos\0".to_string(),
+            GPUVertCompType::F32,
+            3,
+            GPUVertFetchMode::Float,
+        );
+        let color_attr = format.add_attribute(
+            "in_color\0".to_string(),
+            GPUVertCompType::F32,
+            4,
+            GPUVertFetchMode::Float,
+        );
+
+        imm.begin(GPUPrimType::Lines, 16, smooth_color_3d_shader);
+
+        // from origin to the plane
+        draw_line(
+            imm,
+            &origin,
+            &camera_plane_top_left,
+            pos_attr,
+            color_attr,
+            &color,
+        );
+        draw_line(
+            imm,
+            &origin,
+            &camera_plane_top_right,
+            pos_attr,
+            color_attr,
+            &color,
+        );
+        draw_line(
+            imm,
+            &origin,
+            &camera_plane_bottom_left,
+            pos_attr,
+            color_attr,
+            &color,
+        );
+        draw_line(
+            imm,
+            &origin,
+            &camera_plane_bottom_right,
+            pos_attr,
+            color_attr,
+            &color,
+        );
+
+        // the plane
+        draw_line(
+            imm,
+            &camera_plane_top_left,
+            &camera_plane_top_right,
+            pos_attr,
+            color_attr,
+            &color,
+        );
+        draw_line(
+            imm,
+            &camera_plane_top_right,
+            &camera_plane_bottom_right,
+            pos_attr,
+            color_attr,
+            &color,
+        );
+        draw_line(
+            imm,
+            &camera_plane_bottom_right,
+            &camera_plane_bottom_left,
+            pos_attr,
+            color_attr,
+            &color,
+        );
+        draw_line(
+            imm,
+            &camera_plane_bottom_left,
+            &camera_plane_top_left,
+            pos_attr,
+            color_attr,
+            &color,
+        );
+
+        imm.end();
+
+        // triangle at the top
+        imm.begin(GPUPrimType::Tris, 3, smooth_color_3d_shader);
+
+        draw_triangle(
+            imm,
+            &camera_plane_top_left,
+            &camera_plane_top_right,
+            &((camera_plane_top_left + camera_plane_top_right) / 2.0 + vertical),
+            pos_attr,
+            color_attr,
+            &color,
+        );
+
+        imm.end();
+
+        Ok(())
+    }
+}
+
+fn draw_line(
+    imm: &mut GPUImmediate,
+    p1: &glm::Vec3,
+    p2: &glm::Vec3,
+    pos_attr: usize,
+    color_attr: usize,
+    color: &glm::Vec4,
+) {
+    imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+    imm.vertex_3f(pos_attr, p1[0], p1[1], p1[2]);
+    imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+    imm.vertex_3f(pos_attr, p2[0], p2[1], p2[2]);
+}
+
+fn draw_triangle(
+    imm: &mut GPUImmediate,
+    p1: &glm::Vec3,
+    p2: &glm::Vec3,
+    p3: &glm::Vec3,
+    pos_attr: usize,
+    color_attr: usize,
+    color: &glm::Vec4,
+) {
+    imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+    imm.vertex_3f(pos_attr, p1[0], p1[1], p1[2]);
+    imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+    imm.vertex_3f(pos_attr, p2[0], p2[1], p2[2]);
+    imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+    imm.vertex_3f(pos_attr, p3[0], p3[1], p3[2]);
 }

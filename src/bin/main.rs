@@ -6,6 +6,7 @@ use rt::object::objects::Sphere as SphereObject;
 use rt::object::{Object, ObjectDrawData};
 use rt::path_trace;
 use rt::path_trace::camera::Camera as PathTraceCamera;
+use rt::path_trace::camera::CameraDrawData as PathTraceCameraDrawData;
 use rt::path_trace::ray::Ray;
 use rt::path_trace::shader_list::ShaderList;
 use rt::path_trace::traversal_info::{TraversalInfo, TraversalInfoDrawData};
@@ -483,6 +484,10 @@ fn main() {
                 gl::Enable(gl::BLEND);
                 gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
             }
+
+            path_trace_camera
+                .draw(&mut PathTraceCameraDrawData::new(imm.clone()))
+                .unwrap();
 
             infinite_grid
                 .draw(&mut InfiniteGridDrawData::new(imm.clone()))
