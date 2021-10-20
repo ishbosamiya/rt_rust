@@ -463,7 +463,9 @@ impl Intersectable for Mesh {
         #[cfg(not(feature = "mesh_no_bvh"))]
         {
             let mesh_ray_cast_callback =
-                |(_co, _dir): (&glm::DVec3, &glm::DVec3), face_index: usize| {
+                |(co, dir): (&glm::DVec3, &glm::DVec3), face_index: usize| {
+                    debug_assert_eq!(ray.get_origin(), co);
+                    debug_assert_eq!(ray.get_direction(), dir);
                     let face = &self.faces[face_index];
                     let v1_index = face[0];
                     let v1 = &self.vertices[v1_index];
