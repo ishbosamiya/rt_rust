@@ -371,8 +371,29 @@ fn main() {
 
             scene.apply_model_matrices();
 
+            // trace ray into scene from the rasterizer camera
+            // position to get the first hitpoint
             let (_color, traversal_info) = path_trace::trace_ray(
                 &Ray::new(camera.get_position(), ray_direction),
+                &path_trace_camera,
+                &scene,
+                1,
+                &shader_list,
+            );
+
+            // generate the new ray from the path_trace_camera's
+            // position towards the first hitpoint
+            let ray_direction = if let Some(hit_point) = traversal_info.get_traversal()[0].get_co()
+            {
+                (hit_point - path_trace_camera.get_origin()).normalize()
+            } else {
+                (traversal_info.get_traversal()[0].get_ray().at(1000.0)
+                    - path_trace_camera.get_origin())
+                .normalize()
+            };
+
+            let (_color, traversal_info) = path_trace::trace_ray(
+                &Ray::new(*path_trace_camera.get_origin(), ray_direction),
                 &path_trace_camera,
                 &scene,
                 trace_max_depth,
