@@ -1,5 +1,3 @@
-use itertools::enumerate;
-
 use crate::glm;
 
 use std::fs::File;
@@ -15,8 +13,10 @@ pub struct MeshIO {
     pub face_has_uv: bool,
     pub face_has_normal: bool,
     pub line_indices: Vec<Vec<usize>>,
-    pub face_starting: Vec<usize>,
-    pub end_of_indices: Vec<(usize, usize, usize)>,
+
+    /// end of object indices stored for (positions, uvs, normals,
+    /// face_indices)
+    pub end_of_object: Vec<(usize, usize, usize, usize)>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -54,53 +54,8 @@ impl MeshIO {
             face_has_uv: false,
             face_has_normal: false,
             line_indices: Vec::new(),
-            face_starting: Vec::new(),
-            end_of_indices: Vec::new(),
+            end_of_object: Vec::new(),
         }
-    }
-
-    pub fn split_mesh(self) -> Vec<Self> {
-        // Split each object into separate mesh io
-        // Done by using face_starting and end_of_indices
-        let mut meshes: Vec<Self>;
-
-        let mut index = 0;
-        let mut start_pos1;
-        let mut start_pos2;
-        let mut start_pos3;
-        for obj in self.face_indices {
-            // Make new MeshIO Object
-            // Add all types of face indeces and rest to it
-            let (end_pos1, end_pos2, end_pos3) = self.end_of_indices[index];
-            if index == 0 {
-                start_pos1 = 0;
-                start_pos2 = 0;
-                start_pos3 = 0;
-            } else {
-                let pos_new = &self.positions[start_pos1..end_pos1];
-                let uvs_new = &self.uvs[start_pos2..end_pos2];
-                let normal_new = &self.normals[start_pos3..end_pos3];
-                let mut new_face = Vec::new();
-                new_face.push(obj);
-                meshes.push(Self {
-                    positions: pos_new.to_vec(),
-                    uvs: uvs_new.to_vec(),
-                    normals: normal_new.to_vec(),
-                    face_indices: new_face,
-                    face_has_uv: self.face_has_uv,
-                    face_has_normal: self.face_has_normal,
-                    line_indices: Vec::new(),
-                    face_starting: Vec::new(),
-                    end_of_indices: Vec::new(),
-                });
-                // TODO Append new values into new meshes vector
-                start_pos1 = end_pos1;
-                start_pos2 = end_pos2;
-                start_pos3 = end_pos3;
-            }
-            index += 1
-        }
-        meshes
     }
 
     pub fn read(path: &Path) -> Result<Self, MeshIOError> {
@@ -131,8 +86,7 @@ impl MeshIO {
         let mut face_has_uv = false;
         let mut face_has_normal = false;
         let mut line_indices = Vec::new();
-        let mut face_starting = Vec::new();
-        let mut end_of_indices = Vec::new();
+        let mut end_of_object = Vec::new();
 
         for line in lines {
             Self::process_line(
@@ -144,8 +98,7 @@ impl MeshIO {
                 &mut face_has_uv,
                 &mut face_has_normal,
                 &mut line_indices,
-                &mut face_starting,
-                &mut end_of_indices,
+                &mut end_of_object,
             )?
         }
 
@@ -157,8 +110,7 @@ impl MeshIO {
             face_has_uv,
             face_has_normal,
             line_indices,
-            face_starting,
-            end_of_indices,
+            end_of_object,
         })
     }
 
@@ -171,8 +123,7 @@ impl MeshIO {
         let mut face_has_uv = false;
         let mut face_has_normal = false;
         let mut line_indices = Vec::new();
-        let mut face_starting = vec![0];
-        let mut end_of_indices = vec![(0, 0, 0)];
+        let mut end_of_object = Vec::new();
 
         let mut file_data = std::fs::File::open(path).unwrap();
         let mut contents = String::new();
@@ -190,8 +141,7 @@ impl MeshIO {
                 &mut face_has_uv,
                 &mut face_has_normal,
                 &mut line_indices,
-                &mut face_starting,
-                &mut end_of_indices,
+                &mut end_of_object,
             )?
         }
 
@@ -205,8 +155,7 @@ impl MeshIO {
             face_has_uv,
             face_has_normal,
             line_indices,
-            face_starting,
-            end_of_indices,
+            end_of_object,
         })
     }
 
@@ -220,16 +169,12 @@ impl MeshIO {
         face_has_uv: &mut bool,
         face_has_normal: &mut bool,
         line_indices: &mut Vec<Vec<usize>>,
-        face_starting: &mut Vec<usize>,
-        end_of_indices: &mut Vec<(usize, usize, usize)>,
+        end_of_object: &mut Vec<(usize, usize, usize, usize)>,
     ) -> Result<(), MeshIOError> {
         if line.starts_with('#') {
             return Ok(());
         }
         let vals: Vec<&str> = line.split(' ').collect();
-        let indice = end_of_indices.last().unwrap();
-
-        let (mut v_cnt, mut uv_cnt, mut n_cnt) = *indice;
 
         assert!(!vals.is_empty());
         match vals[0] {
@@ -240,7 +185,6 @@ impl MeshIO {
                 let y: f64 = vals[2].parse().unwrap();
                 let z: f64 = vals[3].parse().unwrap();
                 positions.push(glm::vec3(x, y, z));
-                v_cnt += 1;
                 Ok(())
             }
             "vn" => {
@@ -250,7 +194,6 @@ impl MeshIO {
                 let y: f64 = vals[2].parse().unwrap();
                 let z: f64 = vals[3].parse().unwrap();
                 normals.push(glm::vec3(x, y, z));
-                n_cnt += 1;
                 Ok(())
             }
             "vt" => {
@@ -259,7 +202,6 @@ impl MeshIO {
                 let u: f64 = vals[1].parse().unwrap();
                 let v: f64 = vals[2].parse().unwrap();
                 uvs.push(glm::vec2(u, v));
-                uv_cnt += 1;
                 Ok(())
             }
             "f" => {
@@ -319,9 +261,22 @@ impl MeshIO {
                 Ok(())
             }
             "o" => {
-                assert!(face_indices.len() >= 2);
-                face_starting.push(face_indices.len());
-                end_of_indices.push((v_cnt, uv_cnt, n_cnt));
+                assert!(vals.len() >= 2);
+                if positions.is_empty()
+                    && uvs.is_empty()
+                    && normals.is_empty()
+                    && face_indices.is_empty()
+                {
+                    // if nothing processed until now, no object could
+                    // have been created so just skip
+                } else {
+                    end_of_object.push((
+                        positions.len(),
+                        uvs.len(),
+                        normals.len(),
+                        face_indices.len(),
+                    ));
+                }
                 Ok(())
             }
             _ => Ok(()),
@@ -391,6 +346,7 @@ mod tests {
         assert_eq!(data.line_indices.len(), 1);
         assert_eq!(data.line_indices[0].len(), 2);
     }
+
     #[test]
     fn meshreader_read_obj_test_02() {
         match MeshIO::read_obj(Path::new("tests/obj_test_02.obj")) {
@@ -401,8 +357,16 @@ mod tests {
             Ok(_) => panic!("Should have gotten an invalid file error"),
         }
     }
+
     #[test]
     fn meshreader_read_obj_test_03() {
         MeshIO::read_obj(Path::new("tests/obj_test_03.obj")).unwrap();
+    }
+
+    #[test]
+    fn meshreader_read_obj_test_04() {
+        let meshio = MeshIO::read_obj(Path::new("tests/obj_test_07.obj")).unwrap();
+        assert_eq!(meshio.end_of_object.len(), 1);
+        assert_eq!(meshio.end_of_object[0], (8, 14, 6, 6));
     }
 }
