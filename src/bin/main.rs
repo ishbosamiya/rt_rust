@@ -28,6 +28,7 @@ fn ray_trace_scene(
     shader_list: Arc<RwLock<ShaderList>>,
     camera: PathTraceCamera,
     rendered_image: Arc<RwLock<Image>>,
+    progress: Arc<RwLock<f64>>,
 ) {
     let mut image = Image::new(width, height);
 
@@ -83,6 +84,11 @@ fn ray_trace_scene(
                         *pixel /= (processed_samples + 1) as f64;
                     });
                 });
+        }
+
+        {
+            let mut progress = progress.write().unwrap();
+            *progress = (processed_samples + 1) as f64 / samples_per_pixel as f64;
         }
     }
 
@@ -202,6 +208,7 @@ fn main() {
     let mut camera_focal_length = 12.0;
     let mut camera_sensor_width = 2.0;
     let mut camera_position = glm::vec3(0.0, 0.0, 10.0);
+    let path_trace_progress = Arc::new(RwLock::new(0.0));
 
     let (shader_list, shader_ids) = {
         let mut shader_list = ShaderList::new();
@@ -553,6 +560,15 @@ fn main() {
                 egui::Window::new("Hello world!").show(egui.get_egui_ctx(), |ui| {
                     egui::ScrollArea::auto_sized().show(ui, |ui| {
                         ui.label(format!("fps: {:.2}", fps.update_and_get(Some(60.0))));
+                        ui.add({
+                            let path_trace_progress = *path_trace_progress.read().unwrap();
+                            egui::ProgressBar::new(path_trace_progress as _)
+                                .text(format!(
+                                    "Path Trace Progress: {:.2}",
+                                    path_trace_progress * 100.0
+                                ))
+                                .animate(true)
+                        });
 
                         color_edit_button_dvec4(ui, "Background Color", &mut background_color);
 
@@ -607,6 +623,7 @@ fn main() {
                             let shader_list = shader_list.clone();
                             let path_trace_camera = path_trace_camera.clone();
                             let rendered_image = rendered_image.clone();
+                            let path_trace_progress = path_trace_progress.clone();
                             thread::spawn(move || {
                                 ray_trace_scene(
                                     image_width,
@@ -617,6 +634,7 @@ fn main() {
                                     shader_list,
                                     path_trace_camera,
                                     rendered_image,
+                                    path_trace_progress,
                                 );
                             });
                         }
