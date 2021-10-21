@@ -320,12 +320,14 @@ fn main() {
             gl::Disable(gl::BLEND);
         }
 
+        // drawing the scene
         scene
             .read()
             .unwrap()
             .draw(&mut ObjectDrawData::new(imm.clone()))
             .unwrap();
 
+        // drawing ray traversal info if needed
         if show_ray_traversal_info {
             ray_traversal_info.iter().for_each(|info| {
                 info.draw(&mut TraversalInfoDrawData::new(
@@ -338,6 +340,7 @@ fn main() {
             });
         }
 
+        // drawing the rendered image at some location
         draw_plane_with_image(
             &glm::vec3(2.0, image_height as f64 / 1000.0, 0.0),
             &glm::vec3(image_width as f64 / 500.0, 2.0, image_height as f64 / 500.0),
@@ -347,6 +350,7 @@ fn main() {
             &mut imm.borrow_mut(),
         );
 
+        // handle casting ray towards bvh
         if should_cast_bvh_ray {
             let ray_direction = camera.get_raycast_direction(
                 last_cursor.0,
@@ -368,6 +372,7 @@ fn main() {
             should_cast_bvh_ray = false;
         }
 
+        // handle casting ray into the scene
         if should_cast_scene_ray {
             let ray_direction = camera.get_raycast_direction(
                 last_cursor.0,
@@ -415,6 +420,7 @@ fn main() {
             should_cast_scene_ray = false;
         }
 
+        // drawing bvh ray intersections
         {
             if !bvh_ray_intersection.is_empty() {
                 let smooth_color_3d_shader = shader::builtins::get_smooth_color_3d_shader()
@@ -481,6 +487,7 @@ fn main() {
                 gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
             }
 
+            // drawing the camera
             let rc_refcell_image = Rc::new(RefCell::new(rendered_texture));
             path_trace_camera
                 .draw(&mut PathTraceCameraDrawData::new(
@@ -494,6 +501,7 @@ fn main() {
                 Err(_) => unreachable!("rc_refcell_image should not be in a borrowed state now"),
             };
 
+            // drawing the infinite grid
             infinite_grid
                 .draw(&mut InfiniteGridDrawData::new(imm.clone()))
                 .unwrap();
