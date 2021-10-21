@@ -47,6 +47,10 @@ impl Camera {
         self.up = glm::normalize(&glm::cross(&self.right, &front));
     }
 
+    pub fn get_world_up(&self) -> &glm::DVec3 {
+        &self.world_up
+    }
+
     pub fn get_position(&self) -> glm::DVec3 {
         self.position
     }
@@ -61,6 +65,10 @@ impl Camera {
 
     pub fn get_far_plane(&self) -> f64 {
         self.far_plane
+    }
+
+    pub fn get_zoom(&self) -> f64 {
+        self.zoom
     }
 
     pub fn get_view_matrix(&self) -> glm::DMat4 {
