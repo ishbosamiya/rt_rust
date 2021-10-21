@@ -1,4 +1,3 @@
-use rt::bvh::BVHTree;
 use rt::glm;
 use rt::image::{Image, PPM};
 use rt::object::objects::Mesh as MeshObject;
@@ -101,17 +100,8 @@ fn main() {
 
     let mut fps = FPS::default();
 
-    // TODO(ish): handle drawing bvh and casting rays to the bvh and
-    // such again later, right now due to the mesh defined in the
-    // scene, it becomes hard to handle it.
     let mut background_color = glm::vec4(0.051, 0.051, 0.051, 1.0);
-    let mut draw_bvh = false;
-    let mut bvh_draw_level = 0;
-    let mut should_cast_bvh_ray = false;
     let mut should_cast_scene_ray = false;
-    let mut bvh_color = glm::vec4(0.9, 0.5, 0.2, 1.0);
-    let mut bvh_ray_color: glm::DVec4 = glm::vec4(0.2, 0.5, 0.9, 1.0);
-    let mut bvh_ray_intersection = Vec::new();
     let mut image_width = 200;
     let mut image_height = 200;
     let mut trace_max_depth = 5;
@@ -198,9 +188,9 @@ fn main() {
         let mut object = Box::new(MeshObject::new(
             mesh.clone(),
             MeshUseShader::DirectionalLight,
-            draw_bvh,
-            bvh_draw_level,
-            bvh_color,
+            false,
+            0,
+            glm::vec4(0.4, 0.3, 1.0, 1.0),
         ));
         object.set_path_trace_shader_id(shader_ids[1]);
         object
@@ -218,9 +208,9 @@ fn main() {
     //     let mut object = Box::new(MeshObject::new(
     //         mesh::builtins::get_plane_subd_00().clone(),
     //         MeshUseShader::DirectionalLight,
-    //         draw_bvh,
-    //         bvh_draw_level,
-    //         bvh_color,
+    //         false,
+    //         0,
+    //         glm::vec4(0.4, 0.3, 1.0, 1.0),
     //     ));
     //     object.set_path_trace_shader_id(shader_ids[2]);
     //     object.set_model_matrix(glm::rotate_x(
@@ -274,7 +264,6 @@ fn main() {
                 &event,
                 &mut window,
                 &mut camera,
-                &mut should_cast_bvh_ray,
                 &mut should_cast_scene_ray,
                 &mut last_cursor,
             );
@@ -350,28 +339,6 @@ fn main() {
             &mut imm.borrow_mut(),
         );
 
-        // handle casting ray towards bvh
-        if should_cast_bvh_ray {
-            let ray_direction = camera.get_raycast_direction(
-                last_cursor.0,
-                last_cursor.1,
-                window_width,
-                window_height,
-            );
-
-            let bvh: &BVHTree<usize> = mesh.get_bvh().as_ref().unwrap();
-
-            if let Some(ray_hit_info) = bvh.ray_cast(
-                camera.get_position(),
-                ray_direction,
-                None::<&fn((&glm::DVec3, &glm::DVec3), _) -> Option<rt::bvh::RayHitData<_>>>,
-            ) {
-                bvh_ray_intersection.push((camera.get_position(), ray_hit_info));
-            }
-
-            should_cast_bvh_ray = false;
-        }
-
         // handle casting ray into the scene
         if should_cast_scene_ray {
             let ray_direction = camera.get_raycast_direction(
@@ -418,65 +385,6 @@ fn main() {
             ray_traversal_info.push(traversal_info);
 
             should_cast_scene_ray = false;
-        }
-
-        // drawing bvh ray intersections
-        {
-            if !bvh_ray_intersection.is_empty() {
-                let smooth_color_3d_shader = shader::builtins::get_smooth_color_3d_shader()
-                    .as_ref()
-                    .unwrap();
-                smooth_color_3d_shader.use_shader();
-                smooth_color_3d_shader.set_mat4("model\0", &glm::identity());
-
-                let mut imm = imm.borrow_mut();
-
-                let format = imm.get_cleared_vertex_format();
-                let pos_attr = format.add_attribute(
-                    "in_pos\0".to_string(),
-                    rt::rasterize::gpu_immediate::GPUVertCompType::F32,
-                    3,
-                    rt::rasterize::gpu_immediate::GPUVertFetchMode::Float,
-                );
-                let color_attr = format.add_attribute(
-                    "in_color\0".to_string(),
-                    rt::rasterize::gpu_immediate::GPUVertCompType::F32,
-                    4,
-                    rt::rasterize::gpu_immediate::GPUVertFetchMode::Float,
-                );
-
-                imm.begin(
-                    rt::rasterize::gpu_immediate::GPUPrimType::Lines,
-                    bvh_ray_intersection.len() * 2,
-                    smooth_color_3d_shader,
-                );
-
-                let bvh_ray_color: glm::Vec4 = glm::convert(bvh_ray_color);
-
-                bvh_ray_intersection.iter().for_each(|(pos, ray_hit_info)| {
-                    let p1: glm::Vec3 = glm::convert(*pos);
-                    let p2: glm::Vec3 = glm::convert(ray_hit_info.data.as_ref().unwrap().co);
-
-                    imm.attr_4f(
-                        color_attr,
-                        bvh_ray_color[0],
-                        bvh_ray_color[1],
-                        bvh_ray_color[2],
-                        bvh_ray_color[3],
-                    );
-                    imm.vertex_3f(pos_attr, p1[0], p1[1], p1[2]);
-                    imm.attr_4f(
-                        color_attr,
-                        bvh_ray_color[0],
-                        bvh_ray_color[1],
-                        bvh_ray_color[2],
-                        bvh_ray_color[3],
-                    );
-                    imm.vertex_3f(pos_attr, p2[0], p2[1], p2[2]);
-                });
-
-                imm.end();
-            }
         }
 
         // Keep meshes that have shaders that need alpha channel
@@ -531,17 +439,6 @@ fn main() {
                         ));
 
                         color_edit_button_dvec4(ui, "Background Color", &mut background_color);
-
-                        ui.checkbox(&mut draw_bvh, "Draw BVH");
-                        ui.add(
-                            egui::Slider::new(&mut bvh_draw_level, 0..=15).text("BVH Draw Level"),
-                        );
-                        color_edit_button_dvec4(ui, "BVH Color", &mut bvh_color);
-                        color_edit_button_dvec4(ui, "BVH Ray Color", &mut bvh_ray_color);
-
-                        if ui.button("Delete Rays").clicked() {
-                            bvh_ray_intersection.clear();
-                        }
 
                         ui.separator();
 
@@ -705,7 +602,6 @@ fn handle_window_event(
     event: &glfw::WindowEvent,
     window: &mut glfw::Window,
     camera: &mut RasterizeCamera,
-    should_cast_bvh_ray: &mut bool,
     should_cast_scene_ray: &mut bool,
     last_cursor: &mut (f64, f64),
 ) {
@@ -753,12 +649,6 @@ fn handle_window_event(
                 false,
             );
         }
-    }
-
-    if window.get_mouse_button(glfw::MouseButtonLeft) == glfw::Action::Press
-        && window.get_key(glfw::Key::LeftControl) == glfw::Action::Press
-    {
-        *should_cast_bvh_ray = true;
     }
 
     if window.get_mouse_button(glfw::MouseButtonLeft) == glfw::Action::Press
