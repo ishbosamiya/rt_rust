@@ -609,7 +609,13 @@ fn main() {
                         ui.separator();
 
                         ui.add(egui::Slider::new(&mut image_width, 1..=1000).text("Image Width"));
+                        if image_width == 0 {
+                            image_width = 1;
+                        }
                         ui.add(egui::Slider::new(&mut image_height, 1..=1000).text("Image Height"));
+                        if image_height == 0 {
+                            image_height = 1;
+                        }
                         ui.add(
                             egui::Slider::new(&mut trace_max_depth, 1..=10).text("Trace Max Depth"),
                         );
