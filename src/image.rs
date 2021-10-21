@@ -4,6 +4,7 @@ use std::io::prelude::*;
 use crate::glm;
 use crate::rasterize::texture::TextureRGBAFloat;
 
+#[derive(Debug, Clone)]
 pub struct Image {
     pixels: Vec<Vec<glm::DVec3>>,
     width: usize,

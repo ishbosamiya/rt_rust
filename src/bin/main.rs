@@ -18,16 +18,18 @@ use rt::sphere::Sphere;
 extern crate lazy_static;
 use rayon::prelude::*;
 
+#[allow(clippy::too_many_arguments)]
 fn ray_trace_scene(
     width: usize,
     height: usize,
     trace_max_depth: usize,
     samples_per_pixel: usize,
-    scene: &mut Scene,
-    shader_list: &ShaderList,
-    camera: &PathTraceCamera,
-) -> Image {
-    scene.apply_model_matrices();
+    scene: Arc<RwLock<Scene>>,
+    shader_list: Arc<RwLock<ShaderList>>,
+    camera: PathTraceCamera,
+    rendered_image: Arc<RwLock<Image>>,
+) {
+    scene.write().unwrap().apply_model_matrices();
 
     let mut image = Image::new(width, height);
 
@@ -43,7 +45,9 @@ fn ray_trace_scene(
         });
 
     // ray trace
-    for _ in 0..samples_per_pixel {
+    for processed_samples in 0..samples_per_pixel {
+        let scene = scene.read().unwrap();
+        let shader_list = shader_list.read().unwrap();
         image
             .get_pixels_mut()
             .par_iter_mut()
@@ -61,32 +65,34 @@ fn ray_trace_scene(
                     let ray = camera.get_ray(u, v);
 
                     let (color, _traversal_info) =
-                        path_trace::trace_ray(&ray, camera, scene, trace_max_depth, shader_list);
+                        path_trace::trace_ray(&ray, &camera, &scene, trace_max_depth, &shader_list);
 
                     *pixel += color;
                 });
             });
+
+        {
+            let mut rendered_image = rendered_image.write().unwrap();
+            *rendered_image = image.clone();
+            rendered_image
+                .get_pixels_mut()
+                .par_iter_mut()
+                .enumerate()
+                .for_each(|(_j, row)| {
+                    row.par_iter_mut().enumerate().for_each(|(_i, pixel)| {
+                        *pixel /= processed_samples as f64;
+                    });
+                });
+        }
     }
 
-    // divide each pixel with the number of samples
-    image
-        .get_pixels_mut()
-        .par_iter_mut()
-        .enumerate()
-        .for_each(|(_j, row)| {
-            row.par_iter_mut().enumerate().for_each(|(_i, pixel)| {
-                *pixel /= samples_per_pixel as f64;
-            });
-        });
-
-    scene.unapply_model_matrices();
-
-    image
+    scene.write().unwrap().unapply_model_matrices();
 }
 
 use std::cell::RefCell;
 use std::convert::TryInto;
 use std::rc::Rc;
+use std::sync::{Arc, RwLock};
 
 use egui::{FontDefinitions, FontFamily, TextStyle};
 use egui_glfw::EguiBackend;
@@ -302,9 +308,13 @@ fn main() {
         }
     });
 
+    let scene = Arc::new(RwLock::new(scene));
+    let shader_list = Arc::new(RwLock::new(shader_list));
+
     let infinite_grid = InfiniteGrid::default();
 
-    let mut image = TextureRGBAFloat::new_empty(100, 100);
+    let rendered_image = Arc::new(RwLock::new(Image::new(100, 100)));
+    let mut rendered_texture = TextureRGBAFloat::new_empty(100, 100);
 
     while !window.should_close() {
         glfw.poll_events();
@@ -357,7 +367,11 @@ fn main() {
             gl::Disable(gl::BLEND);
         }
 
-        scene.draw(&mut ObjectDrawData::new(imm.clone())).unwrap();
+        scene
+            .read()
+            .unwrap()
+            .draw(&mut ObjectDrawData::new(imm.clone()))
+            .unwrap();
 
         if show_ray_traversal_info {
             ray_traversal_info.iter().for_each(|info| {
@@ -375,7 +389,7 @@ fn main() {
             &glm::vec3(2.0, image_height as f64 / 1000.0, 0.0),
             &glm::vec3(image_width as f64 / 500.0, 2.0, image_height as f64 / 500.0),
             &glm::vec3(0.0, 0.0, 1.0),
-            &mut image,
+            &mut rendered_texture,
             1.0,
             &mut imm.borrow_mut(),
         );
@@ -409,16 +423,16 @@ fn main() {
                 window_height,
             );
 
-            scene.apply_model_matrices();
+            scene.write().unwrap().apply_model_matrices();
 
             // trace ray into scene from the rasterizer camera
             // position to get the first hitpoint
             let (_color, traversal_info) = path_trace::trace_ray(
                 &Ray::new(camera.get_position(), ray_direction),
                 &path_trace_camera,
-                &scene,
+                &scene.read().unwrap(),
                 1,
-                &shader_list,
+                &shader_list.read().unwrap(),
             );
 
             // generate the new ray from the path_trace_camera's
@@ -435,12 +449,12 @@ fn main() {
             let (_color, traversal_info) = path_trace::trace_ray(
                 &Ray::new(*path_trace_camera.get_origin(), ray_direction),
                 &path_trace_camera,
-                &scene,
+                &scene.read().unwrap(),
                 trace_max_depth,
-                &shader_list,
+                &shader_list.read().unwrap(),
             );
 
-            scene.unapply_model_matrices();
+            scene.write().unwrap().unapply_model_matrices();
 
             ray_traversal_info.clear();
             ray_traversal_info.push(traversal_info);
@@ -514,7 +528,7 @@ fn main() {
                 gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
             }
 
-            let rc_refcell_image = Rc::new(RefCell::new(image));
+            let rc_refcell_image = Rc::new(RefCell::new(rendered_texture));
             path_trace_camera
                 .draw(&mut PathTraceCameraDrawData::new(
                     imm.clone(),
@@ -522,7 +536,7 @@ fn main() {
                     camera_image_alpha_value,
                 ))
                 .unwrap();
-            image = match Rc::try_unwrap(rc_refcell_image) {
+            rendered_texture = match Rc::try_unwrap(rc_refcell_image) {
                 Ok(refcell_image) => refcell_image.into_inner(),
                 Err(_) => unreachable!("rc_refcell_image should not be in a borrowed state now"),
             };
@@ -587,15 +601,19 @@ fn main() {
                         );
 
                         if ui.button("Ray Trace Scene").clicked() {
-                            image = TextureRGBAFloat::from_image(&ray_trace_scene(
+                            ray_trace_scene(
                                 image_width,
                                 image_height,
                                 trace_max_depth,
                                 samples_per_pixel,
-                                &mut scene,
-                                &shader_list,
-                                &path_trace_camera,
-                            ));
+                                scene.clone(),
+                                shader_list.clone(),
+                                path_trace_camera.clone(),
+                                rendered_image.clone(),
+                            );
+
+                            rendered_texture =
+                                TextureRGBAFloat::from_image(&rendered_image.read().unwrap());
                         }
 
                         ui.horizontal(|ui| {
@@ -604,7 +622,7 @@ fn main() {
                         });
 
                         if ui.button("Save Ray Traced Image").clicked() {
-                            let image = Image::from_texture_rgba_float(&image);
+                            let image = Image::from_texture_rgba_float(&rendered_texture);
                             PPM::new(&image)
                                 .write_to_file(&save_image_location)
                                 .unwrap();
@@ -651,7 +669,7 @@ fn main() {
                         color_edit_button_dvec4(ui, "Normals Color", &mut normals_color);
 
                         if ui.button("Trace Rays").clicked() {
-                            scene.apply_model_matrices();
+                            scene.write().unwrap().apply_model_matrices();
 
                             ray_traversal_info.clear();
 
@@ -675,15 +693,15 @@ fn main() {
                                     let (_color, traversal_info) = path_trace::trace_ray(
                                         &ray,
                                         &path_trace_camera,
-                                        &scene,
+                                        &scene.read().unwrap(),
                                         trace_max_depth,
-                                        &shader_list,
+                                        &shader_list.read().unwrap(),
                                     );
                                     ray_traversal_info.push(traversal_info);
                                 }
                             }
 
-                            scene.unapply_model_matrices();
+                            scene.write().unwrap().unapply_model_matrices();
                         }
                     });
                 });

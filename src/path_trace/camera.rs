@@ -12,6 +12,7 @@ use crate::{
     },
 };
 
+#[derive(Debug, Clone)]
 pub struct Camera {
     origin: glm::DVec3,
     horizontal: glm::DVec3,
