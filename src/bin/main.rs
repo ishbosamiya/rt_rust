@@ -78,8 +78,8 @@ fn ray_trace_scene(
     quit_render: Arc<RwLock<bool>>,
 ) {
     let mut image = Image::new(ray_trace_params.get_width(), ray_trace_params.get_height());
-    let mut progress = progress.write().unwrap();
-    progress.reset_instant();
+    progress.write().unwrap().reset();
+
     // initialize all pixels to black
     image
         .get_pixels_mut()
@@ -150,9 +150,9 @@ fn ray_trace_scene(
 
         {
             let mut progress = progress.write().unwrap();
-            progress.set_progress((processed_samples + 1) as f64 / ray_trace_params.get_samples_per_pixel() as f64);
-            // Should we change time here also?
-            //progress.reset_instant();
+            progress.set_progress(
+                (processed_samples + 1) as f64 / ray_trace_params.get_samples_per_pixel() as f64,
+            );
         }
     }
 
@@ -176,9 +176,11 @@ fn ray_trace_quit_render(
     *quit_render.write().unwrap() = false;
     render_thread_handle
 }
+
+#[derive(Debug, Clone)]
 pub struct Progress {
-    pub progress : f64,
-    pub instant : std::time::Instant,
+    progress: f64,
+    instant: std::time::Instant,
 }
 
 impl Progress {
@@ -189,22 +191,36 @@ impl Progress {
         }
     }
 
-    pub fn get_progress(self) -> f64 {
+    pub fn get_progress(&self) -> f64 {
         self.progress
     }
 
-    pub fn set_progress(self, prog: f64) {
+    pub fn set_progress(&mut self, prog: f64) {
         self.progress = prog;
     }
 
-    pub fn reset_instant(self) {
+    pub fn reset(&mut self) {
+        self.progress = 0.0;
         self.instant = std::time::Instant::now();
     }
 
-    pub fn get_rem_time(self) -> f64 {
-        let time_diff = (std::time::Instant::now() - self.instant).as_secs_f64();
-        let slope = self.progress / time_diff;
-        (100.0 - self.progress) / slope
+    pub fn get_elapsed_time(&self) -> f64 {
+        self.instant.elapsed().as_secs_f64()
+    }
+
+    pub fn get_remaining_time(&self) -> f64 {
+        if (self.progress - 1.0).abs() < f64::EPSILON {
+            return 0.0;
+        }
+        let time_diff = self.instant.elapsed().as_secs_f64();
+
+        time_diff / self.progress - self.get_elapsed_time()
+    }
+}
+
+impl Default for Progress {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -734,16 +750,22 @@ fn main() {
                     egui::ScrollArea::auto_sized().show(ui, |ui| {
                         ui.label(format!("fps: {:.2}", fps.update_and_get(Some(60.0))));
                         ui.add({
-                            let path_trace_progress = *path_trace_progress.read().unwrap();
-                            egui::ProgressBar::new(path_trace_progress.progress as _)
+                            let path_trace_progress = &*path_trace_progress.read().unwrap();
+                            egui::ProgressBar::new(path_trace_progress.get_progress() as _)
                                 .text(format!(
                                     "Path Trace Progress: {:.2}%",
-                                    path_trace_progress.progress * 100.0
+                                    path_trace_progress.get_progress() * 100.0
                                 ))
                                 .animate(true)
                         });
-                        // let path_trace_progress = *path_trace_progress.read().unwrap();
-                        ui.label(format!("Time Left (in secs) {:.2}", path_trace_progress.read().unwrap().get_rem_time()));
+                        ui.label(format!(
+                            "Time Elapsed (in secs) {:.2}",
+                            path_trace_progress.read().unwrap().get_elapsed_time()
+                        ));
+                        ui.label(format!(
+                            "Time Left (in secs) {:.2}",
+                            path_trace_progress.read().unwrap().get_remaining_time()
+                        ));
 
                         color_edit_button_dvec4(ui, "Background Color", &mut background_color);
 
