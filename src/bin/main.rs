@@ -709,6 +709,23 @@ fn main() {
                                 ))
                                 .animate(true)
                         });
+                        // Comment out 
+                        use std::time::{SystemTime};
+                        let now = SystemTime::now();
+
+                        // let cur_time: f64 = 0;
+                        let mut elapsed_time: u64 = 0;
+                        match now.elapsed() {
+                            Ok(elapsed) => {
+                                elapsed_time = elapsed.as_secs();
+                            }
+                            Err(e) => {
+                                println!("Error: {:?}", e);
+                            }
+                        }
+                        let slope: f64 = *path_trace_progress.read().unwrap() / (elapsed_time as f64);
+                        let remaining_time = (100.0 - *path_trace_progress.read().unwrap()) / slope;
+                        ui.label(format!("Time Left {:.2}", remaining_time));
 
                         color_edit_button_dvec4(ui, "Background Color", &mut background_color);
 
