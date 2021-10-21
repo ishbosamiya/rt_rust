@@ -22,7 +22,7 @@ pub enum GPUVertCompType {
 }
 
 impl GPUVertCompType {
-    fn to_gl(&self) -> gl::types::GLenum {
+    fn to_gl(self) -> gl::types::GLenum {
         match self {
             GPUVertCompType::I8 => gl::BYTE,
             GPUVertCompType::U8 => gl::UNSIGNED_BYTE,
@@ -64,7 +64,7 @@ pub enum GPUPrimType {
 }
 
 impl GPUPrimType {
-    fn to_gl(&self) -> gl::types::GLenum {
+    fn to_gl(self) -> gl::types::GLenum {
         match self {
             GPUPrimType::Points => gl::POINTS,
             GPUPrimType::Lines => gl::LINES,
