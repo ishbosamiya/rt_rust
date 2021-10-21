@@ -255,20 +255,6 @@ fn main() {
     };
 
     while !window.should_close() {
-        glfw.poll_events();
-
-        glfw::flush_messages(&events).for_each(|(_, event)| {
-            egui.handle_event(&event, &window);
-
-            handle_window_event(
-                &event,
-                &mut window,
-                &mut camera,
-                &mut should_cast_scene_ray,
-                &mut last_cursor,
-            );
-        });
-
         let path_trace_camera = {
             let aspect_ratio = image_width as f64 / image_height as f64;
             let camera_sensor_height = camera_sensor_width / aspect_ratio;
@@ -279,6 +265,21 @@ fn main() {
                 camera_position,
             )
         };
+
+        glfw.poll_events();
+
+        glfw::flush_messages(&events).for_each(|(_, event)| {
+            egui.handle_event(&event, &window);
+
+            handle_window_event(
+                &event,
+                &mut window,
+                &mut camera,
+                &path_trace_camera,
+                &mut should_cast_scene_ray,
+                &mut last_cursor,
+            );
+        });
 
         // TODO: need to fix this performance bottleneck. Should
         // update rendered_texture only when rendered_image has
@@ -610,6 +611,7 @@ fn handle_window_event(
     event: &glfw::WindowEvent,
     window: &mut glfw::Window,
     camera: &mut RasterizeCamera,
+    path_trace_camera: &PathTraceCamera,
     should_cast_scene_ray: &mut bool,
     last_cursor: &mut (f64, f64),
 ) {
@@ -644,6 +646,24 @@ fn handle_window_event(
                 -90.0,
                 camera.get_zoom(),
             )
+        }
+        glfw::WindowEvent::Key(Key::Num0 | Key::Kp0, _, Action::Press, _) => {
+            // TODO: when path_trace::camera::Camera changes, even
+            // this will need to change, right now it is basically
+            // hard coded values since that camera cannot turn
+            let focal_length = (path_trace_camera.get_camera_plane_center()
+                - path_trace_camera.get_origin())
+            .norm();
+            let camera_sensor_size = (path_trace_camera.get_horizontal()[0] * 2.0)
+                .max(path_trace_camera.get_vertical()[1] * 2.0);
+            let fov = 2.0 * (camera_sensor_size / (2.0 * focal_length)).atan();
+            *camera = RasterizeCamera::new(
+                *path_trace_camera.get_origin(),
+                *path_trace_camera.get_vertical(),
+                -90.0,
+                0.0,
+                fov.to_degrees(),
+            );
         }
 
         glfw::WindowEvent::FramebufferSize(width, height) => unsafe {
