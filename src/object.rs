@@ -48,7 +48,7 @@ impl ObjectDrawData {
 }
 
 pub trait Object:
-    Intersectable + Drawable<ExtraData = ObjectDrawData, Error = DrawError> + Sync
+    Intersectable + Drawable<ExtraData = ObjectDrawData, Error = DrawError> + Sync + Send
 {
     fn set_model_matrix(&mut self, model: glm::DMat4);
     fn get_model_matrix(&self) -> &Option<glm::DMat4>;

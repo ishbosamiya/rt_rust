@@ -29,8 +29,6 @@ fn ray_trace_scene(
     camera: PathTraceCamera,
     rendered_image: Arc<RwLock<Image>>,
 ) {
-    scene.write().unwrap().apply_model_matrices();
-
     let mut image = Image::new(width, height);
 
     // initialize all pixels to black
@@ -46,6 +44,8 @@ fn ray_trace_scene(
 
     // ray trace
     for processed_samples in 0..samples_per_pixel {
+        scene.write().unwrap().apply_model_matrices();
+
         let scene = scene.read().unwrap();
         let shader_list = shader_list.read().unwrap();
         image
@@ -80,7 +80,7 @@ fn ray_trace_scene(
                 .enumerate()
                 .for_each(|(_j, row)| {
                     row.par_iter_mut().enumerate().for_each(|(_i, pixel)| {
-                        *pixel /= processed_samples as f64;
+                        *pixel /= (processed_samples + 1) as f64;
                     });
                 });
         }
@@ -93,6 +93,7 @@ use std::cell::RefCell;
 use std::convert::TryInto;
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
+use std::thread;
 
 use egui::{FontDefinitions, FontFamily, TextStyle};
 use egui_glfw::EguiBackend;
@@ -314,7 +315,6 @@ fn main() {
     let infinite_grid = InfiniteGrid::default();
 
     let rendered_image = Arc::new(RwLock::new(Image::new(100, 100)));
-    let mut rendered_texture = TextureRGBAFloat::new_empty(100, 100);
 
     while !window.should_close() {
         glfw.poll_events();
@@ -342,6 +342,8 @@ fn main() {
                 camera_position,
             )
         };
+
+        let mut rendered_texture = TextureRGBAFloat::from_image(&rendered_image.read().unwrap());
 
         unsafe {
             let background_color: glm::Vec4 = glm::convert(background_color);
@@ -601,19 +603,22 @@ fn main() {
                         );
 
                         if ui.button("Ray Trace Scene").clicked() {
-                            ray_trace_scene(
-                                image_width,
-                                image_height,
-                                trace_max_depth,
-                                samples_per_pixel,
-                                scene.clone(),
-                                shader_list.clone(),
-                                path_trace_camera.clone(),
-                                rendered_image.clone(),
-                            );
-
-                            rendered_texture =
-                                TextureRGBAFloat::from_image(&rendered_image.read().unwrap());
+                            let scene = scene.clone();
+                            let shader_list = shader_list.clone();
+                            let path_trace_camera = path_trace_camera.clone();
+                            let rendered_image = rendered_image.clone();
+                            thread::spawn(move || {
+                                ray_trace_scene(
+                                    image_width,
+                                    image_height,
+                                    trace_max_depth,
+                                    samples_per_pixel,
+                                    scene,
+                                    shader_list,
+                                    path_trace_camera,
+                                    rendered_image,
+                                );
+                            });
                         }
 
                         ui.horizontal(|ui| {

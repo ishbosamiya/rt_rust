@@ -7,7 +7,7 @@ use super::bsdf::BSDF;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ShaderID(usize);
 
-pub trait Shader: Sync {
+pub trait Shader: Sync + Send {
     /// Set the `ShaderID`, can be requested for later using
     /// `get_shader_id()`
     fn set_shader_id(&mut self, shader_id: ShaderID);
