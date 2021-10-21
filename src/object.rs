@@ -13,13 +13,37 @@ pub enum DrawError {
     Sphere(()),
 }
 
+#[derive(Debug, Clone)]
 pub struct ObjectDrawData {
     imm: Rc<RefCell<GPUImmediate>>,
+
+    /// Must set the model matrix in the shader if `use_model_matrix`
+    /// is true, otherwise set the model matrix to be
+    /// `glm::identity()`
+    ///
+    /// It is possible for the Scene to have applied the model matrix
+    /// to the object and thus using the model matrix again in the
+    /// OpenGL shaders can lead to problems.
+    ///
+    /// TODO: need to find a better way to handle this.
+    use_model_matrix: bool,
 }
 
 impl ObjectDrawData {
     pub fn new(imm: Rc<RefCell<GPUImmediate>>) -> Self {
-        Self { imm }
+        Self {
+            imm,
+            use_model_matrix: true,
+        }
+    }
+
+    /// Sets `use_model_matrix` of `Self`
+    ///
+    /// # Safety
+    /// See comments on `Self::use_model_matrix` for more
+    /// details on why this needs to exist.
+    pub unsafe fn set_use_model_matrix(&mut self, use_model_matrix: bool) {
+        self.use_model_matrix = use_model_matrix;
     }
 }
 
@@ -101,10 +125,16 @@ pub mod objects {
             type Error = DrawError;
 
             fn draw(&self, extra_data: &mut ObjectDrawData) -> Result<(), DrawError> {
+                let model = if extra_data.use_model_matrix {
+                    self.get_model_matrix().unwrap()
+                } else {
+                    glm::identity()
+                };
+
                 self.data
                     .draw(&mut SphereDrawData::new(
                         extra_data.imm.clone(),
-                        self.get_model_matrix().unwrap(),
+                        model,
                         self.outside_color,
                         self.inside_color,
                     ))
@@ -114,10 +144,16 @@ pub mod objects {
             }
 
             fn draw_wireframe(&self, extra_data: &mut ObjectDrawData) -> Result<(), DrawError> {
+                let model = if extra_data.use_model_matrix {
+                    self.get_model_matrix().unwrap()
+                } else {
+                    glm::identity()
+                };
+
                 self.data
                     .draw_wireframe(&mut SphereDrawData::new(
                         extra_data.imm.clone(),
-                        self.get_model_matrix().unwrap(),
+                        model,
                         self.outside_color,
                         self.inside_color,
                     ))
@@ -223,7 +259,13 @@ pub mod objects {
                     _ => todo!(),
                 };
 
-                shader.set_mat4("model\0", &glm::convert(self.get_model_matrix().unwrap()));
+                let model = if extra_data.use_model_matrix {
+                    self.get_model_matrix().unwrap()
+                } else {
+                    glm::identity()
+                };
+
+                shader.set_mat4("model\0", &glm::convert(model));
 
                 self.data
                     .draw(&mut MeshDrawData::new(
