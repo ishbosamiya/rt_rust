@@ -90,7 +90,7 @@ fn ray_trace_scene(
     shader_list: Arc<RwLock<ShaderList>>,
     rendered_image: Arc<RwLock<Image>>,
     progress: Arc<RwLock<Progress>>,
-    quit_render: Arc<RwLock<bool>>,
+    stop_render: Arc<RwLock<bool>>,
 ) {
     let mut image = Image::new(ray_trace_params.get_width(), ray_trace_params.get_height());
     progress.write().unwrap().reset();
@@ -113,7 +113,7 @@ fn ray_trace_scene(
 
     // ray trace
     for processed_samples in 0..ray_trace_params.get_samples_per_pixel() {
-        if *quit_render.read().unwrap() {
+        if *stop_render.read().unwrap() {
             return;
         }
 
@@ -204,19 +204,20 @@ fn ray_trace_scene(
 
 pub enum RayTraceMessage {
     StartRender(RayTraceParams),
-    Quit,
+    StopRender,
+    KillThread,
 }
 
-fn ray_trace_quit_render(
-    quit_render: Arc<RwLock<bool>>,
+fn ray_trace_stop_render(
+    stop_render: Arc<RwLock<bool>>,
     render_thread_handle: Option<JoinHandle<()>>,
 ) -> Option<JoinHandle<()>> {
-    *quit_render.write().unwrap() = true;
+    *stop_render.write().unwrap() = true;
     let render_thread_handle = render_thread_handle.and_then(|join_handle| {
         join_handle.join().unwrap();
         None
     });
-    *quit_render.write().unwrap() = false;
+    *stop_render.write().unwrap() = false;
     render_thread_handle
 }
 
@@ -227,21 +228,21 @@ pub fn ray_trace_main(
     progress: Arc<RwLock<Progress>>,
     message_receiver: Receiver<RayTraceMessage>,
 ) {
-    let quit_render = Arc::new(RwLock::new(false));
+    let stop_render = Arc::new(RwLock::new(false));
     let mut render_thread_handle: Option<JoinHandle<()>> = None;
 
     loop {
         let message = message_receiver.recv().unwrap();
         match message {
             RayTraceMessage::StartRender(params) => {
-                // quit any previously running ray traces
-                ray_trace_quit_render(quit_render.clone(), render_thread_handle);
+                // stop any previously running ray traces
+                ray_trace_stop_render(stop_render.clone(), render_thread_handle);
 
                 let scene = scene.clone();
                 let shader_list = shader_list.clone();
                 let rendered_image = rendered_image.clone();
                 let progress = progress.clone();
-                let quit_render = quit_render.clone();
+                let stop_render = stop_render.clone();
                 render_thread_handle = Some(thread::spawn(move || {
                     ray_trace_scene(
                         params,
@@ -249,13 +250,16 @@ pub fn ray_trace_main(
                         shader_list,
                         rendered_image,
                         progress,
-                        quit_render,
+                        stop_render,
                     );
                 }));
             }
-            RayTraceMessage::Quit => {
+            RayTraceMessage::StopRender => {
                 render_thread_handle =
-                    ray_trace_quit_render(quit_render.clone(), render_thread_handle);
+                    ray_trace_stop_render(stop_render.clone(), render_thread_handle);
+            }
+            RayTraceMessage::KillThread => {
+                break;
             }
         }
     }
