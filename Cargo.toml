@@ -17,7 +17,7 @@ paste = "1.0"
 generational-arena = "0.2.8"
 itertools = "0.10"
 glfw = "0.41"
-egui = "0.13"
+egui = "0.14"
 egui_glfw = { git = "ssh://git@github.com/ishbosamiya/egui_glfw.git" }
 enumflags2 = "0.7"
 rayon = "1.5"
