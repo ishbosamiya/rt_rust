@@ -69,13 +69,13 @@ impl RayTraceParams {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 fn ray_trace_scene(
     ray_trace_params: RayTraceParams,
     scene: Arc<RwLock<Scene>>,
     shader_list: Arc<RwLock<ShaderList>>,
     rendered_image: Arc<RwLock<Image>>,
     progress: Arc<RwLock<f64>>,
+    quit_render: Arc<RwLock<bool>>,
 ) {
     let mut image = Image::new(ray_trace_params.get_width(), ray_trace_params.get_height());
 
@@ -92,6 +92,10 @@ fn ray_trace_scene(
 
     // ray trace
     for processed_samples in 0..ray_trace_params.get_samples_per_pixel() {
+        if *quit_render.read().unwrap() {
+            return;
+        }
+
         scene.write().unwrap().apply_model_matrices();
 
         let scene = scene.read().unwrap();
@@ -153,11 +157,71 @@ fn ray_trace_scene(
     scene.write().unwrap().unapply_model_matrices();
 }
 
+pub enum RayTraceMessage {
+    StartRender(RayTraceParams),
+    Quit,
+}
+
+fn ray_trace_quit_render(
+    quit_render: Arc<RwLock<bool>>,
+    render_thread_handle: Option<JoinHandle<()>>,
+) -> Option<JoinHandle<()>> {
+    *quit_render.write().unwrap() = true;
+    let render_thread_handle = render_thread_handle.and_then(|join_handle| {
+        join_handle.join().unwrap();
+        None
+    });
+    *quit_render.write().unwrap() = false;
+    render_thread_handle
+}
+
+fn ray_trace_main(
+    scene: Arc<RwLock<Scene>>,
+    shader_list: Arc<RwLock<ShaderList>>,
+    rendered_image: Arc<RwLock<Image>>,
+    progress: Arc<RwLock<f64>>,
+    message_receiver: Receiver<RayTraceMessage>,
+) {
+    let quit_render = Arc::new(RwLock::new(false));
+    let mut render_thread_handle: Option<JoinHandle<()>> = None;
+
+    loop {
+        let message = message_receiver.recv().unwrap();
+        match message {
+            RayTraceMessage::StartRender(params) => {
+                // quit any previously running ray traces
+                ray_trace_quit_render(quit_render.clone(), render_thread_handle);
+
+                let scene = scene.clone();
+                let shader_list = shader_list.clone();
+                let rendered_image = rendered_image.clone();
+                let progress = progress.clone();
+                let quit_render = quit_render.clone();
+                render_thread_handle = Some(thread::spawn(move || {
+                    ray_trace_scene(
+                        params,
+                        scene,
+                        shader_list,
+                        rendered_image,
+                        progress,
+                        quit_render,
+                    );
+                }));
+            }
+            RayTraceMessage::Quit => {
+                render_thread_handle =
+                    ray_trace_quit_render(quit_render.clone(), render_thread_handle);
+            }
+        }
+    }
+}
+
 use std::cell::RefCell;
 use std::convert::TryInto;
 use std::rc::Rc;
+use std::sync::mpsc::{self, Receiver};
 use std::sync::{Arc, RwLock};
-use std::thread;
+use std::thread::{self, JoinHandle};
 
 use egui::{FontDefinitions, FontFamily, TextStyle};
 use egui_glfw::EguiBackend;
@@ -380,6 +444,24 @@ fn main() {
     let infinite_grid = InfiniteGrid::default();
 
     let rendered_image = Arc::new(RwLock::new(Image::new(100, 100)));
+
+    // Spawn the main ray tracing thread
+    let (ray_trace_thread_sender, ray_trace_thread_receiver) = mpsc::channel();
+    {
+        let scene = scene.clone();
+        let shader_list = shader_list.clone();
+        let rendered_image = rendered_image.clone();
+        let path_trace_progress = path_trace_progress.clone();
+        thread::spawn(move || {
+            ray_trace_main(
+                scene,
+                shader_list,
+                rendered_image,
+                path_trace_progress,
+                ray_trace_thread_receiver,
+            );
+        });
+    }
 
     while !window.should_close() {
         glfw.poll_events();
@@ -683,26 +765,15 @@ fn main() {
                         );
 
                         if ui.button("Ray Trace Scene").clicked() {
-                            let scene = scene.clone();
-                            let shader_list = shader_list.clone();
-                            let path_trace_camera = path_trace_camera.clone();
-                            let rendered_image = rendered_image.clone();
-                            let path_trace_progress = path_trace_progress.clone();
-                            thread::spawn(move || {
-                                ray_trace_scene(
-                                    RayTraceParams::new(
-                                        image_width,
-                                        image_height,
-                                        trace_max_depth,
-                                        samples_per_pixel,
-                                        path_trace_camera,
-                                    ),
-                                    scene,
-                                    shader_list,
-                                    rendered_image,
-                                    path_trace_progress,
-                                );
-                            });
+                            ray_trace_thread_sender
+                                .send(RayTraceMessage::StartRender(RayTraceParams::new(
+                                    image_width,
+                                    image_height,
+                                    trace_max_depth,
+                                    samples_per_pixel,
+                                    path_trace_camera.clone(),
+                                )))
+                                .unwrap();
                         }
 
                         ui.horizontal(|ui| {
