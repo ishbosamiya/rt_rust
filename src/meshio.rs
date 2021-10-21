@@ -58,10 +58,13 @@ impl MeshIO {
         }
     }
 
-    pub fn read(path: &Path) -> Result<Self, MeshIOError> {
-        match path.extension() {
+    pub fn read<P>(path: P) -> Result<Self, MeshIOError>
+    where
+        P: AsRef<Path>,
+    {
+        match path.as_ref().extension() {
             Some(extension) => match extension.to_str().unwrap() {
-                "obj" => Self::read_obj(path),
+                "obj" => Self::read_obj(path.as_ref()),
                 _ => Err(MeshIOError::Unknown),
             },
             None => Err(MeshIOError::Unknown),
