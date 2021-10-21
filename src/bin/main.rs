@@ -18,19 +18,66 @@ use rt::sphere::Sphere;
 extern crate lazy_static;
 use rayon::prelude::*;
 
-#[allow(clippy::too_many_arguments)]
-fn ray_trace_scene(
+pub struct RayTraceParams {
     width: usize,
     height: usize,
     trace_max_depth: usize,
     samples_per_pixel: usize,
+    camera: PathTraceCamera,
+}
+
+impl RayTraceParams {
+    pub fn new(
+        width: usize,
+        height: usize,
+        trace_max_depth: usize,
+        samples_per_pixel: usize,
+        camera: PathTraceCamera,
+    ) -> Self {
+        Self {
+            width,
+            height,
+            trace_max_depth,
+            samples_per_pixel,
+            camera,
+        }
+    }
+
+    /// Get ray trace params's width.
+    pub fn get_width(&self) -> usize {
+        self.width
+    }
+
+    /// Get ray trace params's height.
+    pub fn get_height(&self) -> usize {
+        self.height
+    }
+
+    /// Get ray trace params's trace_max_depth.
+    pub fn get_trace_max_depth(&self) -> usize {
+        self.trace_max_depth
+    }
+
+    /// Get ray trace params's samples_per_pixel.
+    pub fn get_samples_per_pixel(&self) -> usize {
+        self.samples_per_pixel
+    }
+
+    /// Get a reference to the ray trace params's camera.
+    pub fn get_camera(&self) -> &PathTraceCamera {
+        &self.camera
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn ray_trace_scene(
+    ray_trace_params: RayTraceParams,
     scene: Arc<RwLock<Scene>>,
     shader_list: Arc<RwLock<ShaderList>>,
-    camera: PathTraceCamera,
     rendered_image: Arc<RwLock<Image>>,
     progress: Arc<RwLock<f64>>,
 ) {
-    let mut image = Image::new(width, height);
+    let mut image = Image::new(ray_trace_params.get_width(), ray_trace_params.get_height());
 
     // initialize all pixels to black
     image
@@ -44,7 +91,7 @@ fn ray_trace_scene(
         });
 
     // ray trace
-    for processed_samples in 0..samples_per_pixel {
+    for processed_samples in 0..ray_trace_params.get_samples_per_pixel() {
         scene.write().unwrap().apply_model_matrices();
 
         let scene = scene.read().unwrap();
@@ -55,18 +102,28 @@ fn ray_trace_scene(
             .enumerate()
             .for_each(|(j, row)| {
                 row.par_iter_mut().enumerate().for_each(|(i, pixel)| {
-                    let j = height - j - 1;
+                    let j = ray_trace_params.get_height() - j - 1;
 
                     // use opengl coords, (0.0, 0.0) is center; (1.0, 1.0) is
                     // top right; (-1.0, -1.0) is bottom left
-                    let u = (((i as f64 + rand::random::<f64>()) / (width - 1) as f64) - 0.5) * 2.0;
-                    let v =
-                        (((j as f64 + rand::random::<f64>()) / (height - 1) as f64) - 0.5) * 2.0;
+                    let u = (((i as f64 + rand::random::<f64>())
+                        / (ray_trace_params.get_width() - 1) as f64)
+                        - 0.5)
+                        * 2.0;
+                    let v = (((j as f64 + rand::random::<f64>())
+                        / (ray_trace_params.get_height() - 1) as f64)
+                        - 0.5)
+                        * 2.0;
 
-                    let ray = camera.get_ray(u, v);
+                    let ray = ray_trace_params.get_camera().get_ray(u, v);
 
-                    let (color, _traversal_info) =
-                        path_trace::trace_ray(&ray, &camera, &scene, trace_max_depth, &shader_list);
+                    let (color, _traversal_info) = path_trace::trace_ray(
+                        &ray,
+                        ray_trace_params.get_camera(),
+                        &scene,
+                        ray_trace_params.get_trace_max_depth(),
+                        &shader_list,
+                    );
 
                     *pixel += color;
                 });
@@ -88,7 +145,8 @@ fn ray_trace_scene(
 
         {
             let mut progress = progress.write().unwrap();
-            *progress = (processed_samples + 1) as f64 / samples_per_pixel as f64;
+            *progress =
+                (processed_samples + 1) as f64 / ray_trace_params.get_samples_per_pixel() as f64;
         }
     }
 
@@ -632,13 +690,15 @@ fn main() {
                             let path_trace_progress = path_trace_progress.clone();
                             thread::spawn(move || {
                                 ray_trace_scene(
-                                    image_width,
-                                    image_height,
-                                    trace_max_depth,
-                                    samples_per_pixel,
+                                    RayTraceParams::new(
+                                        image_width,
+                                        image_height,
+                                        trace_max_depth,
+                                        samples_per_pixel,
+                                        path_trace_camera,
+                                    ),
                                     scene,
                                     shader_list,
-                                    path_trace_camera,
                                     rendered_image,
                                     path_trace_progress,
                                 );
