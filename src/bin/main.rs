@@ -238,7 +238,7 @@ fn main() {
 
     // Spawn the main ray tracing thread
     let (ray_trace_thread_sender, ray_trace_thread_receiver) = mpsc::channel();
-    {
+    let ray_trace_main_thread_handle = {
         let scene = scene.clone();
         let shader_list = shader_list.clone();
         let rendered_image = rendered_image.clone();
@@ -251,8 +251,8 @@ fn main() {
                 path_trace_progress,
                 ray_trace_thread_receiver,
             );
-        });
-    }
+        })
+    };
 
     while !window.should_close() {
         glfw.poll_events();
@@ -494,8 +494,10 @@ fn main() {
                                     .unwrap();
                             }
 
-                            if ui.button("Quit Render").clicked() {
-                                ray_trace_thread_sender.send(RayTraceMessage::Quit).unwrap();
+                            if ui.button("Stop Render").clicked() {
+                                ray_trace_thread_sender
+                                    .send(RayTraceMessage::StopRender)
+                                    .unwrap();
                             }
                         });
 
@@ -596,6 +598,12 @@ fn main() {
         // Swap front and back buffers
         window.swap_buffers();
     }
+
+    // wait for all child threads to join
+    ray_trace_thread_sender
+        .send(RayTraceMessage::KillThread)
+        .unwrap();
+    ray_trace_main_thread_handle.join().unwrap();
 }
 
 fn handle_window_event(
