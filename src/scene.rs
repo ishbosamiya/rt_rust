@@ -5,6 +5,9 @@ use crate::rasterize::drawable::Drawable;
 
 pub struct Scene {
     objects: Vec<Box<dyn Object>>,
+
+    /// true if model matrices are currently applied
+    model_matrices_applied: bool,
 }
 
 impl Default for Scene {
@@ -17,6 +20,7 @@ impl Scene {
     pub fn new() -> Self {
         Self {
             objects: Vec::new(),
+            model_matrices_applied: false,
         }
     }
 
@@ -33,20 +37,29 @@ impl Scene {
     }
 
     pub fn apply_model_matrices(&mut self) {
+        if self.model_matrices_applied {
+            return;
+        }
         self.objects.iter_mut().for_each(|object| {
             object.apply_model_matrix();
         });
+        self.model_matrices_applied = true;
     }
 
     pub fn unapply_model_matrices(&mut self) {
+        if !self.model_matrices_applied {
+            return;
+        }
         self.objects.iter_mut().for_each(|object| {
             object.unapply_model_matrix();
         });
+        self.model_matrices_applied = false;
     }
 }
 
 impl Intersectable for Scene {
     fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<IntersectInfo> {
+        assert!(self.model_matrices_applied);
         let hit_infos: Vec<_> = self
             .objects
             .iter()
@@ -76,6 +89,9 @@ impl Drawable for Scene {
     type Error = DrawError;
 
     fn draw(&self, extra_data: &mut Self::ExtraData) -> Result<(), DrawError> {
+        unsafe {
+            extra_data.set_use_model_matrix(!self.model_matrices_applied);
+        }
         self.get_objects()
             .iter()
             .try_for_each(|object| object.draw(extra_data))?;
