@@ -173,6 +173,7 @@ fn main() {
     let mut camera_image_alpha_value = 0.0;
     let mut camera_focal_length = 12.0;
     let mut camera_sensor_width = 2.0;
+    let mut camera_position = glm::vec3(0.0, 0.0, 10.0);
 
     let (shader_list, shader_ids) = {
         let mut shader_list = ShaderList::new();
@@ -303,12 +304,11 @@ fn main() {
         let path_trace_camera = {
             let aspect_ratio = image_width as f64 / image_height as f64;
             let camera_sensor_height = camera_sensor_width / aspect_ratio;
-            let origin = glm::vec3(0.0, 0.0, 10.0);
             PathTraceCamera::new(
                 camera_sensor_height,
                 aspect_ratio,
                 camera_focal_length,
-                origin,
+                camera_position,
             )
         };
 
@@ -547,6 +547,11 @@ fn main() {
                             egui::Slider::new(&mut camera_focal_length, 0.0..=15.0)
                                 .text("Camera Focal Length"),
                         );
+
+                        ui.label("Camera Position");
+                        ui.add(egui::Slider::new(&mut camera_position[0], -10.0..=10.0).text("x"));
+                        ui.add(egui::Slider::new(&mut camera_position[1], -10.0..=10.0).text("y"));
+                        ui.add(egui::Slider::new(&mut camera_position[2], -10.0..=10.0).text("z"));
 
                         ui.separator();
 
