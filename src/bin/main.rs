@@ -151,6 +151,7 @@ fn ray_trace_scene(
             let mut progress = progress.write().unwrap();
             progress.set_progress((processed_samples + 1) as f64 / ray_trace_params.get_samples_per_pixel() as f64);
             // Should we change time here also?
+            //progress.reset_instant();
         }
     }
 
