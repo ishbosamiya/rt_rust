@@ -65,12 +65,10 @@ impl MeshIO {
         let mut meshes: Vec<Self>;
 
         let mut index = 0;
-        let mut start_pos1; 
+        let mut start_pos1;
         let mut start_pos2;
         let mut start_pos3;
         for obj in self.face_indices {
-            
-
             // Make new MeshIO Object
             // Add all types of face indeces and rest to it
             let (end_pos1, end_pos2, end_pos3) = self.end_of_indices[index];
@@ -78,8 +76,7 @@ impl MeshIO {
                 start_pos1 = 0;
                 start_pos2 = 0;
                 start_pos3 = 0;
-            }
-            else {
+            } else {
                 let pos_new = &self.positions[start_pos1..end_pos1];
                 let uvs_new = &self.uvs[start_pos2..end_pos2];
                 let normal_new = &self.normals[start_pos3..end_pos3];
@@ -96,7 +93,7 @@ impl MeshIO {
                     face_starting: Vec::new(),
                     end_of_indices: Vec::new(),
                 });
-            // TODO Append new values into new meshes vector
+                // TODO Append new values into new meshes vector
                 start_pos1 = end_pos1;
                 start_pos2 = end_pos2;
                 start_pos3 = end_pos3;
@@ -176,7 +173,6 @@ impl MeshIO {
         let mut line_indices = Vec::new();
         let mut face_starting = vec![0];
         let mut end_of_indices = vec![(0, 0, 0)];
-        
 
         let mut file_data = std::fs::File::open(path).unwrap();
         let mut contents = String::new();
@@ -232,9 +228,9 @@ impl MeshIO {
         }
         let vals: Vec<&str> = line.split(' ').collect();
         let indice = end_of_indices.last().unwrap();
-        
+
         let (mut v_cnt, mut uv_cnt, mut n_cnt) = *indice;
-        
+
         assert!(!vals.is_empty());
         match vals[0] {
             "v" => {
