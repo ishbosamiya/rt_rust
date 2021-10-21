@@ -80,6 +80,11 @@ fn ray_trace_scene(
     let mut image = Image::new(ray_trace_params.get_width(), ray_trace_params.get_height());
     progress.write().unwrap().reset();
 
+    let progress_previous_update = Arc::new(RwLock::new(Instant::now()));
+    let total_number_of_samples = ray_trace_params.get_samples_per_pixel()
+        * ray_trace_params.get_width()
+        * ray_trace_params.get_height();
+
     // initialize all pixels to black
     image
         .get_pixels_mut()
@@ -97,6 +102,8 @@ fn ray_trace_scene(
             return;
         }
 
+        let processed_pixels = Arc::new(AtomicUsize::new(0));
+
         scene.write().unwrap().apply_model_matrices();
 
         let scene = scene.read().unwrap();
@@ -107,6 +114,27 @@ fn ray_trace_scene(
             .enumerate()
             .for_each(|(j, row)| {
                 row.par_iter_mut().enumerate().for_each(|(i, pixel)| {
+                    let processed_pixels = processed_pixels.fetch_add(1, Ordering::SeqCst);
+
+                    if progress_previous_update
+                        .read()
+                        .unwrap()
+                        .elapsed()
+                        .as_secs_f64()
+                        > 0.03
+                    {
+                        let calculated_progress = (processed_samples
+                            * ray_trace_params.get_width()
+                            * ray_trace_params.get_height()
+                            + processed_pixels)
+                            as f64
+                            / total_number_of_samples as f64;
+
+                        progress.write().unwrap().set_progress(calculated_progress);
+
+                        *progress_previous_update.write().unwrap() = Instant::now();
+                    }
+
                     let j = ray_trace_params.get_height() - j - 1;
 
                     // use opengl coords, (0.0, 0.0) is center; (1.0, 1.0) is
@@ -278,6 +306,7 @@ fn ray_trace_main(
 use std::cell::RefCell;
 use std::convert::TryInto;
 use std::rc::Rc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::{self, Receiver};
 use std::sync::{Arc, RwLock};
 use std::thread::{self, JoinHandle};
