@@ -21,14 +21,20 @@ pub struct Camera {
 
 impl Camera {
     pub fn new(
-        viewport_height: f64,
+        sensor_height: f64,
         aspect_ratio: f64,
         focal_length: f64,
         origin: glm::DVec3,
     ) -> Camera {
-        let viewport_width = viewport_height as f64 * aspect_ratio;
-        let horizontal = glm::vec3(viewport_width, 0.0, 0.0);
-        let vertical = glm::vec3(0.0, viewport_height, 0.0);
+        // The sensor height and width get doubled since the UV's used
+        // are OpenGL based so they range from -1 to 1. To fix the
+        // doubling, the sensor height must be halved before
+        // calculating horizontal and vertical.
+        let sensor_height = sensor_height / 2.0;
+
+        let sensor_width = sensor_height as f64 * aspect_ratio;
+        let horizontal = glm::vec3(sensor_width, 0.0, 0.0);
+        let vertical = glm::vec3(0.0, sensor_height, 0.0);
         let camera_plane_center = origin - glm::vec3(0.0, 0.0, focal_length);
 
         Camera {
