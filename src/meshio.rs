@@ -15,8 +15,8 @@ pub struct MeshIO {
     pub line_indices: Vec<Vec<usize>>,
 
     /// end of object indices stored for (positions, uvs, normals,
-    /// face_indices)
-    pub end_of_object: Vec<(usize, usize, usize, usize)>,
+    /// face_indices, line_indices)
+    pub end_of_object: Vec<(usize, usize, usize, usize, usize)>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -114,6 +114,62 @@ impl MeshIO {
         })
     }
 
+    /// Splits the meshio into the constituent objects
+    pub fn split(mut self) -> Vec<Self> {
+        self.end_of_object.push((
+            self.positions.len(),
+            self.uvs.len(),
+            self.normals.len(),
+            self.face_indices.len(),
+            self.line_indices.len(),
+        ));
+
+        let mut prev_position = 0;
+        let mut prev_uv = 0;
+        let mut prev_normal = 0;
+        let mut prev_face = 0;
+        let mut prev_line = 0;
+        self.end_of_object
+            .iter()
+            .map(|(end_position, end_uv, end_normal, end_face, end_line)| {
+                let positions = self.positions[prev_position..*end_position].to_vec();
+                let uvs = self.uvs[prev_uv..*end_uv].to_vec();
+                let normals = self.normals[prev_normal..*end_normal].to_vec();
+                let face_indices = self.face_indices[prev_face..*end_face]
+                    .iter()
+                    .map(|face| {
+                        face.iter()
+                            .map(|(pos, uv, normal)| {
+                                (pos - prev_position, uv - prev_uv, normal - prev_normal)
+                            })
+                            .collect()
+                    })
+                    .collect();
+                let line_indices = self.line_indices[prev_line..*end_line]
+                    .iter()
+                    .map(|line| line.iter().map(|pos| pos - prev_position).collect())
+                    .collect();
+
+                prev_position = *end_position;
+                prev_uv = *end_uv;
+                prev_normal = *end_normal;
+                prev_face = *end_face;
+                prev_line = *end_line;
+
+                Self {
+                    positions,
+                    uvs,
+                    normals,
+                    face_indices,
+                    face_has_uv: self.face_has_uv,
+                    face_has_normal: self.face_has_normal,
+                    line_indices,
+                    end_of_object: Vec::new(),
+                }
+            })
+            .collect()
+    }
+
     fn read_obj(path: &Path) -> Result<MeshIO, MeshIOError> {
         let fin = File::open(path)?;
         let mut positions = Vec::new();
@@ -169,7 +225,7 @@ impl MeshIO {
         face_has_uv: &mut bool,
         face_has_normal: &mut bool,
         line_indices: &mut Vec<Vec<usize>>,
-        end_of_object: &mut Vec<(usize, usize, usize, usize)>,
+        end_of_object: &mut Vec<(usize, usize, usize, usize, usize)>,
     ) -> Result<(), MeshIOError> {
         if line.starts_with('#') {
             return Ok(());
@@ -266,6 +322,7 @@ impl MeshIO {
                     && uvs.is_empty()
                     && normals.is_empty()
                     && face_indices.is_empty()
+                    && line_indices.is_empty()
                 {
                     // if nothing processed until now, no object could
                     // have been created so just skip
@@ -275,6 +332,7 @@ impl MeshIO {
                         uvs.len(),
                         normals.len(),
                         face_indices.len(),
+                        line_indices.len(),
                     ));
                 }
                 Ok(())
@@ -334,6 +392,7 @@ impl Default for MeshIO {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
     fn meshreader_read_obj_test_01() {
         let data = MeshIO::read_obj(Path::new("tests/obj_test_01.obj")).unwrap();
@@ -367,6 +426,28 @@ mod tests {
     fn meshreader_read_obj_test_04() {
         let meshio = MeshIO::read_obj(Path::new("tests/obj_test_07.obj")).unwrap();
         assert_eq!(meshio.end_of_object.len(), 1);
-        assert_eq!(meshio.end_of_object[0], (8, 14, 6, 6));
+        assert_eq!(meshio.end_of_object[0], (8, 14, 6, 6, 0));
+    }
+
+    #[test]
+    fn meshreader_read_obj_test_05() {
+        let meshio = MeshIO::read_obj(Path::new("tests/obj_test_07.obj")).unwrap();
+        let meshios = meshio.split();
+        assert_eq!(meshios.len(), 2);
+        let data = &meshios[0];
+        assert_eq!(data.positions.len(), 8);
+        assert_eq!(data.uvs.len(), 14);
+        assert_eq!(data.normals.len(), 6);
+        assert_eq!(data.face_indices.len(), 6);
+        assert_eq!(data.face_indices[0].len(), 4);
+        assert_eq!(data.line_indices.len(), 0);
+
+        let data = &meshios[1];
+        assert_eq!(data.positions.len(), 8);
+        assert_eq!(data.uvs.len(), 14);
+        assert_eq!(data.normals.len(), 6);
+        assert_eq!(data.face_indices.len(), 6);
+        assert_eq!(data.face_indices[0].len(), 4);
+        assert_eq!(data.line_indices.len(), 0);
     }
 }
