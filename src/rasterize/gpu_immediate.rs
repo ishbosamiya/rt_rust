@@ -8,6 +8,7 @@ use crate::util::str_to_cstr;
 const GPU_VERT_ATTR_MAX_LEN: usize = 16;
 const IMM_DEFAULT_BUFFER_SIZE: usize = 4 * 1024 * 1024;
 
+#[derive(Debug, Clone, Copy)]
 pub enum GPUVertCompType {
     I8,
     U8,
@@ -36,6 +37,7 @@ impl GPUVertCompType {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub enum GPUVertFetchMode {
     Float,
     Int,
@@ -44,7 +46,7 @@ pub enum GPUVertFetchMode {
     None,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum GPUPrimType {
     Points,
     Lines,
@@ -81,6 +83,7 @@ impl GPUPrimType {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 struct GPUAttrBinding {
     loc_bits: u64,     // store 4 bits for each the 16 attributes
     enabled_bits: u16, // store 1 bit for each attribute
@@ -114,6 +117,7 @@ impl GPUAttrBinding {
     }
 }
 
+#[derive(Debug, Clone)]
 struct GPUVertAttr {
     fetch_mode: GPUVertFetchMode,
     comp_type: GPUVertCompType,
@@ -173,6 +177,7 @@ impl GPUVertAttr {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct GPUVertFormat {
     stride: u16,  // stride in bytes 1 to 1024
     packed: bool, // has the format been packed
@@ -260,6 +265,7 @@ impl GPUVertFormat {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct GPUImmediate {
     buffer_data: *mut gl::types::GLubyte,
     buffer_offset: usize,
