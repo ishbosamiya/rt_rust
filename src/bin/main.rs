@@ -704,7 +704,7 @@ fn main() {
                             let path_trace_progress = *path_trace_progress.read().unwrap();
                             egui::ProgressBar::new(path_trace_progress as _)
                                 .text(format!(
-                                    "Path Trace Progress: {:.2}",
+                                    "Path Trace Progress: {:.2}%",
                                     path_trace_progress * 100.0
                                 ))
                                 .animate(true)
