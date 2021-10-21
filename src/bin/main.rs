@@ -31,14 +31,25 @@ fn ray_trace_scene(
 
     let mut image = Image::new(width, height);
 
+    // initialize all pixels to black
     image
         .get_pixels_mut()
         .par_iter_mut()
         .enumerate()
-        .for_each(|(j, row)| {
-            row.par_iter_mut().enumerate().for_each(|(i, pixel)| {
+        .for_each(|(_j, row)| {
+            row.par_iter_mut().enumerate().for_each(|(_i, pixel)| {
                 *pixel = glm::vec3(0.0, 0.0, 0.0);
-                for _ in 0..samples_per_pixel {
+            });
+        });
+
+    // ray trace
+    for _ in 0..samples_per_pixel {
+        image
+            .get_pixels_mut()
+            .par_iter_mut()
+            .enumerate()
+            .for_each(|(j, row)| {
+                row.par_iter_mut().enumerate().for_each(|(i, pixel)| {
                     let j = height - j - 1;
 
                     // use opengl coords, (0.0, 0.0) is center; (1.0, 1.0) is
@@ -53,7 +64,17 @@ fn ray_trace_scene(
                         path_trace::trace_ray(&ray, camera, scene, trace_max_depth, shader_list);
 
                     *pixel += color;
-                }
+                });
+            });
+    }
+
+    // divide each pixel with the number of samples
+    image
+        .get_pixels_mut()
+        .par_iter_mut()
+        .enumerate()
+        .for_each(|(_j, row)| {
+            row.par_iter_mut().enumerate().for_each(|(_i, pixel)| {
                 *pixel /= samples_per_pixel as f64;
             });
         });
