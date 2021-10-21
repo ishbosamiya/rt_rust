@@ -764,17 +764,23 @@ fn main() {
                                 .text("Samples Per Pixel"),
                         );
 
-                        if ui.button("Ray Trace Scene").clicked() {
-                            ray_trace_thread_sender
-                                .send(RayTraceMessage::StartRender(RayTraceParams::new(
-                                    image_width,
-                                    image_height,
-                                    trace_max_depth,
-                                    samples_per_pixel,
-                                    path_trace_camera.clone(),
-                                )))
-                                .unwrap();
-                        }
+                        ui.horizontal(|ui| {
+                            if ui.button("Ray Trace Scene").clicked() {
+                                ray_trace_thread_sender
+                                    .send(RayTraceMessage::StartRender(RayTraceParams::new(
+                                        image_width,
+                                        image_height,
+                                        trace_max_depth,
+                                        samples_per_pixel,
+                                        path_trace_camera.clone(),
+                                    )))
+                                    .unwrap();
+                            }
+
+                            if ui.button("Quit Render").clicked() {
+                                ray_trace_thread_sender.send(RayTraceMessage::Quit).unwrap();
+                            }
+                        });
 
                         ui.horizontal(|ui| {
                             ui.label("Save Location");
