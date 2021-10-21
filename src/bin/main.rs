@@ -508,139 +508,147 @@ fn main() {
             {
                 egui.begin_frame(&window, &mut glfw);
                 egui::Window::new("Hello world!").show(egui.get_egui_ctx(), |ui| {
-                    ui.label("Hello RT Rust!");
-                    ui.label(format!("fps: {:.2}", fps.update_and_get(Some(60.0))));
+                    egui::ScrollArea::auto_sized().show(ui, |ui| {
+                        ui.label(format!("fps: {:.2}", fps.update_and_get(Some(60.0))));
 
-                    color_edit_button_dvec4(ui, "Background Color", &mut background_color);
+                        color_edit_button_dvec4(ui, "Background Color", &mut background_color);
 
-                    ui.checkbox(&mut draw_bvh, "Draw BVH");
-                    ui.add(egui::Slider::new(&mut bvh_draw_level, 0..=15).text("BVH Draw Level"));
-                    color_edit_button_dvec4(ui, "BVH Color", &mut bvh_color);
-                    color_edit_button_dvec4(ui, "BVH Ray Color", &mut bvh_ray_color);
+                        ui.checkbox(&mut draw_bvh, "Draw BVH");
+                        ui.add(
+                            egui::Slider::new(&mut bvh_draw_level, 0..=15).text("BVH Draw Level"),
+                        );
+                        color_edit_button_dvec4(ui, "BVH Color", &mut bvh_color);
+                        color_edit_button_dvec4(ui, "BVH Ray Color", &mut bvh_ray_color);
 
-                    if ui.button("Delete Rays").clicked() {
-                        bvh_ray_intersection.clear();
-                    }
-
-                    ui.separator();
-
-                    ui.add(
-                        egui::Slider::new(&mut camera_image_alpha_value, 0.0..=1.0)
-                            .clamp_to_range(true)
-                            .text("Camera Image Alpha"),
-                    );
-
-                    ui.add(
-                        egui::Slider::new(&mut camera_focal_length, 0.0..=15.0)
-                            .text("Camera Focal Length"),
-                    );
-
-                    ui.separator();
-
-                    ui.add(egui::Slider::new(&mut image_width, 1..=1000).text("Image Width"));
-                    ui.add(egui::Slider::new(&mut image_height, 1..=1000).text("Image Height"));
-                    ui.add(egui::Slider::new(&mut trace_max_depth, 1..=10).text("Trace Max Depth"));
-                    ui.add(
-                        egui::Slider::new(&mut samples_per_pixel, 1..=10).text("Samples Per Pixel"),
-                    );
-
-                    if ui.button("Ray Trace Scene").clicked() {
-                        image = TextureRGBAFloat::from_image(&ray_trace_scene(
-                            image_width,
-                            image_height,
-                            trace_max_depth,
-                            samples_per_pixel,
-                            &mut scene,
-                            &shader_list,
-                            &path_trace_camera,
-                        ));
-                    }
-
-                    ui.horizontal(|ui| {
-                        ui.label("Save Location");
-                        ui.text_edit_singleline(&mut save_image_location);
-                    });
-
-                    if ui.button("Save Ray Traced Image").clicked() {
-                        let image = Image::from_texture_rgba_float(&image);
-                        PPM::new(&image)
-                            .write_to_file(&save_image_location)
-                            .unwrap();
-                    }
-
-                    ui.separator();
-
-                    ui.label("Rays to Shoot");
-                    ui.add(
-                        egui::Slider::new(&mut ray_to_shoot.0, 1..=image_width)
-                            .logarithmic(true)
-                            .clamp_to_range(true)
-                            .text("x"),
-                    );
-                    ui.add(
-                        egui::Slider::new(&mut ray_to_shoot.1, 1..=image_height)
-                            .logarithmic(true)
-                            .clamp_to_range(true)
-                            .text("y"),
-                    );
-                    ui.label("Ray Pixel Start");
-                    ui.add(
-                        egui::Slider::new(
-                            &mut ray_pixel_start.0,
-                            0..=(image_width / ray_to_shoot.0) - 1,
-                        )
-                        .clamp_to_range(true)
-                        .text("x"),
-                    );
-                    ui.add(
-                        egui::Slider::new(
-                            &mut ray_pixel_start.1,
-                            0..=(image_height / ray_to_shoot.1) - 1,
-                        )
-                        .clamp_to_range(true)
-                        .text("y"),
-                    );
-                    ui.checkbox(&mut show_ray_traversal_info, "Show Ray Traversal Info");
-
-                    ui.checkbox(&mut draw_normal_at_hit_points, "Draw Normal at Hit Points");
-                    ui.add(egui::Slider::new(&mut normals_size, 0.0..=2.0).text("Normals Size"));
-                    color_edit_button_dvec4(ui, "Normals Color", &mut normals_color);
-
-                    if ui.button("Trace Rays").clicked() {
-                        scene.apply_model_matrices();
-
-                        ray_traversal_info.clear();
-
-                        for i in 0..ray_to_shoot.0 {
-                            for j in 0..ray_to_shoot.1 {
-                                let i = i * (image_width / ray_to_shoot.0) + ray_pixel_start.0;
-                                let j = j * (image_height / ray_to_shoot.1) + ray_pixel_start.1;
-                                // use opengl coords, (0.0, 0.0) is center; (1.0, 1.0) is
-                                // top right; (-1.0, -1.0) is bottom left
-                                let u = (((i as f64 + rand::random::<f64>())
-                                    / (image_width - 1) as f64)
-                                    - 0.5)
-                                    * 2.0;
-                                let v = (((j as f64 + rand::random::<f64>())
-                                    / (image_height - 1) as f64)
-                                    - 0.5)
-                                    * 2.0;
-
-                                let ray = path_trace_camera.get_ray(u, v);
-
-                                let (_color, traversal_info) = path_trace::trace_ray(
-                                    &ray,
-                                    &path_trace_camera,
-                                    &scene,
-                                    trace_max_depth,
-                                    &shader_list,
-                                );
-                                ray_traversal_info.push(traversal_info);
-                            }
+                        if ui.button("Delete Rays").clicked() {
+                            bvh_ray_intersection.clear();
                         }
 
-                        scene.unapply_model_matrices();
-                    }
+                        ui.separator();
+
+                        ui.add(
+                            egui::Slider::new(&mut camera_image_alpha_value, 0.0..=1.0)
+                                .clamp_to_range(true)
+                                .text("Camera Image Alpha"),
+                        );
+
+                        ui.add(
+                            egui::Slider::new(&mut camera_focal_length, 0.0..=15.0)
+                                .text("Camera Focal Length"),
+                        );
+
+                        ui.separator();
+
+                        ui.add(egui::Slider::new(&mut image_width, 1..=1000).text("Image Width"));
+                        ui.add(egui::Slider::new(&mut image_height, 1..=1000).text("Image Height"));
+                        ui.add(
+                            egui::Slider::new(&mut trace_max_depth, 1..=10).text("Trace Max Depth"),
+                        );
+                        ui.add(
+                            egui::Slider::new(&mut samples_per_pixel, 1..=10)
+                                .text("Samples Per Pixel"),
+                        );
+
+                        if ui.button("Ray Trace Scene").clicked() {
+                            image = TextureRGBAFloat::from_image(&ray_trace_scene(
+                                image_width,
+                                image_height,
+                                trace_max_depth,
+                                samples_per_pixel,
+                                &mut scene,
+                                &shader_list,
+                                &path_trace_camera,
+                            ));
+                        }
+
+                        ui.horizontal(|ui| {
+                            ui.label("Save Location");
+                            ui.text_edit_singleline(&mut save_image_location);
+                        });
+
+                        if ui.button("Save Ray Traced Image").clicked() {
+                            let image = Image::from_texture_rgba_float(&image);
+                            PPM::new(&image)
+                                .write_to_file(&save_image_location)
+                                .unwrap();
+                        }
+
+                        ui.separator();
+
+                        ui.label("Rays to Shoot");
+                        ui.add(
+                            egui::Slider::new(&mut ray_to_shoot.0, 1..=image_width)
+                                .logarithmic(true)
+                                .clamp_to_range(true)
+                                .text("x"),
+                        );
+                        ui.add(
+                            egui::Slider::new(&mut ray_to_shoot.1, 1..=image_height)
+                                .logarithmic(true)
+                                .clamp_to_range(true)
+                                .text("y"),
+                        );
+                        ui.label("Ray Pixel Start");
+                        ui.add(
+                            egui::Slider::new(
+                                &mut ray_pixel_start.0,
+                                0..=(image_width / ray_to_shoot.0) - 1,
+                            )
+                            .clamp_to_range(true)
+                            .text("x"),
+                        );
+                        ui.add(
+                            egui::Slider::new(
+                                &mut ray_pixel_start.1,
+                                0..=(image_height / ray_to_shoot.1) - 1,
+                            )
+                            .clamp_to_range(true)
+                            .text("y"),
+                        );
+                        ui.checkbox(&mut show_ray_traversal_info, "Show Ray Traversal Info");
+
+                        ui.checkbox(&mut draw_normal_at_hit_points, "Draw Normal at Hit Points");
+                        ui.add(
+                            egui::Slider::new(&mut normals_size, 0.0..=2.0).text("Normals Size"),
+                        );
+                        color_edit_button_dvec4(ui, "Normals Color", &mut normals_color);
+
+                        if ui.button("Trace Rays").clicked() {
+                            scene.apply_model_matrices();
+
+                            ray_traversal_info.clear();
+
+                            for i in 0..ray_to_shoot.0 {
+                                for j in 0..ray_to_shoot.1 {
+                                    let i = i * (image_width / ray_to_shoot.0) + ray_pixel_start.0;
+                                    let j = j * (image_height / ray_to_shoot.1) + ray_pixel_start.1;
+                                    // use opengl coords, (0.0, 0.0) is center; (1.0, 1.0) is
+                                    // top right; (-1.0, -1.0) is bottom left
+                                    let u = (((i as f64 + rand::random::<f64>())
+                                        / (image_width - 1) as f64)
+                                        - 0.5)
+                                        * 2.0;
+                                    let v = (((j as f64 + rand::random::<f64>())
+                                        / (image_height - 1) as f64)
+                                        - 0.5)
+                                        * 2.0;
+
+                                    let ray = path_trace_camera.get_ray(u, v);
+
+                                    let (_color, traversal_info) = path_trace::trace_ray(
+                                        &ray,
+                                        &path_trace_camera,
+                                        &scene,
+                                        trace_max_depth,
+                                        &shader_list,
+                                    );
+                                    ray_traversal_info.push(traversal_info);
+                                }
+                            }
+
+                            scene.unapply_model_matrices();
+                        }
+                    });
                 });
                 let _output = egui.end_frame(glm::vec2(window_width as _, window_height as _));
             }
