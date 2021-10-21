@@ -74,7 +74,7 @@ fn ray_trace_scene(
     scene: Arc<RwLock<Scene>>,
     shader_list: Arc<RwLock<ShaderList>>,
     rendered_image: Arc<RwLock<Image>>,
-    progress: Arc<RwLock<f64>>,
+    progress: Arc<RwLock<Progress>>,
     quit_render: Arc<RwLock<bool>>,
 ) {
     let mut image = Image::new(ray_trace_params.get_width(), ray_trace_params.get_height());
@@ -149,8 +149,8 @@ fn ray_trace_scene(
 
         {
             let mut progress = progress.write().unwrap();
-            *progress =
-                (processed_samples + 1) as f64 / ray_trace_params.get_samples_per_pixel() as f64;
+            progress.set_progress((processed_samples + 1) as f64 / ray_trace_params.get_samples_per_pixel() as f64);
+            // Should we change time here also?
         }
     }
 
@@ -174,12 +174,43 @@ fn ray_trace_quit_render(
     *quit_render.write().unwrap() = false;
     render_thread_handle
 }
+pub struct Progress {
+    pub progress : f64,
+    pub instant : std::time::Instant,
+}
+
+impl Progress {
+    pub fn new() -> Self {
+        Self {
+            progress: 0.0,
+            instant: std::time::Instant::now(),
+        }
+    }
+
+    pub fn get_progress(self) -> f64 {
+        self.progress
+    }
+
+    pub fn set_progress(self, prog: f64) {
+        self.progress = prog;
+    }
+
+    pub fn reset_instant(self) {
+        self.instant = std::time::Instant::now();
+    }
+
+    pub fn get_rem_time(self) -> f64 {
+        let time_diff = (std::time::Instant::now() - self.instant).as_secs_f64();
+        let slope = self.progress / time_diff;
+        (100.0 - self.progress) / slope
+    }
+}
 
 fn ray_trace_main(
     scene: Arc<RwLock<Scene>>,
     shader_list: Arc<RwLock<ShaderList>>,
     rendered_image: Arc<RwLock<Image>>,
-    progress: Arc<RwLock<f64>>,
+    progress: Arc<RwLock<Progress>>,
     message_receiver: Receiver<RayTraceMessage>,
 ) {
     let quit_render = Arc::new(RwLock::new(false));
@@ -330,7 +361,7 @@ fn main() {
     let mut camera_focal_length = 12.0;
     let mut camera_sensor_width = 2.0;
     let mut camera_position = glm::vec3(0.0, 0.0, 10.0);
-    let path_trace_progress = Arc::new(RwLock::new(0.0));
+    let path_trace_progress = Arc::new(RwLock::new(Progress::new()));
 
     let (shader_list, shader_ids) = {
         let mut shader_list = ShaderList::new();
@@ -702,30 +733,15 @@ fn main() {
                         ui.label(format!("fps: {:.2}", fps.update_and_get(Some(60.0))));
                         ui.add({
                             let path_trace_progress = *path_trace_progress.read().unwrap();
-                            egui::ProgressBar::new(path_trace_progress as _)
+                            egui::ProgressBar::new(path_trace_progress.progress as _)
                                 .text(format!(
                                     "Path Trace Progress: {:.2}%",
-                                    path_trace_progress * 100.0
+                                    path_trace_progress.progress * 100.0
                                 ))
                                 .animate(true)
                         });
-                        // Comment out 
-                        use std::time::{SystemTime};
-                        let now = SystemTime::now();
-
-                        // let cur_time: f64 = 0;
-                        let mut elapsed_time: u64 = 0;
-                        match now.elapsed() {
-                            Ok(elapsed) => {
-                                elapsed_time = elapsed.as_secs();
-                            }
-                            Err(e) => {
-                                println!("Error: {:?}", e);
-                            }
-                        }
-                        let slope: f64 = *path_trace_progress.read().unwrap() / (elapsed_time as f64);
-                        let remaining_time = (100.0 - *path_trace_progress.read().unwrap()) / slope;
-                        ui.label(format!("Time Left (in secs) {:.2}", remaining_time));
+                        // let path_trace_progress = *path_trace_progress.read().unwrap();
+                        ui.label(format!("Time Left (in secs) {:.2}", path_trace_progress.read().unwrap().get_rem_time()));
 
                         color_edit_button_dvec4(ui, "Background Color", &mut background_color);
 
