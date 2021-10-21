@@ -78,7 +78,8 @@ fn ray_trace_scene(
     quit_render: Arc<RwLock<bool>>,
 ) {
     let mut image = Image::new(ray_trace_params.get_width(), ray_trace_params.get_height());
-
+    let mut progress = progress.write().unwrap();
+    progress.reset_instant();
     // initialize all pixels to black
     image
         .get_pixels_mut()
