@@ -6,6 +6,7 @@ pub mod mesh;
 pub mod meshio;
 pub mod object;
 pub mod path_trace;
+pub mod progress;
 pub mod rasterize;
 pub mod scene;
 pub mod sphere;
