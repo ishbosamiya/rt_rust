@@ -69,6 +69,28 @@ impl Camera {
             self.camera_plane_center + u * self.horizontal + v * self.vertical - self.origin,
         )
     }
+
+    pub fn get_focal_length(&self) -> f64 {
+        (self.get_camera_plane_center() - self.get_origin()).norm()
+    }
+
+    pub fn get_sensor_size_hor(&self) -> f64 {
+        self.get_horizontal()[0] * 2.0
+    }
+
+    pub fn get_sensor_size_ver(&self) -> f64 {
+        self.get_vertical()[1] * 2.0
+    }
+
+    /// horizontal fov in radians
+    pub fn get_fov_hor(&self) -> f64 {
+        focal_length_to_fov(self.get_focal_length(), self.get_sensor_size_hor())
+    }
+
+    /// vertical fov in radians
+    pub fn get_fov_ver(&self) -> f64 {
+        focal_length_to_fov(self.get_focal_length(), self.get_sensor_size_ver())
+    }
 }
 
 pub struct CameraDrawData {
@@ -279,4 +301,8 @@ fn draw_triangle(
     imm.vertex_3f(pos_attr, p2[0], p2[1], p2[2]);
     imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
     imm.vertex_3f(pos_attr, p3[0], p3[1], p3[2]);
+}
+
+fn focal_length_to_fov(focal_length: f64, camera_sensor_size: f64) -> f64 {
+    2.0 * (camera_sensor_size / (2.0 * focal_length)).atan()
 }

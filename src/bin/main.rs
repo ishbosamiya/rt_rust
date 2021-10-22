@@ -703,15 +703,9 @@ fn handle_window_event(
             )
         }
         glfw::WindowEvent::Key(Key::Num0 | Key::Kp0, _, Action::Press, _) => {
-            // TODO: when path_trace::camera::Camera changes, even
-            // this will need to change, right now it is basically
-            // hard coded values since that camera cannot turn
-            let focal_length = (path_trace_camera.get_camera_plane_center()
-                - path_trace_camera.get_origin())
-            .norm();
-            let camera_sensor_size = (path_trace_camera.get_horizontal()[0] * 2.0)
-                .max(path_trace_camera.get_vertical()[1] * 2.0);
-            let fov = 2.0 * (camera_sensor_size / (2.0 * focal_length)).atan();
+            let fov = path_trace_camera
+                .get_fov_hor()
+                .max(path_trace_camera.get_fov_ver());
             *camera = RasterizeCamera::new(
                 *path_trace_camera.get_origin(),
                 *path_trace_camera.get_vertical(),
