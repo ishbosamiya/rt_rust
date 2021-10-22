@@ -278,12 +278,12 @@ impl Mesh {
         let mut bvh = BVHTree::new(self.faces.len(), epsilon, 4, 8);
 
         self.faces.iter().enumerate().for_each(|(f_index, face)| {
-            let co = face
+            let co: Vec<_> = face
                 .iter()
                 .map(|v_index| *self.vertices[*v_index].get_pos())
                 .collect();
 
-            bvh.insert(f_index, co);
+            bvh.insert(f_index, &co);
         });
 
         bvh.balance();

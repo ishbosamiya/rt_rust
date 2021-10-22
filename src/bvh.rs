@@ -86,7 +86,7 @@ where
         &mut self,
         start_axis: u8,
         stop_axis: u8,
-        co_many: Vec<glm::DVec3>,
+        co_many: &[glm::DVec3],
         moving: bool,
     ) {
         if !moving {
@@ -440,7 +440,7 @@ where
     /// will return `index` stored in the node that has closest hit
     ///
     /// `co_many` contains list of points to form the new BV around
-    pub fn insert(&mut self, index: T, co_many: Vec<glm::DVec3>) {
+    pub fn insert(&mut self, index: T, co_many: &[glm::DVec3]) {
         assert!(self.totbranch == 0);
 
         self.nodes[self.totleaf] = BVHNodeIndex(self.node_array.get_unknown_index(self.totleaf));
@@ -783,8 +783,8 @@ where
     pub fn update_node(
         &mut self,
         node_index: usize,
-        co_many: Vec<glm::DVec3>,
-        co_moving_many: Vec<glm::DVec3>,
+        co_many: &[glm::DVec3],
+        co_moving_many: &[glm::DVec3],
     ) -> Result<(), BVHError> {
         if node_index > self.totleaf {
             return Err(BVHError::IndexOutOfRange);
