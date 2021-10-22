@@ -27,8 +27,12 @@ pub trait Shader: Sync + Send {
 }
 
 pub struct ShaderList {
+    /// list of all shaders indexed by their ShaderID
     shaders: HashMap<ShaderID, Box<dyn Shader>>,
+    /// list of all shader ids in the order of addition of shaders
+    shader_ids: Vec<ShaderID>,
 
+    /// selected shader if there exists one
     selected_shader: Option<ShaderID>,
 }
 
@@ -36,6 +40,7 @@ impl ShaderList {
     pub fn new() -> Self {
         Self {
             shaders: HashMap::new(),
+            shader_ids: Vec::new(),
             selected_shader: None,
         }
     }
@@ -62,6 +67,7 @@ impl ShaderList {
         let shader_id = ShaderID(rand::random());
         shader.set_shader_id(shader_id);
         self.shaders.insert(shader_id, shader);
+        self.shader_ids.push(shader_id);
         shader_id
     }
 }
@@ -88,20 +94,29 @@ impl DrawUI for ShaderList {
     }
 
     fn draw_ui_mut(&mut self, ui: &mut egui::Ui) {
+        assert_eq!(self.shader_ids.len(), self.shaders.len());
         let selected_shader = &mut self.selected_shader;
+        let shaders = &mut self.shaders;
         ui.separator();
-        self.shaders.values_mut().for_each(|shader| {
-            ui.horizontal(|ui| {
-                ui.text_edit_singleline(shader.get_shader_name_mut());
-                if ui.button("Select Shader").clicked() {
-                    *selected_shader = Some(shader.get_shader_id());
-                }
+        self.shader_ids
+            .iter()
+            .enumerate()
+            .for_each(|(index, shader_id)| {
+                ui.label(format!("Shader {}", index + 1));
+
+                let shader = shaders.get_mut(shader_id).unwrap();
+
+                ui.horizontal(|ui| {
+                    ui.text_edit_singleline(shader.get_shader_name_mut());
+                    if ui.button("Select Shader").clicked() {
+                        *selected_shader = Some(shader.get_shader_id());
+                    }
+                });
+
+                shader.get_bsdf().draw_ui(ui);
+                shader.get_bsdf_mut().draw_ui_mut(ui);
+
+                ui.separator();
             });
-
-            shader.get_bsdf().draw_ui(ui);
-            shader.get_bsdf_mut().draw_ui_mut(ui);
-
-            ui.separator();
-        });
     }
 }
