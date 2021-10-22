@@ -14,6 +14,7 @@ use rt::rasterize::gpu_utils::draw_plane_with_image;
 use rt::rasterize::texture::TextureRGBAFloat;
 use rt::scene::Scene;
 use rt::sphere::Sphere;
+use rt::ui::DrawUI;
 
 extern crate lazy_static;
 
@@ -602,6 +603,16 @@ fn main() {
                         }
                     });
                 });
+
+                egui::SidePanel::right("Shader Panel").show(egui.get_egui_ctx(), |ui| {
+                    shader_list.read().unwrap().draw_ui(ui);
+                    if let Ok(mut shader_list) = shader_list.try_write() {
+                        shader_list.draw_ui_mut(ui);
+                    } else {
+                        ui.label("Shaders are currently in use, cannot edit the shaders");
+                    }
+                });
+
                 let _output = egui.end_frame(glm::vec2(window_width as _, window_height as _));
             }
             // GUI ends

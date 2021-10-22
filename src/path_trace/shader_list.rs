@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use crate::ui::DrawUI;
+
 use super::bsdf::BSDF;
 
 /// A unique identifier given to each `Shader` during its
@@ -54,5 +56,23 @@ impl ShaderList {
 impl Default for ShaderList {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl DrawUI for ShaderList {
+    fn draw_ui(&self, _ui: &mut egui::Ui) {}
+
+    fn draw_ui_mut(&mut self, ui: &mut egui::Ui) {
+        self.shaders
+            .values_mut()
+            .enumerate()
+            .for_each(|(index, shader)| {
+                ui.horizontal(|ui| {
+                    ui.label(format!("Shader {}", index));
+                    ui.text_edit_singleline(shader.get_shader_name_mut());
+                });
+
+                ui.separator();
+            });
     }
 }
