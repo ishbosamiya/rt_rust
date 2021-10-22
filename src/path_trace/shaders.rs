@@ -9,6 +9,7 @@ macro_rules! ShaderFromBSDF {
         pub struct $shader_name {
             bsdf: $bsdf,
             shader_id: Option<ShaderID>,
+            name: String,
         }
 
         impl $shader_name {
@@ -16,6 +17,7 @@ macro_rules! ShaderFromBSDF {
                 Self {
                     bsdf,
                     shader_id: None,
+                    name: "No Name Assigned".to_string(),
                 }
             }
         }
@@ -31,6 +33,14 @@ macro_rules! ShaderFromBSDF {
 
             fn get_shader_id(&self) -> ShaderID {
                 self.shader_id.unwrap()
+            }
+
+            fn get_shader_name_mut(&mut self) -> &mut String {
+                &mut self.name
+            }
+
+            fn get_shader_name(&self) -> &String {
+                &self.name
             }
         }
     };

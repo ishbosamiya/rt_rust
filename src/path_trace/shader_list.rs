@@ -15,6 +15,11 @@ pub trait Shader: Sync + Send {
     fn get_bsdf(&self) -> &dyn BSDF;
     /// Get the `ShaderID` assigned to the shader
     fn get_shader_id(&self) -> ShaderID;
+
+    /// Get mutable reference to the name of the shader
+    fn get_shader_name_mut(&mut self) -> &mut String;
+    /// Get reference to the name of the shader
+    fn get_shader_name(&self) -> &String;
 }
 
 pub struct ShaderList {
