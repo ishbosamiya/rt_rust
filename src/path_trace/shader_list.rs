@@ -73,7 +73,19 @@ impl Default for ShaderList {
 }
 
 impl DrawUI for ShaderList {
-    fn draw_ui(&self, _ui: &mut egui::Ui) {}
+    fn draw_ui(&self, ui: &mut egui::Ui) {
+        if let Some(selected_shader) = self.selected_shader {
+            ui.label(format!(
+                "Selected Shader: {}",
+                self.shaders
+                    .get(&selected_shader)
+                    .unwrap()
+                    .get_shader_name()
+            ));
+        } else {
+            ui.label("No shader selected");
+        }
+    }
 
     fn draw_ui_mut(&mut self, ui: &mut egui::Ui) {
         let selected_shader = &mut self.selected_shader;
