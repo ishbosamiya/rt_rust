@@ -188,7 +188,9 @@ fn main() {
     scene.add_object({
         let mut object = Box::new(MeshObject::new(
             mesh.clone(),
-            MeshUseShader::DirectionalLight,
+            MeshUseShader::DirectionalLight {
+                color: glm::vec3(0.3, 0.2, 0.7),
+            },
             None,
         ));
         object.set_path_trace_shader_id(shader_ids[1]);

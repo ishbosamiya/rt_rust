@@ -193,6 +193,7 @@ impl Mesh {
     fn draw_directional_light_shader(
         &self,
         draw_data: &mut MeshDrawData,
+        mesh_color: glm::DVec3,
     ) -> Result<(), MeshDrawError> {
         if self.faces.is_empty() {
             return Ok(());
@@ -202,6 +203,8 @@ impl Mesh {
             .as_ref()
             .unwrap();
         directional_light_shader.use_shader();
+
+        directional_light_shader.set_vec3("material.color\0", &glm::convert(mesh_color));
 
         let mut imm = draw_data.imm.borrow_mut();
 
@@ -359,9 +362,9 @@ impl From<()> for MeshDrawError {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum MeshUseShader {
-    DirectionalLight,
+    DirectionalLight { color: glm::DVec3 },
     SmoothColor3D,
     FaceOrientation,
 }
@@ -369,7 +372,9 @@ pub enum MeshUseShader {
 impl Display for MeshUseShader {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            MeshUseShader::DirectionalLight => write!(f, "Directional Light"),
+            MeshUseShader::DirectionalLight { color } => {
+                write!(f, "Directional Light: color: {}", color)
+            }
             MeshUseShader::SmoothColor3D => write!(f, "Smooth Color 3D"),
             MeshUseShader::FaceOrientation => write!(f, "Face Orientation"),
         }
@@ -420,7 +425,9 @@ impl Drawable for Mesh {
 
     fn draw(&self, draw_data: &mut MeshDrawData) -> Result<(), MeshDrawError> {
         match draw_data.use_shader {
-            MeshUseShader::DirectionalLight => self.draw_directional_light_shader(draw_data)?,
+            MeshUseShader::DirectionalLight { color } => {
+                self.draw_directional_light_shader(draw_data, color)?
+            }
             // MeshUseShader::SmoothColor3D => self.draw_smooth_color_3d_shader(draw_data),
             // MeshUseShader::FaceOrientation => self.draw_face_orientation_shader(draw_data),
             _ => todo!(),

@@ -262,7 +262,7 @@ pub mod objects {
 
             fn draw(&self, extra_data: &mut ObjectDrawData) -> Result<(), DrawError> {
                 let shader = match self.use_shader {
-                    MeshUseShader::DirectionalLight => {
+                    MeshUseShader::DirectionalLight { color: _ } => {
                         let shader = shader::builtins::get_directional_light_shader()
                             .as_ref()
                             .unwrap();
@@ -289,14 +289,8 @@ pub mod objects {
                     .map_err(DrawError::Mesh)
             }
 
-            fn draw_wireframe(&self, extra_data: &mut ObjectDrawData) -> Result<(), DrawError> {
-                self.data
-                    .draw_wireframe(&mut MeshDrawData::new(
-                        extra_data.imm.clone(),
-                        MeshUseShader::DirectionalLight,
-                        self.bvh_draw_data,
-                    ))
-                    .map_err(DrawError::Mesh)
+            fn draw_wireframe(&self, _extra_data: &mut ObjectDrawData) -> Result<(), DrawError> {
+                todo!()
             }
         }
 
