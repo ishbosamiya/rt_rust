@@ -33,21 +33,29 @@ impl Progress {
         self.finished_time = None;
     }
 
+    pub fn stop_progress(&mut self) {
+        // set finished time, but do not set progress to 1.0
+        self.finished_time = Some(self.instant.elapsed());
+    }
+
     pub fn get_elapsed_time(&self) -> f64 {
-        if (self.progress - 1.0).abs() < f64::EPSILON {
-            self.finished_time.unwrap().as_secs_f64()
+        if let Some(finished_time) = self.finished_time {
+            // if progress has finished, return finished time
+            finished_time.as_secs_f64()
         } else {
             self.instant.elapsed().as_secs_f64()
         }
     }
 
     pub fn get_remaining_time(&self) -> f64 {
-        if (self.progress - 1.0).abs() < f64::EPSILON {
-            return 0.0;
-        }
-        let time_diff = self.instant.elapsed().as_secs_f64();
+        if let Some(_finished_time) = self.finished_time {
+            // if progress has finished, remainging time is 0
+            0.0
+        } else {
+            let time_diff = self.instant.elapsed().as_secs_f64();
 
-        time_diff / self.progress - self.get_elapsed_time()
+            time_diff / self.progress - self.get_elapsed_time()
+        }
     }
 }
 
