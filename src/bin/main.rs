@@ -604,14 +604,16 @@ fn main() {
                     });
                 });
 
-                egui::SidePanel::right("Shader Panel").show(egui.get_egui_ctx(), |ui| {
-                    shader_list.read().unwrap().draw_ui(ui);
-                    if let Ok(mut shader_list) = shader_list.try_write() {
-                        shader_list.draw_ui_mut(ui);
-                    } else {
-                        ui.label("Shaders are currently in use, cannot edit the shaders");
-                    }
-                });
+                egui::SidePanel::right("Shader Panel")
+                    .min_width(0.2 * window_width as f32)
+                    .show(egui.get_egui_ctx(), |ui| {
+                        shader_list.read().unwrap().draw_ui(ui);
+                        if let Ok(mut shader_list) = shader_list.try_write() {
+                            shader_list.draw_ui_mut(ui);
+                        } else {
+                            ui.label("Shaders are currently in use, cannot edit the shaders");
+                        }
+                    });
 
                 let _output = egui.end_frame(glm::vec2(window_width as _, window_height as _));
             }
