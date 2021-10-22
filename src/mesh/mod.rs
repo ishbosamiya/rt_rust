@@ -305,6 +305,26 @@ impl Mesh {
         // should handle it.
         self.build_bvh(0.01);
     }
+
+    pub fn get_min_max_bounds(&self) -> (glm::DVec3, glm::DVec3) {
+        self.vertices.iter().fold(
+            (*self.vertices[0].get_pos(), *self.vertices[0].get_pos()),
+            |acc, elem| {
+                (
+                    glm::vec3(
+                        acc.0[0].min(elem.get_pos()[0]),
+                        acc.0[1].min(elem.get_pos()[1]),
+                        acc.0[2].min(elem.get_pos()[2]),
+                    ),
+                    glm::vec3(
+                        acc.1[0].max(elem.get_pos()[0]),
+                        acc.1[1].max(elem.get_pos()[1]),
+                        acc.1[2].max(elem.get_pos()[2]),
+                    ),
+                )
+            },
+        )
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]

@@ -63,6 +63,8 @@ pub trait Object:
 
     fn set_path_trace_shader_id(&mut self, shader_id: PathTraceShaderID);
     fn get_path_trace_shader_id(&self) -> PathTraceShaderID;
+
+    fn get_min_max_bounds(&self) -> (glm::DVec3, glm::DVec3);
 }
 
 pub mod objects {
@@ -181,6 +183,23 @@ pub mod objects {
 
             fn get_path_trace_shader_id(&self) -> ShaderID {
                 self.shader_id.unwrap()
+            }
+
+            fn get_min_max_bounds(&self) -> (glm::DVec3, glm::DVec3) {
+                (
+                    self.data.get_center()
+                        + glm::vec3(
+                            -self.data.get_radius(),
+                            -self.data.get_radius(),
+                            -self.data.get_radius(),
+                        ),
+                    self.data.get_center()
+                        + glm::vec3(
+                            self.data.get_radius(),
+                            self.data.get_radius(),
+                            self.data.get_radius(),
+                        ),
+                )
             }
         }
     }
@@ -311,6 +330,10 @@ pub mod objects {
 
             fn get_path_trace_shader_id(&self) -> ShaderID {
                 self.shader_id.unwrap()
+            }
+
+            fn get_min_max_bounds(&self) -> (glm::DVec3, glm::DVec3) {
+                self.data.get_min_max_bounds()
             }
         }
     }
