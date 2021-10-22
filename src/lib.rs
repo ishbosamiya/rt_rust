@@ -10,5 +10,6 @@ pub mod progress;
 pub mod rasterize;
 pub mod scene;
 pub mod sphere;
+pub mod ui;
 pub mod util;
 pub use nalgebra_glm as glm;
