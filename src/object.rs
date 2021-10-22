@@ -139,6 +139,7 @@ pub mod objects {
             fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<IntersectInfo> {
                 self.data.hit(ray, t_min, t_max).map(|mut info| {
                     info.set_shader_id(self.get_path_trace_shader_id());
+                    info.set_object_id(self.get_object_id());
                     info
                 })
             }
@@ -284,6 +285,7 @@ pub mod objects {
             fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<IntersectInfo> {
                 self.data.hit(ray, t_min, t_max).map(|mut info| {
                     info.set_shader_id(self.get_path_trace_shader_id());
+                    info.set_object_id(self.get_object_id());
                     info
                 })
             }
