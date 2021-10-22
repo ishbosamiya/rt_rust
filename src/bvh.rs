@@ -733,6 +733,14 @@ where
             let root_child_index = root.children[0];
             let child = self.node_array.get_mut(root_child_index.0).unwrap();
             child.parent = Some(root_index);
+
+            // The tree cannot start with a leaf node, thus there
+            // needs to be 2 nodes at least in the tree when num_leafs
+            // == 1. So self.nodes[1] needs to be set correctly.
+            // TODO(ish): may not be the correct solution, needs
+            // testing and verification
+            self.nodes[1] = root_index;
+
             return;
         }
 
