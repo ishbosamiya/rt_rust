@@ -1,4 +1,5 @@
-use crate::bvh::BVHTree;
+use crate::bvh::{BVHTree, RayHitData, RayHitOptionalData};
+use crate::glm;
 use crate::object::{DrawError, Object, ObjectDrawData};
 use crate::path_trace::intersectable::{IntersectInfo, Intersectable};
 use crate::path_trace::ray::Ray;
@@ -80,27 +81,42 @@ impl Scene {
 impl Intersectable for Scene {
     fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<IntersectInfo> {
         assert!(self.model_matrices_applied);
-        let hit_infos: Vec<_> = self
-            .objects
-            .iter()
-            .map(|object| object.hit(ray, t_min, t_max))
-            .filter(|object| object.is_some())
-            .collect();
+        assert!(self.bvh.is_some());
 
-        if hit_infos.is_empty() {
-            return None;
-        }
+        let scene_ray_cast_callback = |(co, dir): (&glm::DVec3, &glm::DVec3),
+                                       object_index: usize| {
+            debug_assert_eq!(ray.get_origin(), co);
+            debug_assert_eq!(ray.get_direction(), dir);
 
-        let mut res = hit_infos[0];
-        let mut min = t_max;
-        for info in hit_infos {
-            if info.unwrap().get_t() < min {
-                min = info.unwrap().get_t();
-                res = info;
-            }
-        }
+            let object = &self.objects[object_index];
 
-        res
+            object
+                .hit(ray, t_min, t_max)
+                .and_then(|info| -> Option<RayHitData<usize>> {
+                    if info.get_t() > t_min && info.get_t() < t_max {
+                        let mut hit_data = RayHitData::new(info.get_t());
+                        hit_data.normal = *info.get_normal();
+                        hit_data
+                            .set_data(RayHitOptionalData::new(object_index, ray.at(info.get_t())));
+                        Some(hit_data)
+                    } else {
+                        None
+                    }
+                })
+        };
+
+        self.bvh
+            .as_ref()
+            .unwrap()
+            .ray_cast(
+                *ray.get_origin(),
+                *ray.get_direction(),
+                Some(&scene_ray_cast_callback),
+            )
+            .map(|hit_data| {
+                let object_index = hit_data.data.unwrap().elem_index;
+                self.objects[object_index].hit(ray, t_min, t_max).unwrap()
+            })
     }
 }
 

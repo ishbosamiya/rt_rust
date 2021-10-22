@@ -434,9 +434,6 @@ impl Drawable for Mesh {
 
 impl Intersectable for Mesh {
     fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<IntersectInfo> {
-        // TODO: need to fix BVH ray cast, it is buggy, does not cast
-        // to the closest point always, especially where the distance
-        // between the hit points is small :(
         #[cfg(feature = "mesh_no_bvh")]
         {
             let mut best_hit = None;

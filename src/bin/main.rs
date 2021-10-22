@@ -230,6 +230,15 @@ fn main() {
         }
     });
 
+    // build bvh
+    {
+        scene.apply_model_matrices();
+
+        scene.build_bvh(0.01);
+
+        scene.unapply_model_matrices();
+    }
+
     let scene = Arc::new(RwLock::new(scene));
     let shader_list = Arc::new(RwLock::new(shader_list));
 
