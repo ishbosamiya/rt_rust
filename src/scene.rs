@@ -3,10 +3,13 @@ use crate::bvh::BVHTree;
 use crate::bvh::{RayHitData, RayHitOptionalData};
 #[cfg(not(feature = "scene_no_bvh"))]
 use crate::glm;
-use crate::object::{DrawError, Object, ObjectDrawData};
+use crate::object::{DrawError, Object, ObjectDrawData, ObjectID};
 use crate::path_trace::intersectable::{IntersectInfo, Intersectable};
 use crate::path_trace::ray::Ray;
 use crate::rasterize::drawable::Drawable;
+
+// TODO: store Scene::objects in a HashMap instead of Vec for speed
+// and object id stuff
 
 pub struct Scene {
     objects: Vec<Box<dyn Object>>,
@@ -34,7 +37,9 @@ impl Scene {
         }
     }
 
-    pub fn add_object(&mut self, object: Box<dyn Object>) {
+    pub fn add_object(&mut self, mut object: Box<dyn Object>) {
+        let object_id = unsafe { ObjectID::from_raw(rand::random()) };
+        object.set_object_id(object_id);
         self.objects.push(object);
     }
 

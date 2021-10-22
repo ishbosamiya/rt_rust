@@ -12,6 +12,17 @@ use crate::{
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ObjectID(usize);
 
+impl ObjectID {
+    /// # Safety
+    ///
+    /// The actual usize stored can be random, so doesn't make sense
+    /// to create it from raw most of the time. Only Scene must create
+    /// an ObjectID from raw.
+    pub unsafe fn from_raw(id: usize) -> Self {
+        Self(id)
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum DrawError {
     Mesh(MeshDrawError),
