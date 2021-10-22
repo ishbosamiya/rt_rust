@@ -4,8 +4,9 @@ use rt::object::objects::Sphere as SphereObject;
 use rt::object::{Object, ObjectDrawData};
 use rt::path_trace::camera::Camera as PathTraceCamera;
 use rt::path_trace::camera::CameraDrawData as PathTraceCameraDrawData;
+use rt::path_trace::intersectable::Intersectable;
 use rt::path_trace::ray::Ray;
-use rt::path_trace::shader_list::ShaderList;
+use rt::path_trace::shader_list::{ShaderID, ShaderList};
 use rt::path_trace::traversal_info::{TraversalInfo, TraversalInfoDrawData};
 use rt::path_trace::{self, RayTraceMessage, RayTraceParams};
 use rt::progress::Progress;
@@ -123,6 +124,8 @@ fn main() {
     let mut camera_focal_length = 12.0;
     let mut camera_sensor_width = 2.0;
     let mut camera_position = glm::vec3(0.0, 0.0, 10.0);
+    let mut selected_shader: Option<ShaderID> = None;
+
     let path_trace_progress = Arc::new(RwLock::new(Progress::new()));
 
     let (shader_list, shader_ids) = {
@@ -397,6 +400,33 @@ fn main() {
             should_cast_scene_ray = false;
         }
 
+        if window.get_mouse_button(glfw::MouseButtonLeft) == glfw::Action::Press {
+            if let Some(shader_id) = selected_shader {
+                let ray_direction = camera.get_raycast_direction(
+                    last_cursor.0,
+                    last_cursor.1,
+                    window_width,
+                    window_height,
+                );
+                let mut scene = scene.write().unwrap();
+                scene.apply_model_matrices();
+                if let Some(hit_info) = scene.hit(
+                    &Ray::new(camera.get_position(), ray_direction),
+                    0.01,
+                    1000.0,
+                ) {
+                    let object_id = hit_info.get_object_id().unwrap();
+                    scene.get_objects_mut().iter_mut().for_each(|object| {
+                        if object_id == object.get_object_id() {
+                            object.set_path_trace_shader_id(shader_id);
+                            selected_shader = None;
+                        }
+                    });
+                }
+                scene.unapply_model_matrices();
+            }
+        }
+
         // Keep meshes that have shaders that need alpha channel
         // (blending) below this and handle it properly
         {
@@ -610,6 +640,7 @@ fn main() {
                         shader_list.read().unwrap().draw_ui(ui);
                         if let Ok(mut shader_list) = shader_list.try_write() {
                             shader_list.draw_ui_mut(ui);
+                            selected_shader = *shader_list.get_selected_shader();
                         } else {
                             ui.label("Shaders are currently in use, cannot edit the shaders");
                         }

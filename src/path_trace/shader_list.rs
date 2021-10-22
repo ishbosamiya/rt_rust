@@ -28,12 +28,15 @@ pub trait Shader: Sync + Send {
 
 pub struct ShaderList {
     shaders: HashMap<ShaderID, Box<dyn Shader>>,
+
+    selected_shader: Option<ShaderID>,
 }
 
 impl ShaderList {
     pub fn new() -> Self {
         Self {
             shaders: HashMap::new(),
+            selected_shader: None,
         }
     }
 
@@ -45,6 +48,14 @@ impl ShaderList {
         self.shaders
             .get(&shader_id)
             .map(|boxed_shader| boxed_shader.as_ref())
+    }
+
+    pub fn get_selected_shader(&self) -> &Option<ShaderID> {
+        &self.selected_shader
+    }
+
+    pub fn deselect_shader(&mut self) {
+        self.selected_shader = None;
     }
 
     pub fn add_shader(&mut self, mut shader: Box<dyn Shader>) -> ShaderID {
@@ -65,6 +76,7 @@ impl DrawUI for ShaderList {
     fn draw_ui(&self, _ui: &mut egui::Ui) {}
 
     fn draw_ui_mut(&mut self, ui: &mut egui::Ui) {
+        let selected_shader = &mut self.selected_shader;
         self.shaders
             .values_mut()
             .enumerate()
@@ -72,6 +84,9 @@ impl DrawUI for ShaderList {
                 ui.horizontal(|ui| {
                     ui.label(format!("Shader {}", index));
                     ui.text_edit_singleline(shader.get_shader_name_mut());
+                    if ui.button("Select Shader").clicked() {
+                        *selected_shader = Some(shader.get_shader_id());
+                    }
                 });
 
                 shader.get_bsdf().draw_ui(ui);
