@@ -1,3 +1,4 @@
+use crate::bvh::BVHTree;
 use crate::object::{DrawError, Object, ObjectDrawData};
 use crate::path_trace::intersectable::{IntersectInfo, Intersectable};
 use crate::path_trace::ray::Ray;
@@ -5,6 +6,10 @@ use crate::rasterize::drawable::Drawable;
 
 pub struct Scene {
     objects: Vec<Box<dyn Object>>,
+
+    /// BVH over all the objects in the scene. User must handle
+    /// building/rebuilding the bvh before usage.
+    bvh: Option<BVHTree<usize>>,
 
     /// true if model matrices are currently applied
     model_matrices_applied: bool,
@@ -20,6 +25,7 @@ impl Scene {
     pub fn new() -> Self {
         Self {
             objects: Vec::new(),
+            bvh: None,
             model_matrices_applied: false,
         }
     }
@@ -54,6 +60,20 @@ impl Scene {
             object.unapply_model_matrix();
         });
         self.model_matrices_applied = false;
+    }
+
+    pub fn build_bvh(&mut self, epsilon: f64) {
+        let mut bvh = BVHTree::new(self.objects.len(), epsilon, 4, 8);
+
+        self.objects.iter().enumerate().for_each(|(index, object)| {
+            let co = object.get_min_max_bounds();
+            let co = [co.0, co.1];
+            bvh.insert(index, &co);
+        });
+
+        bvh.balance();
+
+        self.bvh = Some(bvh);
     }
 }
 
