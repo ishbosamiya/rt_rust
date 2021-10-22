@@ -98,7 +98,7 @@ where
         for co in co_many {
             for axis_iter in start_axis..stop_axis {
                 let axis_iter = axis_iter as usize;
-                let new_min_max = glm::dot(&co, &BVHTREE_KDOP_AXES[axis_iter]);
+                let new_min_max = glm::dot(co, &BVHTREE_KDOP_AXES[axis_iter]);
                 if new_min_max < bv[2 * axis_iter] {
                     bv[2 * axis_iter] = new_min_max;
                 }
@@ -1376,7 +1376,7 @@ mod tests {
         use super::glm;
         use super::ArenaFunctions;
         let mut bvh = super::BVHTree::<usize>::new(1, 0.001, 3, 6);
-        bvh.insert(0, vec![glm::vec3(-1.0, 0.0, 0.0), glm::vec3(1.0, 0.0, 0.0)]);
+        bvh.insert(0, &[glm::vec3(-1.0, 0.0, 0.0), glm::vec3(1.0, 0.0, 0.0)]);
         bvh.balance();
         assert_eq!(bvh.nodes.len(), bvh.node_array.len());
         assert_eq!(bvh.nodes.len(), 4);
@@ -1392,9 +1392,9 @@ mod tests {
         use super::glm;
         use super::ArenaFunctions;
         let mut bvh = super::BVHTree::new(5, 0.001, 4, 6);
-        bvh.insert(0, vec![glm::vec3(-1.0, 0.0, 0.0), glm::vec3(1.0, 0.0, 0.0)]);
-        bvh.insert(1, vec![glm::vec3(0.0, -1.0, 0.0), glm::vec3(0.0, 1.0, 0.0)]);
-        bvh.insert(2, vec![glm::vec3(0.0, 0.0, -1.0), glm::vec3(0.0, 0.0, 1.0)]);
+        bvh.insert(0, &[glm::vec3(-1.0, 0.0, 0.0), glm::vec3(1.0, 0.0, 0.0)]);
+        bvh.insert(1, &[glm::vec3(0.0, -1.0, 0.0), glm::vec3(0.0, 1.0, 0.0)]);
+        bvh.insert(2, &[glm::vec3(0.0, 0.0, -1.0), glm::vec3(0.0, 0.0, 1.0)]);
         bvh.balance();
         assert_eq!(bvh.nodes.len(), bvh.node_array.len());
         assert_eq!(bvh.nodes.len(), 11);
