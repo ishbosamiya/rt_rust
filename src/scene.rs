@@ -90,19 +90,20 @@ impl Intersectable for Scene {
 
             let object = &self.objects[object_index];
 
-            object
-                .hit(ray, t_min, t_max)
-                .and_then(|info| -> Option<RayHitData<usize>> {
+            object.hit(ray, t_min, t_max).and_then(
+                |info| -> Option<RayHitData<usize, IntersectInfo>> {
                     if info.get_t() > t_min && info.get_t() < t_max {
                         let mut hit_data = RayHitData::new(info.get_t());
                         hit_data.normal = *info.get_normal();
                         hit_data
                             .set_data(RayHitOptionalData::new(object_index, ray.at(info.get_t())));
+                        hit_data.set_extra_data(info);
                         Some(hit_data)
                     } else {
                         None
                     }
-                })
+                },
+            )
         };
 
         self.bvh
@@ -113,10 +114,7 @@ impl Intersectable for Scene {
                 *ray.get_direction(),
                 Some(&scene_ray_cast_callback),
             )
-            .map(|hit_data| {
-                let object_index = hit_data.data.unwrap().elem_index;
-                self.objects[object_index].hit(ray, t_min, t_max).unwrap()
-            })
+            .map(|hit_data| hit_data.extra_data.unwrap())
     }
 }
 

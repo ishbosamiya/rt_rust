@@ -281,29 +281,37 @@ where
 }
 
 #[derive(Debug, Clone)]
-pub struct RayHitData<T>
+pub struct RayHitData<T, ExtraData>
 where
     T: Copy,
+    ExtraData: Copy,
 {
     pub data: Option<RayHitOptionalData<T>>,
     pub normal: Option<glm::DVec3>,
     pub dist: f64,
+    pub extra_data: Option<ExtraData>,
 }
 
-impl<T> RayHitData<T>
+impl<T, ExtraData> RayHitData<T, ExtraData>
 where
     T: Copy,
+    ExtraData: Copy,
 {
     pub fn new(dist: f64) -> Self {
         Self {
             data: None,
             normal: None,
             dist,
+            extra_data: None,
         }
     }
 
     pub fn set_data(&mut self, data: RayHitOptionalData<T>) {
         self.data = Some(data);
+    }
+
+    pub fn set_extra_data(&mut self, extra_data: ExtraData) {
+        self.extra_data = Some(extra_data);
     }
 }
 
@@ -1065,14 +1073,15 @@ where
         }
     }
 
-    fn ray_cast_traverse<F>(
+    fn ray_cast_traverse<F, ExtraData>(
         &self,
         node_index: BVHNodeIndex,
         data: &RayCastData,
         callback: Option<&F>,
-        r_hit_data: &mut RayHitData<T>,
+        r_hit_data: &mut RayHitData<T, ExtraData>,
     ) where
-        F: Fn((&glm::DVec3, &glm::DVec3), T) -> Option<RayHitData<T>>,
+        ExtraData: Copy,
+        F: Fn((&glm::DVec3, &glm::DVec3), T) -> Option<RayHitData<T, ExtraData>>,
     {
         let node = self.node_array.get(node_index.0).unwrap();
         if let Some(dist) = node.ray_hit(data, r_hit_data.dist) {
@@ -1120,14 +1129,15 @@ where
     ///
     /// Returns `None` if `ray_cast` didn't hit the BVH, return
     /// `Some(RayHitData)` if it hit the BVH (and callback returned `Some`)
-    pub fn ray_cast<F>(
+    pub fn ray_cast<F, ExtraData>(
         &self,
         co: glm::DVec3,
         dir: glm::DVec3,
         callback: Option<&F>,
-    ) -> Option<RayHitData<T>>
+    ) -> Option<RayHitData<T, ExtraData>>
     where
-        F: Fn((&glm::DVec3, &glm::DVec3), T) -> Option<RayHitData<T>>,
+        ExtraData: Copy,
+        F: Fn((&glm::DVec3, &glm::DVec3), T) -> Option<RayHitData<T, ExtraData>>,
     {
         let root_index = self.nodes[self.totleaf];
 

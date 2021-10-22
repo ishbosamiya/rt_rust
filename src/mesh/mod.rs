@@ -520,7 +520,7 @@ impl Intersectable for Mesh {
                     *ray.get_direction(),
                     Some(&mesh_ray_cast_callback),
                 )
-                .map(|hit_data| {
+                .map(|hit_data: RayHitData<usize, ()>| {
                     let mut intersect_info =
                         IntersectInfo::new(hit_data.dist, hit_data.data.unwrap().co);
                     intersect_info.set_normal(ray, &hit_data.normal.unwrap());
