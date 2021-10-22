@@ -114,6 +114,7 @@ fn ray_trace_scene(
     // ray trace
     for processed_samples in 0..ray_trace_params.get_samples_per_pixel() {
         if *stop_render.read().unwrap() {
+            progress.write().unwrap().stop_progress();
             return;
         }
 
