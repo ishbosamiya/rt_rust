@@ -1,5 +1,5 @@
 use super::intersectable::IntersectInfo;
-use crate::glm;
+use crate::{glm, ui::DrawUI};
 
 use enumflags2::{bitflags, BitFlags};
 
@@ -34,7 +34,7 @@ impl SampleData {
     }
 }
 
-pub trait BSDF {
+pub trait BSDF: DrawUI {
     /// Calculates `wi` given `wo` and specifies the type of sampling
     /// used.
     ///
@@ -74,4 +74,6 @@ pub trait BSDF {
     fn emission(&self, _intersect_info: &IntersectInfo) -> Option<glm::DVec3> {
         None
     }
+
+    fn get_bsdf_name(&self) -> &str;
 }

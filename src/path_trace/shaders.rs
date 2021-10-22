@@ -31,6 +31,10 @@ macro_rules! ShaderFromBSDF {
                 &self.bsdf
             }
 
+            fn get_bsdf_mut(&mut self) -> &mut dyn BSDF {
+                &mut self.bsdf
+            }
+
             fn get_shader_id(&self) -> ShaderID {
                 self.shader_id.unwrap()
             }

@@ -2,8 +2,9 @@ use enumflags2::BitFlags;
 
 use super::super::bsdf::{SampleData, SamplingTypes, BSDF};
 use super::super::intersectable::IntersectInfo;
-use crate::glm;
 use crate::math;
+use crate::ui::DrawUI;
+use crate::{glm, ui};
 
 pub struct Lambert {
     color: glm::DVec4,
@@ -45,5 +46,19 @@ impl BSDF for Lambert {
         let color = glm::vec4_to_vec3(&self.color);
 
         color
+    }
+
+    fn get_bsdf_name(&self) -> &str {
+        "Lambert"
+    }
+}
+
+impl DrawUI for Lambert {
+    fn draw_ui(&self, ui: &mut egui::Ui) {
+        ui.label(format!("BSDF: {}", self.get_bsdf_name()));
+    }
+
+    fn draw_ui_mut(&mut self, ui: &mut egui::Ui) {
+        ui::color_edit_button_dvec4(ui, "Base Color", &mut self.color);
     }
 }

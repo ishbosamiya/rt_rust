@@ -15,6 +15,8 @@ pub trait Shader: Sync + Send {
     fn set_shader_id(&mut self, shader_id: ShaderID);
     /// Must give access to `BSDF` that the `Self` contains
     fn get_bsdf(&self) -> &dyn BSDF;
+    /// Must give mutable access to `BSDF` that the `Self` contains
+    fn get_bsdf_mut(&mut self) -> &mut dyn BSDF;
     /// Get the `ShaderID` assigned to the shader
     fn get_shader_id(&self) -> ShaderID;
 
@@ -71,6 +73,9 @@ impl DrawUI for ShaderList {
                     ui.label(format!("Shader {}", index));
                     ui.text_edit_singleline(shader.get_shader_name_mut());
                 });
+
+                shader.get_bsdf().draw_ui(ui);
+                shader.get_bsdf_mut().draw_ui_mut(ui);
 
                 ui.separator();
             });
