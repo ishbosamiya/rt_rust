@@ -37,3 +37,4 @@ debug = true
 
 [features]
 mesh_no_bvh = []
+scene_no_bvh = []
