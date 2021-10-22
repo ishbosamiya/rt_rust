@@ -1,4 +1,3 @@
-use rt::glm;
 use rt::image::{Image, PPM};
 use rt::object::objects::Mesh as MeshObject;
 use rt::object::objects::Sphere as SphereObject;
@@ -15,6 +14,7 @@ use rt::rasterize::texture::TextureRGBAFloat;
 use rt::scene::Scene;
 use rt::sphere::Sphere;
 use rt::ui::DrawUI;
+use rt::{glm, ui};
 
 extern crate lazy_static;
 
@@ -449,7 +449,7 @@ fn main() {
                             path_trace_progress.read().unwrap().get_remaining_time()
                         ));
 
-                        color_edit_button_dvec4(ui, "Background Color", &mut background_color);
+                        ui::color_edit_button_dvec4(ui, "Background Color", &mut background_color);
 
                         ui.separator();
 
@@ -564,7 +564,7 @@ fn main() {
                         ui.add(
                             egui::Slider::new(&mut normals_size, 0.0..=2.0).text("Normals Size"),
                         );
-                        color_edit_button_dvec4(ui, "Normals Color", &mut normals_color);
+                        ui::color_edit_button_dvec4(ui, "Normals Color", &mut normals_color);
 
                         if ui.button("Trace Rays").clicked() {
                             scene.write().unwrap().apply_model_matrices();
@@ -735,31 +735,4 @@ fn handle_window_event(
     }
 
     *last_cursor = cursor;
-}
-
-fn color_edit_dvec4(ui: &mut egui::Ui, color: &mut glm::DVec4) {
-    let mut color_egui = egui::Color32::from_rgba_premultiplied(
-        (color[0] * 255.0) as _,
-        (color[1] * 255.0) as _,
-        (color[2] * 255.0) as _,
-        (color[3] * 255.0) as _,
-    );
-    egui::color_picker::color_edit_button_srgba(
-        ui,
-        &mut color_egui,
-        egui::color_picker::Alpha::BlendOrAdditive,
-    );
-    *color = glm::vec4(
-        color_egui.r() as f64 / 255.0,
-        color_egui.g() as f64 / 255.0,
-        color_egui.b() as f64 / 255.0,
-        color_egui.a() as f64 / 255.0,
-    );
-}
-
-fn color_edit_button_dvec4(ui: &mut egui::Ui, text: &str, color: &mut glm::DVec4) {
-    ui.horizontal(|ui| {
-        ui.label(text);
-        color_edit_dvec4(ui, color);
-    });
 }
