@@ -75,6 +75,7 @@ pub struct CameraDrawData {
     imm: Rc<RefCell<GPUImmediate>>,
     image: Option<Rc<RefCell<TextureRGBAFloat>>>,
     alpha_value: f64,
+    use_depth_for_image: bool,
 }
 
 impl CameraDrawData {
@@ -82,11 +83,13 @@ impl CameraDrawData {
         imm: Rc<RefCell<GPUImmediate>>,
         image: Option<Rc<RefCell<TextureRGBAFloat>>>,
         alpha_value: f64,
+        use_depth_for_image: bool,
     ) -> Self {
         Self {
             imm,
             image,
             alpha_value,
+            use_depth_for_image,
         }
     }
 }
@@ -219,6 +222,12 @@ impl Drawable for Camera {
 
         // draw image in the camera plane
         if let Some(image) = &extra_data.image {
+            if !extra_data.use_depth_for_image {
+                unsafe {
+                    gl::Disable(gl::DEPTH_TEST);
+                }
+            }
+
             let scale_x = (camera_plane_top_left - camera_plane_top_right).norm() as _;
             let scale_z = (camera_plane_top_left - camera_plane_bottom_left).norm() as _;
             draw_plane_with_image(
@@ -228,7 +237,13 @@ impl Drawable for Camera {
                 &mut image.borrow_mut(),
                 extra_data.alpha_value,
                 imm,
-            )
+            );
+
+            if !extra_data.use_depth_for_image {
+                unsafe {
+                    gl::Enable(gl::DEPTH_TEST);
+                }
+            }
         }
 
         Ok(())

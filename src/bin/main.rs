@@ -118,6 +118,7 @@ fn main() {
     let mut normals_size = 0.4;
     let mut normals_color = glm::vec4(1.0, 1.0, 1.0, 1.0);
     let mut camera_image_alpha_value = 0.0;
+    let mut camera_use_depth_for_image = true;
     let mut camera_focal_length = 12.0;
     let mut camera_sensor_width = 2.0;
     let mut camera_position = glm::vec3(0.0, 0.0, 10.0);
@@ -403,6 +404,7 @@ fn main() {
                     imm.clone(),
                     Some(rc_refcell_image.clone()),
                     camera_image_alpha_value,
+                    camera_use_depth_for_image,
                 ))
                 .unwrap();
             rendered_texture = match Rc::try_unwrap(rc_refcell_image) {
@@ -448,6 +450,8 @@ fn main() {
                                 .clamp_to_range(true)
                                 .text("Camera Image Alpha"),
                         );
+
+                        ui.checkbox(&mut camera_use_depth_for_image, "Use Depth for Image");
 
                         ui.add(
                             egui::Slider::new(&mut camera_sensor_width, 0.0..=36.0)
