@@ -189,9 +189,7 @@ fn main() {
         let mut object = Box::new(MeshObject::new(
             mesh.clone(),
             MeshUseShader::DirectionalLight,
-            false,
-            0,
-            glm::vec4(0.4, 0.3, 1.0, 1.0),
+            None,
         ));
         object.set_path_trace_shader_id(shader_ids[1]);
         object
@@ -209,9 +207,7 @@ fn main() {
     //     let mut object = Box::new(MeshObject::new(
     //         mesh::builtins::get_plane_subd_00().clone(),
     //         MeshUseShader::DirectionalLight,
-    //         false,
-    //         0,
-    //         glm::vec4(0.4, 0.3, 1.0, 1.0),
+    //         None,
     //     ));
     //     object.set_path_trace_shader_id(shader_ids[2]);
     //     object.set_model_matrix(glm::rotate_x(

@@ -376,28 +376,40 @@ impl Display for MeshUseShader {
     }
 }
 
-pub struct MeshDrawData {
-    imm: Rc<RefCell<GPUImmediate>>,
-    use_shader: MeshUseShader,
+#[derive(Debug, Clone, Copy)]
+pub struct MeshBVHDrawData {
     draw_bvh: bool,
     bvh_draw_level: usize,
     bvh_color: glm::DVec4,
+}
+
+impl MeshBVHDrawData {
+    pub fn new(draw_bvh: bool, bvh_draw_level: usize, bvh_color: glm::DVec4) -> Self {
+        Self {
+            draw_bvh,
+            bvh_draw_level,
+            bvh_color,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct MeshDrawData {
+    imm: Rc<RefCell<GPUImmediate>>,
+    use_shader: MeshUseShader,
+    bvh_draw_data: Option<MeshBVHDrawData>,
 }
 
 impl MeshDrawData {
     pub fn new(
         imm: Rc<RefCell<GPUImmediate>>,
         use_shader: MeshUseShader,
-        draw_bvh: bool,
-        bvh_draw_level: usize,
-        bvh_color: glm::DVec4,
+        bvh_draw_data: Option<MeshBVHDrawData>,
     ) -> Self {
         MeshDrawData {
             imm,
             use_shader,
-            draw_bvh,
-            bvh_draw_level,
-            bvh_color,
+            bvh_draw_data,
         }
     }
 }
@@ -414,13 +426,15 @@ impl Drawable for Mesh {
             _ => todo!(),
         }
 
-        if draw_data.draw_bvh {
-            if let Some(bvh) = &self.bvh {
-                bvh.draw(&mut BVHDrawData::new(
-                    draw_data.imm.clone(),
-                    draw_data.bvh_draw_level,
-                    draw_data.bvh_color,
-                ))?
+        if let Some(bvh_draw_data) = draw_data.bvh_draw_data {
+            if bvh_draw_data.draw_bvh {
+                if let Some(bvh) = &self.bvh {
+                    bvh.draw(&mut BVHDrawData::new(
+                        draw_data.imm.clone(),
+                        bvh_draw_data.bvh_draw_level,
+                        bvh_draw_data.bvh_color,
+                    ))?
+                }
             }
         }
 

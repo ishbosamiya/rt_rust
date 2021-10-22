@@ -207,7 +207,7 @@ pub mod objects {
     mod mesh {
         use crate::{
             glm,
-            mesh::{Mesh as MeshData, MeshDrawData, MeshUseShader},
+            mesh::{Mesh as MeshData, MeshBVHDrawData, MeshDrawData, MeshUseShader},
             path_trace::{
                 intersectable::{IntersectInfo, Intersectable},
                 ray::Ray,
@@ -227,18 +227,14 @@ pub mod objects {
             // might make sense to store this in a separate structure and
             // use that
             use_shader: MeshUseShader,
-            draw_bvh: bool,
-            bvh_draw_level: usize,
-            bvh_color: glm::DVec4,
+            bvh_draw_data: Option<MeshBVHDrawData>,
         }
 
         impl Mesh {
             pub fn new(
                 data: MeshData,
                 use_shader: MeshUseShader,
-                draw_bvh: bool,
-                bvh_draw_level: usize,
-                bvh_color: glm::DVec4,
+                bvh_draw_data: Option<MeshBVHDrawData>,
             ) -> Self {
                 Self {
                     data,
@@ -246,9 +242,7 @@ pub mod objects {
                     model_matrix: None,
 
                     use_shader,
-                    draw_bvh,
-                    bvh_draw_level,
-                    bvh_color,
+                    bvh_draw_data,
                 }
             }
         }
@@ -290,9 +284,7 @@ pub mod objects {
                     .draw(&mut MeshDrawData::new(
                         extra_data.imm.clone(),
                         self.use_shader,
-                        self.draw_bvh,
-                        self.bvh_draw_level,
-                        self.bvh_color,
+                        self.bvh_draw_data,
                     ))
                     .map_err(DrawError::Mesh)
             }
@@ -302,9 +294,7 @@ pub mod objects {
                     .draw_wireframe(&mut MeshDrawData::new(
                         extra_data.imm.clone(),
                         MeshUseShader::DirectionalLight,
-                        self.draw_bvh,
-                        self.bvh_draw_level,
-                        self.bvh_color,
+                        self.bvh_draw_data,
                     ))
                     .map_err(DrawError::Mesh)
             }
