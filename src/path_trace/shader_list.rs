@@ -89,22 +89,19 @@ impl DrawUI for ShaderList {
 
     fn draw_ui_mut(&mut self, ui: &mut egui::Ui) {
         let selected_shader = &mut self.selected_shader;
-        self.shaders
-            .values_mut()
-            .enumerate()
-            .for_each(|(index, shader)| {
-                ui.horizontal(|ui| {
-                    ui.label(format!("Shader {}", index));
-                    ui.text_edit_singleline(shader.get_shader_name_mut());
-                    if ui.button("Select Shader").clicked() {
-                        *selected_shader = Some(shader.get_shader_id());
-                    }
-                });
-
-                shader.get_bsdf().draw_ui(ui);
-                shader.get_bsdf_mut().draw_ui_mut(ui);
-
-                ui.separator();
+        ui.separator();
+        self.shaders.values_mut().for_each(|shader| {
+            ui.horizontal(|ui| {
+                ui.text_edit_singleline(shader.get_shader_name_mut());
+                if ui.button("Select Shader").clicked() {
+                    *selected_shader = Some(shader.get_shader_id());
+                }
             });
+
+            shader.get_bsdf().draw_ui(ui);
+            shader.get_bsdf_mut().draw_ui_mut(ui);
+
+            ui.separator();
+        });
     }
 }

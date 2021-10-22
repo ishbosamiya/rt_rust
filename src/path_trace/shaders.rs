@@ -1,8 +1,40 @@
+use std::sync::Mutex;
+
+use lazy_static::lazy_static;
+
 use crate::path_trace::{
     bsdf::BSDF,
     bsdfs,
     shader_list::{Shader, ShaderID},
 };
+
+lazy_static! {
+    static ref SHADER_NAME_GEN: Mutex<NameGen> = Mutex::new(NameGen::new("shader".to_string()));
+}
+
+struct NameGen {
+    prefix: String,
+    current_gen: usize,
+}
+
+impl NameGen {
+    fn new(prefix: String) -> Self {
+        Self {
+            prefix,
+            current_gen: 0,
+        }
+    }
+}
+
+impl Iterator for NameGen {
+    type Item = String;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.current_gen += 1;
+
+        Some(format!("{}_{}", self.prefix, self.current_gen))
+    }
+}
 
 macro_rules! ShaderFromBSDF {
     ( $shader_name:ident ; $bsdf:ty ) => {
@@ -17,7 +49,7 @@ macro_rules! ShaderFromBSDF {
                 Self {
                     bsdf,
                     shader_id: None,
-                    name: "No Name Assigned".to_string(),
+                    name: SHADER_NAME_GEN.lock().unwrap().next().unwrap(),
                 }
             }
         }
