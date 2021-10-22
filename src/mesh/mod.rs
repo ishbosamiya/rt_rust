@@ -469,7 +469,7 @@ impl Intersectable for Mesh {
                         }
                     }
                 });
-            best_hit.map(|hit_data| {
+            best_hit.map(|hit_data: RayHitData<usize, ()>| {
                 let mut intersect_info =
                     IntersectInfo::new(hit_data.dist, hit_data.data.unwrap().co);
                 intersect_info.set_normal(ray, &hit_data.normal.unwrap());
