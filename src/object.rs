@@ -7,6 +7,11 @@ use crate::{
     rasterize::{drawable::Drawable, gpu_immediate::GPUImmediate},
 };
 
+/// A unique identifier given to each [`Object`] during its
+/// initialization.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ObjectID(usize);
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum DrawError {
     Mesh(MeshDrawError),
@@ -64,6 +69,9 @@ pub trait Object:
     fn set_path_trace_shader_id(&mut self, shader_id: PathTraceShaderID);
     fn get_path_trace_shader_id(&self) -> PathTraceShaderID;
 
+    fn set_object_id(&mut self, object_id: ObjectID);
+    fn get_object_id(&self) -> ObjectID;
+
     fn get_min_max_bounds(&self) -> (glm::DVec3, glm::DVec3);
 }
 
@@ -74,6 +82,7 @@ pub mod objects {
     mod sphere {
         use crate::{
             glm,
+            object::ObjectID,
             path_trace::{
                 intersectable::{IntersectInfo, Intersectable},
                 ray::Ray,
@@ -88,6 +97,7 @@ pub mod objects {
         pub struct Sphere {
             data: SphereData,
             shader_id: Option<ShaderID>,
+            object_id: Option<ObjectID>,
             model_matrix: Option<glm::DMat4>,
 
             // TODO: since this is a partial copy of SphereDrawData, it
@@ -106,6 +116,7 @@ pub mod objects {
                 Self {
                     data,
                     shader_id: None,
+                    object_id: None,
                     model_matrix: None,
                     outside_color,
                     inside_color,
@@ -185,6 +196,14 @@ pub mod objects {
                 self.shader_id.unwrap()
             }
 
+            fn set_object_id(&mut self, object_id: ObjectID) {
+                self.object_id = Some(object_id);
+            }
+
+            fn get_object_id(&self) -> ObjectID {
+                self.object_id.unwrap()
+            }
+
             fn get_min_max_bounds(&self) -> (glm::DVec3, glm::DVec3) {
                 (
                     self.data.get_center()
@@ -208,6 +227,7 @@ pub mod objects {
         use crate::{
             glm,
             mesh::{Mesh as MeshData, MeshBVHDrawData, MeshDrawData, MeshUseShader},
+            object::ObjectID,
             path_trace::{
                 intersectable::{IntersectInfo, Intersectable},
                 ray::Ray,
@@ -221,6 +241,7 @@ pub mod objects {
         pub struct Mesh {
             data: MeshData,
             shader_id: Option<ShaderID>,
+            object_id: Option<ObjectID>,
             model_matrix: Option<glm::DMat4>,
 
             // TODO: since this is a partial copy of MeshDrawData, it
@@ -239,6 +260,7 @@ pub mod objects {
                 Self {
                     data,
                     shader_id: None,
+                    object_id: None,
                     model_matrix: None,
 
                     use_shader,
@@ -314,6 +336,14 @@ pub mod objects {
 
             fn get_path_trace_shader_id(&self) -> ShaderID {
                 self.shader_id.unwrap()
+            }
+
+            fn set_object_id(&mut self, object_id: ObjectID) {
+                self.object_id = Some(object_id);
+            }
+
+            fn get_object_id(&self) -> ObjectID {
+                self.object_id.unwrap()
             }
 
             fn get_min_max_bounds(&self) -> (glm::DVec3, glm::DVec3) {
