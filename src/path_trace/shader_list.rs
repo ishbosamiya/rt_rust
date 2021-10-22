@@ -102,16 +102,16 @@ impl DrawUI for ShaderList {
             .iter()
             .enumerate()
             .for_each(|(index, shader_id)| {
-                ui.label(format!("Shader {}", index + 1));
-
                 let shader = shaders.get_mut(shader_id).unwrap();
 
                 ui.horizontal(|ui| {
-                    ui.text_edit_singleline(shader.get_shader_name_mut());
+                    ui.label(format!("Shader {}", index + 1));
                     if ui.button("Select Shader").clicked() {
                         *selected_shader = Some(shader.get_shader_id());
                     }
                 });
+
+                ui.text_edit_singleline(shader.get_shader_name_mut());
 
                 shader.get_bsdf().draw_ui(ui);
                 shader.get_bsdf_mut().draw_ui_mut(ui);
