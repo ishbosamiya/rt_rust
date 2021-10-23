@@ -723,11 +723,39 @@ fn handle_window_event(
         glfw::WindowEvent::Key(Key::Escape, _, Action::Press, _) => {
             window.set_should_close(true);
         }
+        glfw::WindowEvent::Key(
+            Key::Num1 | Key::Kp1,
+            _,
+            Action::Press,
+            glfw::Modifiers::Control,
+        ) => {
+            *camera = RasterizeCamera::new(
+                glm::vec3(0.0, 0.0, -camera.get_position().norm()),
+                *camera.get_world_up(),
+                90.0,
+                0.0,
+                camera.get_zoom(),
+            )
+        }
         glfw::WindowEvent::Key(Key::Num1 | Key::Kp1, _, Action::Press, _) => {
             *camera = RasterizeCamera::new(
                 glm::vec3(0.0, 0.0, camera.get_position().norm()),
                 *camera.get_world_up(),
                 -90.0,
+                0.0,
+                camera.get_zoom(),
+            )
+        }
+        glfw::WindowEvent::Key(
+            Key::Num3 | Key::Kp3,
+            _,
+            Action::Press,
+            glfw::Modifiers::Control,
+        ) => {
+            *camera = RasterizeCamera::new(
+                glm::vec3(-camera.get_position().norm(), 0.0, 0.0),
+                *camera.get_world_up(),
+                0.0,
                 0.0,
                 camera.get_zoom(),
             )
@@ -738,6 +766,20 @@ fn handle_window_event(
                 *camera.get_world_up(),
                 180.0,
                 0.0,
+                camera.get_zoom(),
+            )
+        }
+        glfw::WindowEvent::Key(
+            Key::Num7 | Key::Kp7,
+            _,
+            Action::Press,
+            glfw::Modifiers::Control,
+        ) => {
+            *camera = RasterizeCamera::new(
+                glm::vec3(0.0, -camera.get_position().norm(), 0.0),
+                *camera.get_world_up(),
+                -90.0,
+                90.0,
                 camera.get_zoom(),
             )
         }
