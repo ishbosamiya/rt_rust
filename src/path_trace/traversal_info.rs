@@ -64,12 +64,16 @@ impl SingleRayInfo {
 
 pub struct TraversalInfo {
     traversal: Vec<SingleRayInfo>,
+    min_bounces: usize,
+    max_bounces: usize,
 }
 
 impl TraversalInfo {
     pub fn new() -> Self {
         Self {
             traversal: Vec::new(),
+            min_bounces: 0,
+            max_bounces: 100,
         }
     }
 
@@ -81,6 +85,15 @@ impl TraversalInfo {
         // TODO(ish): add some assertions to ensure that the traversal
         // path can form a continuous path
         self.traversal.push(info);
+    }
+
+    pub fn get_bounces(&self) -> std::ops::Range<usize> {
+        self.min_bounces..self.max_bounces
+    }
+
+    pub fn set_bounce_range(&mut self, start: usize, end: usize) {
+        self.min_bounces = start;
+        self.max_bounces = end;
     }
 }
 
@@ -147,22 +160,36 @@ impl Drawable for TraversalInfo {
             smooth_color_3d_shader,
         );
 
-        self.get_traversal().iter().for_each(|info| {
-            let p1: glm::Vec3 = glm::convert(*info.get_ray().get_origin());
-            let p2 = if let Some(co) = info.get_co() {
-                *co
-            } else {
-                info.get_ray().at(1000.0)
-            };
-            let p2: glm::Vec3 = glm::convert(p2);
-            let color: glm::Vec3 = glm::convert(*info.get_color());
+        let bounce_range = self.get_bounces();
+        let min_bounces = bounce_range.start;
+        let max_bounces = bounce_range.end;
+        self.get_traversal()
+            .iter()
+            .enumerate()
+            .skip(min_bounces)
+            .try_for_each(|(index, info)| {
+                if index == max_bounces {
+                    return None;
+                }
+                {
+                    let p1: glm::Vec3 = glm::convert(*info.get_ray().get_origin());
+                    let p2 = if let Some(co) = info.get_co() {
+                        *co
+                    } else {
+                        info.get_ray().at(1000.0)
+                    };
+                    let p2: glm::Vec3 = glm::convert(p2);
+                    let color: glm::Vec3 = glm::convert(*info.get_color());
 
-            imm.attr_4f(color_attr, color[0], color[1], color[2], 1.0);
-            imm.vertex_3f(pos_attr, p1[0], p1[1], p1[2]);
+                    imm.attr_4f(color_attr, color[0], color[1], color[2], 1.0);
+                    imm.vertex_3f(pos_attr, p1[0], p1[1], p1[2]);
 
-            imm.attr_4f(color_attr, color[0], color[1], color[2], 1.0);
-            imm.vertex_3f(pos_attr, p2[0], p2[1], p2[2]);
-        });
+                    imm.attr_4f(color_attr, color[0], color[1], color[2], 1.0);
+                    imm.vertex_3f(pos_attr, p2[0], p2[1], p2[2]);
+
+                    Some(())
+                }
+            });
 
         imm.end();
 

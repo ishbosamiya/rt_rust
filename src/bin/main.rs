@@ -590,6 +590,30 @@ fn main() {
                         );
                         ui.checkbox(&mut show_ray_traversal_info, "Show Ray Traversal Info");
 
+                        let mut max_bounces: usize = 0;
+                        let mut min_bounces: usize = 0;
+                        ui.add(
+                            egui::Slider::new(
+                                &mut min_bounces,
+                                0..=1000,
+                            )
+                            .clamp_to_range(true)
+                            .text("Minimum Bounce"),
+                        );
+
+                        ui.add(
+                            egui::Slider::new(
+                                &mut max_bounces,
+                                min_bounces..=1000,
+                            )
+                            .clamp_to_range(true)
+                            .text("Maximum Bounce"),
+                        );
+                        ray_traversal_info.iter().for_each(|info| {
+                            info.set_bounce_range(min_bounces, max_bounces);
+                        });
+
+
                         ui.checkbox(&mut draw_normal_at_hit_points, "Draw Normal at Hit Points");
                         ui.add(
                             egui::Slider::new(&mut normals_size, 0.0..=2.0).text("Normals Size"),
