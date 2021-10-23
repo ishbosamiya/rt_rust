@@ -638,13 +638,15 @@ fn main() {
                 egui::SidePanel::right("Shader Panel")
                     .min_width(0.2 * window_width as f32)
                     .show(egui.get_egui_ctx(), |ui| {
-                        shader_list.read().unwrap().draw_ui(ui);
-                        if let Ok(mut shader_list) = shader_list.try_write() {
-                            shader_list.draw_ui_mut(ui);
-                            selected_shader = *shader_list.get_selected_shader();
-                        } else {
-                            ui.label("Shaders are currently in use, cannot edit the shaders");
-                        }
+                        egui::ScrollArea::auto_sized().show(ui, |ui| {
+                            shader_list.read().unwrap().draw_ui(ui);
+                            if let Ok(mut shader_list) = shader_list.try_write() {
+                                shader_list.draw_ui_mut(ui);
+                                selected_shader = *shader_list.get_selected_shader();
+                            } else {
+                                ui.label("Shaders are currently in use, cannot edit the shaders");
+                            }
+                        });
                     });
 
                 egui::Window::new("Camera Data")
