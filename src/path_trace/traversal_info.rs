@@ -154,7 +154,7 @@ impl Drawable for TraversalInfo {
             GPUVertFetchMode::Float,
         );
 
-        imm.begin(
+        imm.begin_at_most(
             GPUPrimType::Lines,
             self.get_traversal().len() * 2,
             smooth_color_3d_shader,
@@ -165,13 +165,13 @@ impl Drawable for TraversalInfo {
         let max_bounces = bounce_range.end;
         self.get_traversal()
             .iter()
+            .rev()
             .enumerate()
-            .skip(min_bounces)
+            .skip(min_bounces - 1)
             .try_for_each(|(index, info)| {
                 if index == max_bounces {
-                    return None;
-                }
-                {
+                    None
+                } else {
                     let p1: glm::Vec3 = glm::convert(*info.get_ray().get_origin());
                     let p2 = if let Some(co) = info.get_co() {
                         *co
@@ -200,23 +200,34 @@ impl Drawable for TraversalInfo {
                 smooth_color_3d_shader,
             );
 
-            self.get_traversal().iter().for_each(|info| {
-                let p1 = if let Some(co) = info.get_co() {
-                    *co
-                } else {
-                    return;
-                };
-                let p2 = p1 + (info.get_normal().unwrap().normalize() * extra_data.normals_size);
-                let p1: glm::Vec3 = glm::convert(p1);
-                let p2: glm::Vec3 = glm::convert(p2);
-                let color: glm::Vec4 = glm::convert(extra_data.normals_color);
+            self.get_traversal()
+                .iter()
+                .rev()
+                .enumerate()
+                .skip(min_bounces - 1)
+                .try_for_each(|(index, info)| {
+                    if index == max_bounces {
+                        None
+                    } else {
+                        let p1 = if let Some(co) = info.get_co() {
+                            *co
+                        } else {
+                            return None;
+                        };
+                        let p2 =
+                            p1 + (info.get_normal().unwrap().normalize() * extra_data.normals_size);
+                        let p1: glm::Vec3 = glm::convert(p1);
+                        let p2: glm::Vec3 = glm::convert(p2);
+                        let color: glm::Vec4 = glm::convert(extra_data.normals_color);
 
-                imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
-                imm.vertex_3f(pos_attr, p1[0], p1[1], p1[2]);
+                        imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+                        imm.vertex_3f(pos_attr, p1[0], p1[1], p1[2]);
 
-                imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
-                imm.vertex_3f(pos_attr, p2[0], p2[1], p2[2]);
-            });
+                        imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+                        imm.vertex_3f(pos_attr, p2[0], p2[1], p2[2]);
+                        Some(())
+                    }
+                });
 
             imm.end();
         }

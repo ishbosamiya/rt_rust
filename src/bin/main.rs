@@ -125,6 +125,8 @@ fn main() {
     let mut camera_sensor_width = 2.0;
     let mut camera_position = glm::vec3(0.0, 0.0, 10.0);
     let mut selected_shader: Option<ShaderID> = None;
+    let mut end_ray_depth: usize = trace_max_depth;
+    let mut start_ray_depth: usize = 1;
 
     let path_trace_progress = Arc::new(RwLock::new(Progress::new()));
 
@@ -590,29 +592,23 @@ fn main() {
                         );
                         ui.checkbox(&mut show_ray_traversal_info, "Show Ray Traversal Info");
 
-                        let mut max_bounces: usize = 0;
-                        let mut min_bounces: usize = 0;
                         ui.add(
-                            egui::Slider::new(
-                                &mut min_bounces,
-                                0..=1000,
-                            )
-                            .clamp_to_range(true)
-                            .text("Minimum Bounce"),
+                            egui::Slider::new(&mut start_ray_depth, 1..=end_ray_depth)
+                                .clamp_to_range(true)
+                                .text("Start Ray Depth"),
                         );
 
                         ui.add(
                             egui::Slider::new(
-                                &mut max_bounces,
-                                min_bounces..=1000,
+                                &mut end_ray_depth,
+                                start_ray_depth..=trace_max_depth,
                             )
                             .clamp_to_range(true)
-                            .text("Maximum Bounce"),
+                            .text("End Ray Depth"),
                         );
-                        ray_traversal_info.iter().for_each(|info| {
-                            info.set_bounce_range(min_bounces, max_bounces);
+                        ray_traversal_info.iter_mut().for_each(|info| {
+                            info.set_bounce_range(start_ray_depth, end_ray_depth);
                         });
-
 
                         ui.checkbox(&mut draw_normal_at_hit_points, "Draw Normal at Hit Points");
                         ui.add(
