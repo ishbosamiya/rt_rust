@@ -34,6 +34,7 @@ impl SampleData {
     }
 }
 
+#[typetag::serde(tag = "type")]
 pub trait BSDF: DrawUI {
     /// Calculates `wi` given `wo` and specifies the type of sampling
     /// used.

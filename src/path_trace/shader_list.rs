@@ -1,4 +1,7 @@
-use std::collections::{hash_map, HashMap};
+use std::{
+    collections::{hash_map, HashMap},
+    fmt::Debug,
+};
 
 use crate::ui::DrawUI;
 
@@ -12,7 +15,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct ShaderID(usize);
 
-pub trait Shader: Sync + Send {
+#[typetag::serde(tag = "type")]
+pub trait Shader: Debug + Sync + Send {
     fn default() -> Self
     where
         Self: Sized;
@@ -33,6 +37,7 @@ pub trait Shader: Sync + Send {
     fn get_shader_name(&self) -> &String;
 }
 
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ShaderList {
     /// list of all shaders indexed by their ShaderID
     shaders: HashMap<ShaderID, Box<dyn Shader>>,

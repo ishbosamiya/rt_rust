@@ -1,10 +1,12 @@
 use enumflags2::BitFlags;
+use serde::{Deserialize, Serialize};
 
 use super::super::bsdf::{SampleData, SamplingTypes, BSDF};
 use super::super::intersectable::IntersectInfo;
 use crate::ui::DrawUI;
 use crate::{glm, ui};
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Emissive {
     color: glm::DVec4,
     power: f64,
@@ -22,6 +24,7 @@ impl Emissive {
     }
 }
 
+#[typetag::serde]
 impl BSDF for Emissive {
     fn sample(
         &self,

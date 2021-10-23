@@ -2,6 +2,7 @@ use std::fmt::Display;
 use std::sync::Mutex;
 
 use lazy_static::lazy_static;
+use serde::{Deserialize, Serialize};
 
 use crate::path_trace::{
     bsdf::BSDF,
@@ -40,6 +41,7 @@ impl Iterator for NameGen {
 macro_rules! ShaderFromBSDF {
     ( $( $shader_name:ident, $bsdf:ty ); *) => {
         $(
+            #[derive(Debug, Clone, Serialize, Deserialize)]
             pub struct $shader_name {
                 bsdf: $bsdf,
                 shader_id: Option<ShaderID>,
@@ -56,6 +58,7 @@ macro_rules! ShaderFromBSDF {
                 }
             }
 
+            #[typetag::serde]
             impl Shader for $shader_name {
                 fn default() -> Self
                 where
@@ -90,7 +93,7 @@ macro_rules! ShaderFromBSDF {
             }
         )*
 
-        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 	pub enum ShaderType {
             $(
                 $shader_name,
