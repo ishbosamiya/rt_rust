@@ -8,6 +8,9 @@ use crate::rasterize::gpu_utils::draw_smooth_sphere_at;
 use crate::rasterize::{drawable::Drawable, gpu_immediate::GPUImmediate};
 use crate::util::vec3_apply_model_matrix;
 
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Sphere {
     center: glm::DVec3,
     radius: f64,

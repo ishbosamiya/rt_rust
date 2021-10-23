@@ -8,9 +8,12 @@ use crate::path_trace::intersectable::{IntersectInfo, Intersectable};
 use crate::path_trace::ray::Ray;
 use crate::rasterize::drawable::Drawable;
 
+use serde::{Deserialize, Serialize};
+
 // TODO: store Scene::objects in a HashMap instead of Vec for speed
 // and object id stuff
 
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Scene {
     objects: Vec<Box<dyn Object>>,
 

@@ -2,6 +2,7 @@ pub mod builtins;
 
 use itertools::Itertools;
 use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 
 use std::cell::RefCell;
 use std::path::Path;
@@ -22,7 +23,7 @@ use crate::{
     },
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Vertex {
     pos: glm::DVec3,
     uv: Option<glm::DVec2>,
@@ -124,7 +125,7 @@ impl From<meshio::MeshIOError> for Error {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Mesh {
     vertices: Vec<Vertex>,
     faces: Vec<Vec<usize>>,
@@ -362,7 +363,7 @@ impl From<()> for MeshDrawError {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum MeshUseShader {
     DirectionalLight { color: glm::DVec3 },
     SmoothColor3D,
@@ -381,7 +382,7 @@ impl Display for MeshUseShader {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct MeshBVHDrawData {
     draw_bvh: bool,
     bvh_draw_level: usize,

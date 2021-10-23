@@ -5,9 +5,11 @@ use crate::ui::DrawUI;
 use super::bsdf::BSDF;
 use super::shaders::ShaderType;
 
+use serde::{Deserialize, Serialize};
+
 /// A unique identifier given to each `Shader` during its
 /// initialization.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct ShaderID(usize);
 
 pub trait Shader: Sync + Send {

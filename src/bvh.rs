@@ -1,5 +1,6 @@
 use generational_arena::{Arena, Index};
 use lazy_static::lazy_static;
+use serde::{Deserialize, Serialize};
 
 use std::cell::RefCell;
 use std::cmp::PartialOrd;
@@ -13,7 +14,7 @@ use crate::rasterize::shader;
 
 const MAX_TREETYPE: u8 = 32;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 struct BVHNodeIndex(pub Index);
 
 impl BVHNodeIndex {
@@ -22,7 +23,7 @@ impl BVHNodeIndex {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct BVHNode<T>
 where
     T: Copy,
@@ -163,7 +164,7 @@ impl std::fmt::Display for BVHError {
 
 impl std::error::Error for BVHError {}
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BVHTree<T>
 where
     T: Copy,

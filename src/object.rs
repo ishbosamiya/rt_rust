@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, fmt::Debug, rc::Rc};
 
 use crate::{
     glm,
@@ -7,9 +7,11 @@ use crate::{
     rasterize::{drawable::Drawable, gpu_immediate::GPUImmediate},
 };
 
+use serde::{Deserialize, Serialize};
+
 /// A unique identifier given to each [`Object`] during its
 /// initialization.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct ObjectID(usize);
 
 impl ObjectID {
@@ -63,8 +65,9 @@ impl ObjectDrawData {
     }
 }
 
+#[typetag::serde(tag = "type")]
 pub trait Object:
-    Intersectable + Drawable<ExtraData = ObjectDrawData, Error = DrawError> + Sync + Send
+    Debug + Intersectable + Drawable<ExtraData = ObjectDrawData, Error = DrawError> + Sync + Send
 {
     fn set_model_matrix(&mut self, model: glm::DMat4);
     fn get_model_matrix(&self) -> &Option<glm::DMat4>;
@@ -105,6 +108,9 @@ pub mod objects {
 
         use super::super::{DrawError, Object, ObjectDrawData};
 
+        use serde::{Deserialize, Serialize};
+
+        #[derive(Debug, Clone, Serialize, Deserialize)]
         pub struct Sphere {
             data: SphereData,
             shader_id: Option<ShaderID>,
@@ -186,6 +192,7 @@ pub mod objects {
             }
         }
 
+        #[typetag::serde]
         impl Object for Sphere {
             fn set_model_matrix(&mut self, model: glm::DMat4) {
                 self.model_matrix = Some(model);
@@ -250,6 +257,9 @@ pub mod objects {
 
         use super::super::{DrawError, Object, ObjectDrawData};
 
+        use serde::{Deserialize, Serialize};
+
+        #[derive(Debug, Clone, Serialize, Deserialize)]
         pub struct Mesh {
             data: MeshData,
             shader_id: Option<ShaderID>,
@@ -329,6 +339,7 @@ pub mod objects {
             }
         }
 
+        #[typetag::serde]
         impl Object for Mesh {
             fn set_model_matrix(&mut self, model: glm::DMat4) {
                 self.model_matrix = Some(model);
