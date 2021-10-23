@@ -38,64 +38,62 @@ impl Iterator for NameGen {
 }
 
 macro_rules! ShaderFromBSDF {
-    ( $shader_name:ident ; $bsdf:ty ) => {
-        pub struct $shader_name {
-            bsdf: $bsdf,
-            shader_id: Option<ShaderID>,
-            name: String,
-        }
+    ( $( $shader_name:ident, $bsdf:ty ); *) => {
+        $(
+            pub struct $shader_name {
+                bsdf: $bsdf,
+                shader_id: Option<ShaderID>,
+                name: String,
+            }
 
-        impl $shader_name {
-            pub fn new(bsdf: $bsdf) -> Self {
-                Self {
-                    bsdf,
-                    shader_id: None,
-                    name: SHADER_NAME_GEN.lock().unwrap().next().unwrap(),
+            impl $shader_name {
+                pub fn new(bsdf: $bsdf) -> Self {
+                    Self {
+                        bsdf,
+                        shader_id: None,
+                        name: SHADER_NAME_GEN.lock().unwrap().next().unwrap(),
+                    }
                 }
             }
-        }
 
-        impl Shader for $shader_name {
-            fn default() -> Self
-            where
-                Self: Sized,
-            {
-                Self::new(Default::default())
+            impl Shader for $shader_name {
+                fn default() -> Self
+                where
+                    Self: Sized,
+                {
+                    Self::new(Default::default())
+                }
+
+                fn set_shader_id(&mut self, shader_id: ShaderID) {
+                    self.shader_id = Some(shader_id);
+                }
+
+                fn get_bsdf(&self) -> &dyn BSDF {
+                    &self.bsdf
+                }
+
+                fn get_bsdf_mut(&mut self) -> &mut dyn BSDF {
+                    &mut self.bsdf
+                }
+
+                fn get_shader_id(&self) -> ShaderID {
+                    self.shader_id.unwrap()
+                }
+
+                fn get_shader_name_mut(&mut self) -> &mut String {
+                    &mut self.name
+                }
+
+                fn get_shader_name(&self) -> &String {
+                    &self.name
+                }
             }
+        )*
 
-            fn set_shader_id(&mut self, shader_id: ShaderID) {
-                self.shader_id = Some(shader_id);
-            }
-
-            fn get_bsdf(&self) -> &dyn BSDF {
-                &self.bsdf
-            }
-
-            fn get_bsdf_mut(&mut self) -> &mut dyn BSDF {
-                &mut self.bsdf
-            }
-
-            fn get_shader_id(&self) -> ShaderID {
-                self.shader_id.unwrap()
-            }
-
-            fn get_shader_name_mut(&mut self) -> &mut String {
-                &mut self.name
-            }
-
-            fn get_shader_name(&self) -> &String {
-                &self.name
-            }
-        }
-    };
-}
-
-macro_rules! GenerateShaderTypes {
-    ( $( $shader_type:ident ), *) => {
         #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 	pub enum ShaderType {
             $(
-                $shader_type,
+                $shader_name,
             )*
         }
 
@@ -103,7 +101,7 @@ macro_rules! GenerateShaderTypes {
             pub fn all() -> impl Iterator<Item = Self> {
                 [
                     $(
-                        Self::$shader_type,
+                        Self::$shader_name,
                     )*
                 ]
                     .iter()
@@ -113,7 +111,7 @@ macro_rules! GenerateShaderTypes {
             pub fn generate_shader(&self) -> Box<dyn Shader> {
                 match self {
                     $(
-                        Self::$shader_type => Box::new($shader_type::default()),
+                        Self::$shader_name => Box::new($shader_name::default()),
                     )*
                 }
             }
@@ -123,7 +121,7 @@ macro_rules! GenerateShaderTypes {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 match self {
                     $(
-                        Self::$shader_type => write!(f, stringify!($shader_type)),
+                        Self::$shader_name => write!(f, stringify!($shader_name)),
                     )*
                 }
             }
@@ -131,11 +129,9 @@ macro_rules! GenerateShaderTypes {
     };
 }
 
-ShaderFromBSDF!(Lambert; bsdfs::lambert::Lambert);
-ShaderFromBSDF!(Glossy; bsdfs::glossy::Glossy);
-ShaderFromBSDF!(Emissive; bsdfs::emissive::Emissive);
-
-GenerateShaderTypes!(Lambert, Glossy, Emissive);
+ShaderFromBSDF!(Lambert, bsdfs::lambert::Lambert;
+                Glossy, bsdfs::glossy::Glossy;
+                Emissive, bsdfs::emissive::Emissive);
 
 impl Default for ShaderType {
     fn default() -> Self {
