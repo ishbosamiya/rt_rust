@@ -339,6 +339,8 @@ fn main() {
                     draw_normal_at_hit_points,
                     normals_size,
                     normals_color,
+                    start_ray_depth,
+                    end_ray_depth,
                 ))
                 .unwrap();
             });
@@ -606,9 +608,6 @@ fn main() {
                             .clamp_to_range(true)
                             .text("End Ray Depth"),
                         );
-                        ray_traversal_info.iter_mut().for_each(|info| {
-                            info.set_bounce_range(start_ray_depth, end_ray_depth);
-                        });
 
                         ui.checkbox(&mut draw_normal_at_hit_points, "Draw Normal at Hit Points");
                         ui.add(

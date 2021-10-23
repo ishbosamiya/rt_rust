@@ -64,16 +64,12 @@ impl SingleRayInfo {
 
 pub struct TraversalInfo {
     traversal: Vec<SingleRayInfo>,
-    min_bounces: usize,
-    max_bounces: usize,
 }
 
 impl TraversalInfo {
     pub fn new() -> Self {
         Self {
             traversal: Vec::new(),
-            min_bounces: 0,
-            max_bounces: 100,
         }
     }
 
@@ -85,15 +81,6 @@ impl TraversalInfo {
         // TODO(ish): add some assertions to ensure that the traversal
         // path can form a continuous path
         self.traversal.push(info);
-    }
-
-    pub fn get_bounces(&self) -> std::ops::Range<usize> {
-        self.min_bounces..self.max_bounces
-    }
-
-    pub fn set_bounce_range(&mut self, start: usize, end: usize) {
-        self.min_bounces = start;
-        self.max_bounces = end;
     }
 }
 
@@ -108,6 +95,8 @@ pub struct TraversalInfoDrawData {
     draw_normal_at_hit_points: bool,
     normals_size: f64,
     normals_color: glm::DVec4,
+    start_ray_depth: usize,
+    end_ray_depth: usize,
 }
 
 impl TraversalInfoDrawData {
@@ -116,12 +105,16 @@ impl TraversalInfoDrawData {
         draw_normal_at_hit_points: bool,
         normals_size: f64,
         normals_color: glm::DVec4,
+        start_ray_depth: usize,
+        end_ray_depth: usize,
     ) -> Self {
         Self {
             imm,
             draw_normal_at_hit_points,
             normals_size,
             normals_color,
+            start_ray_depth,
+            end_ray_depth,
         }
     }
 }
@@ -160,16 +153,13 @@ impl Drawable for TraversalInfo {
             smooth_color_3d_shader,
         );
 
-        let bounce_range = self.get_bounces();
-        let min_bounces = bounce_range.start;
-        let max_bounces = bounce_range.end;
         self.get_traversal()
             .iter()
             .rev()
             .enumerate()
-            .skip(min_bounces - 1)
+            .skip(extra_data.start_ray_depth - 1)
             .try_for_each(|(index, info)| {
-                if index == max_bounces {
+                if index == extra_data.end_ray_depth {
                     None
                 } else {
                     let p1: glm::Vec3 = glm::convert(*info.get_ray().get_origin());
@@ -204,9 +194,9 @@ impl Drawable for TraversalInfo {
                 .iter()
                 .rev()
                 .enumerate()
-                .skip(min_bounces - 1)
+                .skip(extra_data.start_ray_depth - 1)
                 .try_for_each(|(index, info)| {
-                    if index == max_bounces {
+                    if index == extra_data.end_ray_depth {
                         None
                     } else {
                         let p1 = if let Some(co) = info.get_co() {
