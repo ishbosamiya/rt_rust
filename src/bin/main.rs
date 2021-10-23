@@ -1,4 +1,5 @@
 use glm::Scalar;
+use rfd::FileDialog;
 use rt::image::{Image, PPM};
 use rt::object::objects::Mesh as MeshObject;
 use rt::object::objects::Sphere as SphereObject;
@@ -520,23 +521,37 @@ fn main() {
                                 path_trace_camera.clone(),
                             );
                             let file_serialized = serde_json::to_string(&file).unwrap();
-                            std::fs::write("temp.rt", file_serialized).unwrap();
+                            if let Some(path) = FileDialog::new()
+                                .add_filter("RT", &["rt"])
+                                .add_filter("Any", &["*"])
+                                .set_directory(".")
+                                .set_file_name("untitled.rt")
+                                .save_file()
+                            {
+                                std::fs::write(path, file_serialized).unwrap();
+                            }
                         }
                         if ui.button("Load File").clicked() {
-                            let json =
-                                String::from_utf8(std::fs::read("temp.rt").unwrap()).unwrap();
-                            let file: File = serde_json::from_str(&json).unwrap();
-                            *scene.write().unwrap() =
-                                Arc::try_unwrap(file.scene).unwrap().into_inner().unwrap();
-                            *shader_list.write().unwrap() = Arc::try_unwrap(file.shader_list)
-                                .unwrap()
-                                .into_inner()
-                                .unwrap();
-                            *path_trace_camera.write().unwrap() =
-                                Arc::try_unwrap(file.path_trace_camera)
+                            if let Some(path) = FileDialog::new()
+                                .add_filter("RT", &["rt"])
+                                .add_filter("Any", &["*"])
+                                .set_directory(".")
+                                .pick_file()
+                            {
+                                let json = String::from_utf8(std::fs::read(path).unwrap()).unwrap();
+                                let file: File = serde_json::from_str(&json).unwrap();
+                                *scene.write().unwrap() =
+                                    Arc::try_unwrap(file.scene).unwrap().into_inner().unwrap();
+                                *shader_list.write().unwrap() = Arc::try_unwrap(file.shader_list)
                                     .unwrap()
                                     .into_inner()
                                     .unwrap();
+                                *path_trace_camera.write().unwrap() =
+                                    Arc::try_unwrap(file.path_trace_camera)
+                                        .unwrap()
+                                        .into_inner()
+                                        .unwrap();
+                            }
                         }
 
                         ui::color_edit_button_dvec4(ui, "Background Color", &mut background_color);
