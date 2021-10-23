@@ -126,22 +126,22 @@ impl Camera {
         (self.get_camera_plane_center() - self.get_origin()).norm()
     }
 
-    pub fn get_sensor_size_hor(&self) -> f64 {
-        self.get_horizontal()[0] * 2.0
+    pub fn get_sensor_width(&self) -> f64 {
+        self.sensor_width
     }
 
-    pub fn get_sensor_size_ver(&self) -> f64 {
-        self.get_vertical()[1] * 2.0
+    pub fn get_sensor_height(&self) -> f64 {
+        self.sensor_height
     }
 
     /// horizontal fov in radians
     pub fn get_fov_hor(&self) -> f64 {
-        focal_length_to_fov(self.get_focal_length(), self.get_sensor_size_hor())
+        focal_length_to_fov(self.get_focal_length(), self.get_sensor_width())
     }
 
     /// vertical fov in radians
     pub fn get_fov_ver(&self) -> f64 {
-        focal_length_to_fov(self.get_focal_length(), self.get_sensor_size_ver())
+        focal_length_to_fov(self.get_focal_length(), self.get_sensor_height())
     }
 }
 
