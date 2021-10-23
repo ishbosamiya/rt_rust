@@ -139,7 +139,7 @@ fn main() {
     let mut end_ray_depth: usize = trace_max_depth;
     let mut start_ray_depth: usize = 1;
 
-    let mut path_trace_camera = {
+    let path_trace_camera = {
         let camera_focal_length = 12.0;
         let camera_sensor_width = 2.0;
         let camera_position = glm::vec3(0.0, 0.0, 10.0);
@@ -270,6 +270,7 @@ fn main() {
 
     let scene = Arc::new(RwLock::new(scene));
     let shader_list = Arc::new(RwLock::new(shader_list));
+    let path_trace_camera = Arc::new(RwLock::new(path_trace_camera));
 
     let infinite_grid = InfiniteGrid::default();
 
@@ -280,12 +281,14 @@ fn main() {
     let ray_trace_main_thread_handle = {
         let scene = scene.clone();
         let shader_list = shader_list.clone();
+        let camera = path_trace_camera.clone();
         let rendered_image = rendered_image.clone();
         let path_trace_progress = path_trace_progress.clone();
         thread::spawn(move || {
             path_trace::ray_trace_main(
                 scene,
                 shader_list,
+                camera,
                 rendered_image,
                 path_trace_progress,
                 ray_trace_thread_receiver,
@@ -303,7 +306,7 @@ fn main() {
                 &event,
                 &mut window,
                 &mut camera,
-                &path_trace_camera,
+                &path_trace_camera.read().unwrap(),
                 &mut should_cast_scene_ray,
                 &mut last_cursor,
             );
@@ -381,6 +384,8 @@ fn main() {
 
             scene.write().unwrap().apply_model_matrices();
 
+            let path_trace_camera = path_trace_camera.read().unwrap();
+
             // trace ray into scene from the rasterizer camera
             // position to get the first hitpoint
             let (_color, traversal_info) = path_trace::trace_ray(
@@ -456,6 +461,8 @@ fn main() {
             // drawing the camera
             let rc_refcell_image = Rc::new(RefCell::new(rendered_texture));
             path_trace_camera
+                .read()
+                .unwrap()
                 .draw(&mut PathTraceCameraDrawData::new(
                     imm.clone(),
                     Some(rc_refcell_image.clone()),
@@ -526,28 +533,29 @@ fn main() {
 
                         ui.checkbox(&mut camera_use_depth_for_image, "Use Depth for Image");
 
-                        {
-                            let mut camera_sensor_width = path_trace_camera.get_sensor_width();
+                        let camera_sensor_width = {
+                            let mut camera_sensor_width =
+                                path_trace_camera.read().unwrap().get_sensor_width();
                             ui.add(
                                 egui::Slider::new(&mut camera_sensor_width, 0.0..=36.0)
                                     .text("Camera Sensor Width"),
                             );
-                            path_trace_camera.change_sensor_width(camera_sensor_width);
-                            path_trace_camera
-                                .change_aspect_ratio(image_width as f64 / image_height as f64);
-                        }
+                            camera_sensor_width
+                        };
 
-                        {
-                            let mut camera_focal_length = path_trace_camera.get_focal_length();
+                        let camera_focal_length = {
+                            let mut camera_focal_length =
+                                path_trace_camera.read().unwrap().get_focal_length();
                             ui.add(
                                 egui::Slider::new(&mut camera_focal_length, 0.0..=15.0)
                                     .text("Camera Focal Length"),
                             );
-                            path_trace_camera.change_focal_length(camera_focal_length);
-                        }
+                            camera_focal_length
+                        };
 
-                        {
-                            let mut camera_position = *path_trace_camera.get_origin();
+                        let camera_position = {
+                            let mut camera_position =
+                                *path_trace_camera.read().unwrap().get_origin();
                             ui.label("Camera Position");
                             ui.add(
                                 egui::Slider::new(&mut camera_position[0], -10.0..=10.0).text("x"),
@@ -558,6 +566,14 @@ fn main() {
                             ui.add(
                                 egui::Slider::new(&mut camera_position[2], -10.0..=10.0).text("z"),
                             );
+                            camera_position
+                        };
+
+                        if let Ok(mut path_trace_camera) = path_trace_camera.try_write() {
+                            path_trace_camera.change_sensor_width(camera_sensor_width);
+                            path_trace_camera
+                                .change_aspect_ratio(image_width as f64 / image_height as f64);
+                            path_trace_camera.change_focal_length(camera_focal_length);
                             path_trace_camera.change_origin(camera_position);
                         }
 
@@ -587,7 +603,6 @@ fn main() {
                                         image_height,
                                         trace_max_depth,
                                         samples_per_pixel,
-                                        path_trace_camera.clone(),
                                     )))
                                     .unwrap();
                             }
@@ -668,6 +683,8 @@ fn main() {
 
                         if ui.button("Trace Rays").clicked() {
                             scene.write().unwrap().apply_model_matrices();
+
+                            let path_trace_camera = path_trace_camera.read().unwrap();
 
                             ray_traversal_info.clear();
 

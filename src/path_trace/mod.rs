@@ -46,7 +46,6 @@ pub struct RayTraceParams {
     height: usize,
     trace_max_depth: usize,
     samples_per_pixel: usize,
-    camera: Camera,
 }
 
 impl RayTraceParams {
@@ -55,14 +54,12 @@ impl RayTraceParams {
         height: usize,
         trace_max_depth: usize,
         samples_per_pixel: usize,
-        camera: Camera,
     ) -> Self {
         Self {
             width,
             height,
             trace_max_depth,
             samples_per_pixel,
-            camera,
         }
     }
 
@@ -85,23 +82,21 @@ impl RayTraceParams {
     pub fn get_samples_per_pixel(&self) -> usize {
         self.samples_per_pixel
     }
-
-    /// Get a reference to the ray trace params's camera.
-    pub fn get_camera(&self) -> &Camera {
-        &self.camera
-    }
 }
 
 fn ray_trace_scene(
     ray_trace_params: RayTraceParams,
     scene: Arc<RwLock<Scene>>,
     shader_list: Arc<RwLock<ShaderList>>,
+    camera: Arc<RwLock<Camera>>,
     rendered_image: Arc<RwLock<Image>>,
     progress: Arc<RwLock<Progress>>,
     stop_render: Arc<RwLock<bool>>,
 ) {
     let mut image = Image::new(ray_trace_params.get_width(), ray_trace_params.get_height());
     progress.write().unwrap().reset();
+
+    let camera = camera.read().unwrap();
 
     let progress_previous_update = Arc::new(RwLock::new(Instant::now()));
     let total_number_of_samples = ray_trace_params.get_samples_per_pixel()
@@ -172,11 +167,11 @@ fn ray_trace_scene(
                         - 0.5)
                         * 2.0;
 
-                    let ray = ray_trace_params.get_camera().get_ray(u, v);
+                    let ray = camera.get_ray(u, v);
 
                     let (color, _traversal_info) = trace_ray(
                         &ray,
-                        ray_trace_params.get_camera(),
+                        &camera,
                         &scene,
                         ray_trace_params.get_trace_max_depth(),
                         &shader_list,
@@ -233,6 +228,7 @@ fn ray_trace_stop_render(
 pub fn ray_trace_main(
     scene: Arc<RwLock<Scene>>,
     shader_list: Arc<RwLock<ShaderList>>,
+    camera: Arc<RwLock<Camera>>,
     rendered_image: Arc<RwLock<Image>>,
     progress: Arc<RwLock<Progress>>,
     message_receiver: Receiver<RayTraceMessage>,
@@ -249,6 +245,7 @@ pub fn ray_trace_main(
 
                 let scene = scene.clone();
                 let shader_list = shader_list.clone();
+                let camera = camera.clone();
                 let rendered_image = rendered_image.clone();
                 let progress = progress.clone();
                 let stop_render = stop_render.clone();
@@ -257,6 +254,7 @@ pub fn ray_trace_main(
                         params,
                         scene,
                         shader_list,
+                        camera,
                         rendered_image,
                         progress,
                         stop_render,
