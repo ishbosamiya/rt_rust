@@ -10,6 +10,12 @@ pub struct Glossy {
     color: glm::DVec4,
 }
 
+impl Default for Glossy {
+    fn default() -> Self {
+        Self::new(glm::vec4(1.0, 1.0, 1.0, 1.0))
+    }
+}
+
 impl Glossy {
     pub fn new(color: glm::DVec4) -> Self {
         Self { color }

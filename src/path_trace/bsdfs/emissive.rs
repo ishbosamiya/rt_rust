@@ -10,6 +10,12 @@ pub struct Emissive {
     power: f64,
 }
 
+impl Default for Emissive {
+    fn default() -> Self {
+        Self::new(glm::vec4(1.0, 1.0, 1.0, 1.0), 1.0)
+    }
+}
+
 impl Emissive {
     pub fn new(color: glm::DVec4, power: f64) -> Self {
         Self { color, power }

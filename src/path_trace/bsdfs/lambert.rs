@@ -10,6 +10,12 @@ pub struct Lambert {
     color: glm::DVec4,
 }
 
+impl Default for Lambert {
+    fn default() -> Self {
+        Self::new(glm::vec4(1.0, 1.0, 1.0, 1.0))
+    }
+}
+
 impl Lambert {
     pub fn new(color: glm::DVec4) -> Self {
         Self { color }
