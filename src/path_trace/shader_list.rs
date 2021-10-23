@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use crate::ui::DrawUI;
 
 use super::bsdf::BSDF;
+use super::shaders::ShaderType;
 
 /// A unique identifier given to each `Shader` during its
 /// initialization.
@@ -10,6 +11,10 @@ use super::bsdf::BSDF;
 pub struct ShaderID(usize);
 
 pub trait Shader: Sync + Send {
+    fn default() -> Self
+    where
+        Self: Sized;
+
     /// Set the `ShaderID`, can be requested for later using
     /// `get_shader_id()`
     fn set_shader_id(&mut self, shader_id: ShaderID);
@@ -34,6 +39,8 @@ pub struct ShaderList {
 
     /// selected shader if there exists one
     selected_shader: Option<ShaderID>,
+    /// current shader type for adding new shader
+    shader_type_for_add: ShaderType,
 }
 
 impl ShaderList {
@@ -42,6 +49,7 @@ impl ShaderList {
             shaders: HashMap::new(),
             shader_ids: Vec::new(),
             selected_shader: None,
+            shader_type_for_add: ShaderType::default(),
         }
     }
 
@@ -124,5 +132,23 @@ impl DrawUI for ShaderList {
 
                 ui.separator();
             });
+
+        ui.horizontal_wrapped(|ui| {
+            egui::ComboBox::from_id_source(egui::Id::new("Shader Type"))
+                .selected_text(format!("{}", self.shader_type_for_add))
+                .show_ui(ui, |ui| {
+                    ShaderType::all().for_each(|shader_type| {
+                        ui.selectable_value(
+                            &mut self.shader_type_for_add,
+                            shader_type,
+                            format!("{}", shader_type),
+                        );
+                    });
+                });
+
+            if ui.button("Add Shader").clicked() {
+                self.add_shader(self.shader_type_for_add.generate_shader());
+            }
+        });
     }
 }

@@ -56,6 +56,13 @@ macro_rules! ShaderFromBSDF {
         }
 
         impl Shader for $shader_name {
+            fn default() -> Self
+            where
+                Self: Sized,
+            {
+                Self::new(Default::default())
+            }
+
             fn set_shader_id(&mut self, shader_id: ShaderID) {
                 self.shader_id = Some(shader_id);
             }
@@ -101,6 +108,14 @@ macro_rules! GenerateShaderTypes {
                 ]
                     .iter()
                     .copied()
+            }
+
+            pub fn generate_shader(&self) -> Box<dyn Shader> {
+                match self {
+                    $(
+                        Self::$shader_type => Box::new($shader_type::default()),
+                    )*
+                }
             }
         }
 
