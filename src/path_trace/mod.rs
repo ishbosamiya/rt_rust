@@ -17,6 +17,7 @@ use std::thread::JoinHandle;
 use std::time::Instant;
 
 use enumflags2::BitFlags;
+use lazy_static::lazy_static;
 use rayon::prelude::*;
 
 use crate::glm;
@@ -29,9 +30,16 @@ use crate::path_trace::ray::Ray;
 use crate::progress::Progress;
 use crate::scene::Scene;
 
+use self::shader_list::Shader;
 use self::shader_list::ShaderList;
 use self::traversal_info::SingleRayInfo;
 use self::traversal_info::TraversalInfo;
+
+lazy_static! {
+    static ref DEFAULT_SHADER: self::shaders::Lambert = self::shaders::Lambert::new(
+        self::bsdfs::lambert::Lambert::new(glm::vec4(0.0, 0.0, 0.0, 1.0))
+    );
+}
 
 pub struct RayTraceParams {
     width: usize,
@@ -390,10 +398,17 @@ fn shade_environment(ray: &Ray, camera: &Camera) -> glm::DVec3 {
 
 /// Shade the point of intersection when the ray hits an object
 fn shade_hit(ray: &Ray, intersect_info: &IntersectInfo, shader_list: &ShaderList) -> ShadeHitData {
-    let shader = shader_list
-        .get_shader(intersect_info.get_shader_id().unwrap())
-        .unwrap()
-        .get_bsdf();
+    // TODO: currently using a default shader only if the shader has
+    // been deleted but there is no way to inform this to the user as
+    // of now. Need to figure out a way to let the user know that the
+    // object doesn't have a shader valid assigned.
+    let shader = match shader_list.get_shader(intersect_info.get_shader_id().unwrap()) {
+        Some(shader) => shader.get_bsdf(),
+        None => {
+            // use a default shader when shader is no longer available in the shader_list
+            DEFAULT_SHADER.get_bsdf()
+        }
+    };
 
     // wo: outgoing ray direction
     //

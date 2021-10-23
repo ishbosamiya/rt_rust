@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{hash_map, HashMap};
 
 use crate::ui::DrawUI;
 
@@ -53,8 +53,8 @@ impl ShaderList {
         }
     }
 
-    pub fn get_shaders(&self) -> &HashMap<ShaderID, Box<dyn Shader>> {
-        &self.shaders
+    pub fn get_shaders(&self) -> hash_map::Values<'_, ShaderID, Box<dyn Shader>> {
+        self.shaders.values()
     }
 
     pub fn get_shader(&self, shader_id: ShaderID) -> Option<&dyn Shader> {
@@ -78,6 +78,19 @@ impl ShaderList {
         self.shader_ids.push(shader_id);
         shader_id
     }
+
+    pub fn delete_shader(&mut self, shader_id: ShaderID) {
+        self.shader_ids.remove(
+            self.shader_ids
+                .iter()
+                .enumerate()
+                .find(|(_, id)| shader_id == **id)
+                .unwrap()
+                .0,
+        );
+
+        self.shaders.remove(&shader_id).unwrap();
+    }
 }
 
 impl Default for ShaderList {
@@ -96,10 +109,12 @@ impl DrawUI for ShaderList {
             ui.horizontal_wrapped(|ui| {
                 ui.label(format!(
                     "Selected Shader: {}",
-                    self.shaders
-                        .get(&selected_shader)
-                        .unwrap()
-                        .get_shader_name()
+                    match self.shaders.get(&selected_shader) {
+                        Some(shader) => {
+                            shader.get_shader_name()
+                        }
+                        None => "Not available",
+                    }
                 ));
                 if ui.button("Deselect").clicked() {
                     self.deselect_shader();
@@ -111,6 +126,7 @@ impl DrawUI for ShaderList {
 
         let selected_shader = &mut self.selected_shader;
         let shaders = &mut self.shaders;
+        let mut delete_shader = None;
         ui.separator();
         self.shader_ids
             .iter()
@@ -123,6 +139,9 @@ impl DrawUI for ShaderList {
                     if ui.button("Select Shader").clicked() {
                         *selected_shader = Some(shader.get_shader_id());
                     }
+                    if ui.button("X").clicked() {
+                        delete_shader = Some(shader.get_shader_id());
+                    }
                 });
 
                 ui.text_edit_singleline(shader.get_shader_name_mut());
@@ -132,6 +151,10 @@ impl DrawUI for ShaderList {
 
                 ui.separator();
             });
+
+        if let Some(shader_id) = delete_shader {
+            self.delete_shader(shader_id);
+        }
 
         ui.horizontal_wrapped(|ui| {
             egui::ComboBox::from_id_source(egui::Id::new("Shader Type"))
