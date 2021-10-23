@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::sync::Mutex;
 
 use lazy_static::lazy_static;
@@ -82,6 +83,47 @@ macro_rules! ShaderFromBSDF {
     };
 }
 
+macro_rules! GenerateShaderTypes {
+    ( $( $shader_type:ident ), *) => {
+        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+	pub enum ShaderType {
+            $(
+                $shader_type,
+            )*
+        }
+
+        impl ShaderType {
+            pub fn all() -> impl Iterator<Item = Self> {
+                [
+                    $(
+                        Self::$shader_type,
+                    )*
+                ]
+                    .iter()
+                    .copied()
+            }
+        }
+
+        impl Display for ShaderType {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                match self {
+                    $(
+                        Self::$shader_type => write!(f, stringify!($shader_type)),
+                    )*
+                }
+            }
+        }
+    };
+}
+
 ShaderFromBSDF!(Lambert; bsdfs::lambert::Lambert);
 ShaderFromBSDF!(Glossy; bsdfs::glossy::Glossy);
 ShaderFromBSDF!(Emissive; bsdfs::emissive::Emissive);
+
+GenerateShaderTypes!(Lambert, Glossy, Emissive);
+
+impl Default for ShaderType {
+    fn default() -> Self {
+        Self::Lambert
+    }
+}
