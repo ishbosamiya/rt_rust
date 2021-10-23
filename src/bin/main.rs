@@ -1,3 +1,4 @@
+use glm::Scalar;
 use rt::image::{Image, PPM};
 use rt::object::objects::Mesh as MeshObject;
 use rt::object::objects::Sphere as SphereObject;
@@ -646,6 +647,41 @@ fn main() {
                         }
                     });
 
+                egui::Window::new("Camera Data")
+                    .open(&mut false)
+                    .collapsible(true)
+                    .show(egui.get_egui_ctx(), |ui| {
+                        egui::ScrollArea::auto_sized().show(ui, |ui| {
+                            ui.label(format!(
+                                "position: {}",
+                                vec_to_string(&camera.get_position())
+                            ));
+                            ui.label(format!("front: {}", vec_to_string(&camera.get_front())));
+                            ui.label(format!("up: {}", vec_to_string(&camera.get_up())));
+                            ui.label(format!("right: {}", vec_to_string(&camera.get_right())));
+                            ui.label(format!(
+                                "world_up: {}",
+                                vec_to_string(camera.get_world_up())
+                            ));
+                            ui.label(format!("yaw: {:.2}", camera.get_yaw()));
+                            ui.label(format!("pitch: {:.2}", camera.get_pitch()));
+                            ui.label(format!("zoom: {:.2}", camera.get_zoom()));
+                            ui.label(format!("near_plane: {:.2}", camera.get_near_plane()));
+                            ui.label(format!("far_plane: {:.2}", camera.get_far_plane()));
+
+                            ui.separator();
+
+                            ui.label(format!(
+                                "position: {}",
+                                vec_to_string(&camera.get_position().normalize())
+                            ));
+                            ui.label(format!(
+                                "front: {}",
+                                vec_to_string(&camera.get_front().normalize())
+                            ));
+                        });
+                    });
+
                 let _output = egui.end_frame(glm::vec2(window_width as _, window_height as _));
             }
             // GUI ends
@@ -660,6 +696,18 @@ fn main() {
         .send(RayTraceMessage::KillThread)
         .unwrap();
     ray_trace_main_thread_handle.join().unwrap();
+}
+
+fn vec_to_string<T: Scalar + std::fmt::Display, const R: usize>(vec: &glm::TVec<T, R>) -> String {
+    let mut res = "[".to_string();
+    for i in 0..R {
+        if i != R - 1 {
+            res = format!("{}{:.2}, ", res, vec[i]);
+        } else {
+            res = format!("{}{:.2}]", res, vec[i]);
+        }
+    }
+    res
 }
 
 fn handle_window_event(
@@ -712,6 +760,25 @@ fn handle_window_event(
                 -90.0,
                 0.0,
                 fov.to_degrees(),
+            );
+        }
+        glfw::WindowEvent::Key(Key::C, _, Action::Press, glfw::Modifiers::Shift) => {
+            let angle = camera.get_front().xz().angle(&-camera.get_position().xz());
+            let distance_to_move = camera.get_position().xz().norm() * angle.sin();
+            let move_vector = glm::vec3(camera.get_right()[0], 0.0, camera.get_right()[2])
+                .normalize()
+                * distance_to_move;
+            let move_vector = if camera.get_right().dot(&camera.get_position()) > 0.0 {
+                -move_vector
+            } else {
+                move_vector
+            };
+            *camera = RasterizeCamera::new(
+                camera.get_position() + move_vector,
+                *camera.get_world_up(),
+                camera.get_yaw(),
+                camera.get_pitch(),
+                camera.get_zoom(),
             );
         }
 
