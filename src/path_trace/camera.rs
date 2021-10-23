@@ -14,7 +14,12 @@ use crate::{
 
 #[derive(Debug, Clone)]
 pub struct Camera {
+    sensor_height: f64,
+    sensor_width: f64,
+    aspect_ratio: f64,
+    focal_length: f64,
     origin: glm::DVec3,
+
     horizontal: glm::DVec3,
     vertical: glm::DVec3,
     camera_plane_center: glm::DVec3,
@@ -27,23 +32,70 @@ impl Camera {
         focal_length: f64,
         origin: glm::DVec3,
     ) -> Camera {
+        // Set only the necessary variables, the rest are computed by
+        // calling the required functions
+        let mut cam = Camera {
+            sensor_height,
+            sensor_width: 0.0,
+            aspect_ratio,
+            focal_length,
+            origin,
+
+            horizontal: glm::zero(),
+            vertical: glm::zero(),
+            camera_plane_center: glm::zero(),
+        };
+
+        cam.change_sensor_height(sensor_height);
+        cam.change_origin(origin);
+
+        cam
+    }
+
+    /// Changes the camera's sensor width while maintaining the same aspect ratio
+    pub fn change_sensor_height(&mut self, sensor_height: f64) {
         // The sensor height and width get doubled since the UV's used
         // are OpenGL based so they range from -1 to 1. To fix the
         // doubling, the sensor height must be halved before
         // calculating horizontal and vertical.
-        let sensor_height = sensor_height / 2.0;
+        let sensor_height_half = sensor_height / 2.0;
 
-        let sensor_width = sensor_height as f64 * aspect_ratio;
-        let horizontal = glm::vec3(sensor_width, 0.0, 0.0);
-        let vertical = glm::vec3(0.0, sensor_height, 0.0);
-        let camera_plane_center = origin - glm::vec3(0.0, 0.0, focal_length);
+        let sensor_width = sensor_height * self.aspect_ratio;
+        let sensor_width_half = sensor_height_half * self.aspect_ratio;
+        let horizontal = glm::vec3(sensor_width_half, 0.0, 0.0);
+        let vertical = glm::vec3(0.0, sensor_height_half, 0.0);
 
-        Camera {
-            origin,
-            horizontal,
-            vertical,
-            camera_plane_center,
-        }
+        self.sensor_height = sensor_height;
+        self.sensor_width = sensor_width;
+        self.horizontal = horizontal;
+        self.vertical = vertical;
+    }
+
+    /// Changes the camera's sensor width while maintaining the same aspect ratio
+    pub fn change_sensor_width(&mut self, sensor_width: f64) {
+        let sensor_height = sensor_width / self.aspect_ratio;
+        self.change_sensor_height(sensor_height);
+    }
+
+    /// Changes the camera's sensor aspect ratio. It keeps the sensor
+    /// height constant and reflects the aspect ratio change through
+    /// the sensor's width.
+    pub fn change_aspect_ratio(&mut self, aspect_ratio: f64) {
+        self.aspect_ratio = aspect_ratio;
+        self.change_sensor_height(self.sensor_height);
+    }
+
+    /// Changes the camera's focal length
+    pub fn change_focal_length(&mut self, focal_length: f64) {
+        let camera_plane_center = self.origin - glm::vec3(0.0, 0.0, focal_length);
+        self.focal_length = focal_length;
+        self.camera_plane_center = camera_plane_center;
+    }
+
+    /// Changes the camera's origin
+    pub fn change_origin(&mut self, origin: glm::DVec3) {
+        self.origin = origin;
+        self.change_focal_length(self.focal_length);
     }
 
     pub fn get_origin(&self) -> &glm::DVec3 {
