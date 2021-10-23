@@ -29,6 +29,7 @@ use std::thread;
 use egui::{FontDefinitions, FontFamily, TextStyle};
 use egui_glfw::EguiBackend;
 use glfw::{Action, Context, Key};
+use serde::{Deserialize, Serialize};
 
 use rt::fps::FPS;
 use rt::mesh;
@@ -38,6 +39,18 @@ use rt::rasterize::drawable::Drawable;
 use rt::rasterize::gpu_immediate::GPUImmediate;
 use rt::rasterize::infinite_grid::{InfiniteGrid, InfiniteGridDrawData};
 use rt::rasterize::shader;
+
+#[derive(Debug, Serialize, Deserialize)]
+struct File {
+    scene: Arc<RwLock<Scene>>,
+    shader_list: Arc<RwLock<ShaderList>>,
+}
+
+impl File {
+    fn new(scene: Arc<RwLock<Scene>>, shader_list: Arc<RwLock<ShaderList>>) -> Self {
+        Self { scene, shader_list }
+    }
+}
 
 fn main() {
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
@@ -483,6 +496,23 @@ fn main() {
                             "Time Left (in secs) {:.2}",
                             path_trace_progress.read().unwrap().get_remaining_time()
                         ));
+
+                        if ui.button("Save File").clicked() {
+                            let file = File::new(scene.clone(), shader_list.clone());
+                            let file_serialized = serde_json::to_string(&file).unwrap();
+                            std::fs::write("temp.rt", file_serialized).unwrap();
+                        }
+                        if ui.button("Load File").clicked() {
+                            let json =
+                                String::from_utf8(std::fs::read("temp.rt").unwrap()).unwrap();
+                            let file: File = serde_json::from_str(&json).unwrap();
+                            *scene.write().unwrap() =
+                                Arc::try_unwrap(file.scene).unwrap().into_inner().unwrap();
+                            *shader_list.write().unwrap() = Arc::try_unwrap(file.shader_list)
+                                .unwrap()
+                                .into_inner()
+                                .unwrap();
+                        }
 
                         ui::color_edit_button_dvec4(ui, "Background Color", &mut background_color);
 
