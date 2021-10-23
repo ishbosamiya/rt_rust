@@ -12,7 +12,9 @@ use crate::{
     },
 };
 
-#[derive(Debug, Clone)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Camera {
     sensor_height: f64,
     sensor_width: f64,

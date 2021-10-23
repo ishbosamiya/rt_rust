@@ -44,11 +44,20 @@ use rt::rasterize::shader;
 struct File {
     scene: Arc<RwLock<Scene>>,
     shader_list: Arc<RwLock<ShaderList>>,
+    path_trace_camera: Arc<RwLock<PathTraceCamera>>,
 }
 
 impl File {
-    fn new(scene: Arc<RwLock<Scene>>, shader_list: Arc<RwLock<ShaderList>>) -> Self {
-        Self { scene, shader_list }
+    fn new(
+        scene: Arc<RwLock<Scene>>,
+        shader_list: Arc<RwLock<ShaderList>>,
+        path_trace_camera: Arc<RwLock<PathTraceCamera>>,
+    ) -> Self {
+        Self {
+            scene,
+            shader_list,
+            path_trace_camera,
+        }
     }
 }
 
@@ -505,7 +514,11 @@ fn main() {
                         ));
 
                         if ui.button("Save File").clicked() {
-                            let file = File::new(scene.clone(), shader_list.clone());
+                            let file = File::new(
+                                scene.clone(),
+                                shader_list.clone(),
+                                path_trace_camera.clone(),
+                            );
                             let file_serialized = serde_json::to_string(&file).unwrap();
                             std::fs::write("temp.rt", file_serialized).unwrap();
                         }
@@ -519,6 +532,11 @@ fn main() {
                                 .unwrap()
                                 .into_inner()
                                 .unwrap();
+                            *path_trace_camera.write().unwrap() =
+                                Arc::try_unwrap(file.path_trace_camera)
+                                    .unwrap()
+                                    .into_inner()
+                                    .unwrap();
                         }
 
                         ui::color_edit_button_dvec4(ui, "Background Color", &mut background_color);
