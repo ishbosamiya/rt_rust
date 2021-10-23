@@ -126,6 +126,8 @@ fn main() {
     let mut camera_sensor_width = 2.0;
     let mut camera_position = glm::vec3(0.0, 0.0, 10.0);
     let mut selected_shader: Option<ShaderID> = None;
+    let mut end_ray_depth: usize = trace_max_depth;
+    let mut start_ray_depth: usize = 1;
 
     let path_trace_progress = Arc::new(RwLock::new(Progress::new()));
 
@@ -338,6 +340,8 @@ fn main() {
                     draw_normal_at_hit_points,
                     normals_size,
                     normals_color,
+                    start_ray_depth,
+                    end_ray_depth,
                 ))
                 .unwrap();
             });
@@ -590,6 +594,21 @@ fn main() {
                             .text("y"),
                         );
                         ui.checkbox(&mut show_ray_traversal_info, "Show Ray Traversal Info");
+
+                        ui.add(
+                            egui::Slider::new(&mut start_ray_depth, 1..=end_ray_depth)
+                                .clamp_to_range(true)
+                                .text("Start Ray Depth"),
+                        );
+
+                        ui.add(
+                            egui::Slider::new(
+                                &mut end_ray_depth,
+                                start_ray_depth..=trace_max_depth,
+                            )
+                            .clamp_to_range(true)
+                            .text("End Ray Depth"),
+                        );
 
                         ui.checkbox(&mut draw_normal_at_hit_points, "Draw Normal at Hit Points");
                         ui.add(
