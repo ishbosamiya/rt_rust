@@ -123,7 +123,7 @@ fn main() {
 
     shader::builtins::display_uniform_and_attribute_info();
 
-    let mut last_cursor = window.get_cursor_pos();
+    let mut window_last_cursor = window.get_cursor_pos();
 
     let mut fps = FPS::default();
 
@@ -328,7 +328,7 @@ fn main() {
                 &mut use_bottom_panel,
                 &mut use_left_panel,
                 &mut use_right_panel,
-                &mut last_cursor,
+                &mut window_last_cursor,
             );
         });
 
@@ -348,26 +348,26 @@ fn main() {
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
         }
 
-        let (window_width, window_height): (isize, isize) = {
+        let window_viewport = {
             let (window_width, window_height) = window.get_size();
-            (
-                window_width.try_into().unwrap(),
-                window_height.try_into().unwrap(),
+            Viewport::new(
+                glm::vec2(
+                    window_width.try_into().unwrap(),
+                    window_height.try_into().unwrap(),
+                ),
+                glm::zero(),
             )
         };
-        let (framebuffer_width, framebuffer_height): (isize, isize) = {
+        let framebuffer_viewport = {
             let (framebuffer_width, framebuffer_height) = window.get_framebuffer_size();
-            (
-                framebuffer_width.try_into().unwrap(),
-                framebuffer_height.try_into().unwrap(),
+            Viewport::new(
+                glm::vec2(
+                    framebuffer_width.try_into().unwrap(),
+                    framebuffer_height.try_into().unwrap(),
+                ),
+                glm::zero(),
             )
         };
-
-        let window_viewport = Viewport::new(glm::vec2(window_width, window_height), glm::zero());
-        let framebuffer_viewport = Viewport::new(
-            glm::vec2(framebuffer_width, framebuffer_height),
-            glm::zero(),
-        );
         let scene_viewport;
 
         // GUI starts
@@ -389,7 +389,7 @@ fn main() {
 
             let right_panel_response = if use_right_panel {
                 let response = egui::SidePanel::right("Right Side Panel")
-                    .min_width(0.1 * window_width as f32)
+                    .min_width(0.1 * window_viewport.get_width() as f32)
                     .resizable(true)
                     .show(egui.get_egui_ctx(), |ui| {
                         egui::ScrollArea::auto_sized().show(ui, |ui| {
@@ -420,7 +420,7 @@ fn main() {
 
             let left_panel_response = if use_left_panel {
                 let response = egui::SidePanel::left("Left Side Panel")
-                    .min_width(0.1 * window_width as f32)
+                    .min_width(0.1 * window_viewport.get_width() as f32)
                     .resizable(true)
                     .show(egui.get_egui_ctx(), |ui| {
                         egui::ScrollArea::auto_sized().show(ui, |ui| {
@@ -709,8 +709,8 @@ fn main() {
             };
 
             scene_viewport = {
-                let mut viewport_width = framebuffer_width;
-                let mut viewport_height = framebuffer_height;
+                let mut viewport_width = framebuffer_viewport.get_width();
+                let mut viewport_height = framebuffer_viewport.get_height();
 
                 let viewport_top_left_y = if let Some(top_panel_response) = top_panel_response {
                     viewport_height -= top_panel_response.rect.size().y as isize;
@@ -775,7 +775,7 @@ fn main() {
         // GUI Ends
 
         let scene_last_cursor_pos = scene_viewport.calculate_location((
-            &glm::vec2(last_cursor.0 as _, last_cursor.1 as _),
+            &glm::vec2(window_last_cursor.0 as _, window_last_cursor.1 as _),
             &window_viewport,
         ));
 
@@ -939,8 +939,10 @@ fn main() {
                 // set the opengl viewport for the full frame buffer
                 // for correct GUI element drawing
                 framebuffer_viewport.set_opengl_viewport(&window_viewport);
-                let _output =
-                    egui.end_frame(glm::vec2(framebuffer_width as _, framebuffer_height as _));
+                let _output = egui.end_frame(glm::vec2(
+                    framebuffer_viewport.get_width() as _,
+                    framebuffer_viewport.get_height() as _,
+                ));
             }
         }
 
@@ -978,9 +980,9 @@ fn handle_window_event(
     use_bottom_panel: &mut bool,
     use_left_panel: &mut bool,
     use_right_panel: &mut bool,
-    last_cursor: &mut (f64, f64),
+    window_last_cursor: &mut (f64, f64),
 ) {
-    let cursor = window.get_cursor_pos();
+    let window_cursor = window.get_cursor_pos();
     match event {
         glfw::WindowEvent::Key(Key::Up, _, Action::Press, _) => {
             *use_top_panel = !*use_top_panel;
@@ -1113,22 +1115,22 @@ fn handle_window_event(
     if window.get_mouse_button(glfw::MouseButtonMiddle) == glfw::Action::Press {
         if window.get_key(glfw::Key::LeftShift) == glfw::Action::Press {
             camera.pan(
-                last_cursor.0,
-                last_cursor.1,
-                cursor.0,
-                cursor.1,
+                window_last_cursor.0,
+                window_last_cursor.1,
+                window_cursor.0,
+                window_cursor.1,
                 1.0,
                 window_width,
                 window_height,
             );
         } else if window.get_key(glfw::Key::LeftControl) == glfw::Action::Press {
-            camera.move_forward(last_cursor.1, cursor.1, window_height);
+            camera.move_forward(window_last_cursor.1, window_cursor.1, window_height);
         } else {
             camera.rotate_wrt_camera_origin(
-                last_cursor.0,
-                last_cursor.1,
-                cursor.0,
-                cursor.1,
+                window_last_cursor.0,
+                window_last_cursor.1,
+                window_cursor.0,
+                window_cursor.1,
                 0.1,
                 false,
             );
@@ -1141,5 +1143,5 @@ fn handle_window_event(
         *should_cast_scene_ray = true;
     }
 
-    *last_cursor = cursor;
+    *window_last_cursor = window_cursor;
 }
