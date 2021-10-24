@@ -126,8 +126,8 @@ fn main() {
 
     let mut fps = FPS::default();
 
-    let mut use_top_panel = true;
-    let mut use_bottom_panel = true;
+    let mut use_top_panel = false;
+    let mut use_bottom_panel = false;
     let mut use_left_panel = true;
     let mut use_right_panel = true;
 
@@ -705,9 +705,12 @@ fn main() {
                 let mut width = framebuffer_width;
                 let mut height = framebuffer_height;
 
-                if let Some(top_panel_response) = top_panel_response {
+                let viewport_top_left_y = if let Some(top_panel_response) = top_panel_response {
                     height -= top_panel_response.rect.size().y as usize;
-                }
+                    top_panel_response.rect.size().y as usize
+                } else {
+                    0
+                };
                 let viewport_start_y = if let Some(bottom_panel_response) = bottom_panel_response {
                     height -= bottom_panel_response.rect.size().y as usize;
                     bottom_panel_response.rect.size().y as usize
@@ -724,7 +727,13 @@ fn main() {
                     width -= right_panel_response.rect.size().x as usize;
                 }
 
-                (viewport_start_x, viewport_start_y, width, height)
+                (
+                    viewport_start_x,
+                    viewport_start_y,
+                    width,
+                    height,
+                    viewport_top_left_y,
+                )
             };
 
             egui::Window::new("Camera Data")
@@ -765,7 +774,7 @@ fn main() {
         // GUI Ends
 
         // set opengl viewport
-        let (_, _, viewport_width, viewport_height) = viewport;
+        let (_, _, viewport_width, viewport_height, _) = viewport;
         unsafe {
             gl::Viewport(
                 viewport.0.try_into().unwrap(),
@@ -818,8 +827,8 @@ fn main() {
         // handle casting ray into the scene
         if should_cast_scene_ray {
             let ray_direction = camera.get_raycast_direction(
-                last_cursor.0,
-                last_cursor.1,
+                last_cursor.0 - viewport.0 as f64,
+                last_cursor.1 - viewport.4 as f64,
                 viewport_width,
                 viewport_height,
             );
@@ -868,8 +877,8 @@ fn main() {
         if window.get_mouse_button(glfw::MouseButtonLeft) == glfw::Action::Press {
             if let Some(shader_id) = selected_shader {
                 let ray_direction = camera.get_raycast_direction(
-                    last_cursor.0,
-                    last_cursor.1,
+                    last_cursor.0 - viewport.0 as f64,
+                    last_cursor.1 - viewport.4 as f64,
                     viewport_width,
                     viewport_height,
                 );
