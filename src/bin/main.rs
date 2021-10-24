@@ -17,6 +17,7 @@ use rt::rasterize::texture::TextureRGBAFloat;
 use rt::scene::Scene;
 use rt::sphere::Sphere;
 use rt::ui::DrawUI;
+use rt::viewport::Viewport;
 use rt::{glm, ui};
 
 extern crate lazy_static;
@@ -347,14 +348,14 @@ fn main() {
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
         }
 
-        let (window_width, _window_height): (usize, usize) = {
+        let (window_width, window_height): (isize, isize) = {
             let (window_width, window_height) = window.get_size();
             (
                 window_width.try_into().unwrap(),
                 window_height.try_into().unwrap(),
             )
         };
-        let (framebuffer_width, framebuffer_height): (usize, usize) = {
+        let (framebuffer_width, framebuffer_height): (isize, isize) = {
             let (framebuffer_width, framebuffer_height) = window.get_framebuffer_size();
             (
                 framebuffer_width.try_into().unwrap(),
@@ -362,7 +363,13 @@ fn main() {
             )
         };
 
-        let viewport;
+        let window_viewport = Viewport::new(glm::vec2(window_width, window_height), glm::zero());
+        let framebuffer_viewport = Viewport::new(
+            glm::vec2(framebuffer_width, framebuffer_height),
+            glm::zero(),
+        );
+        let scene_viewport;
+
         // GUI starts
         {
             egui.begin_frame(&window, &mut glfw);
@@ -701,38 +708,32 @@ fn main() {
                 None
             };
 
-            viewport = {
-                let mut width = framebuffer_width;
-                let mut height = framebuffer_height;
+            scene_viewport = {
+                let mut viewport_width = framebuffer_width;
+                let mut viewport_height = framebuffer_height;
 
                 let viewport_top_left_y = if let Some(top_panel_response) = top_panel_response {
-                    height -= top_panel_response.rect.size().y as usize;
-                    top_panel_response.rect.size().y as usize
+                    viewport_height -= top_panel_response.rect.size().y as isize;
+                    top_panel_response.rect.size().y as isize
                 } else {
                     0
                 };
-                let viewport_start_y = if let Some(bottom_panel_response) = bottom_panel_response {
-                    height -= bottom_panel_response.rect.size().y as usize;
-                    bottom_panel_response.rect.size().y as usize
-                } else {
-                    0
-                };
-                let viewport_start_x = if let Some(left_panel_response) = left_panel_response {
-                    width -= left_panel_response.rect.size().x as usize;
-                    left_panel_response.rect.size().x as usize
+                if let Some(bottom_panel_response) = bottom_panel_response {
+                    viewport_height -= bottom_panel_response.rect.size().y as isize;
+                }
+                let viewport_top_left_x = if let Some(left_panel_response) = left_panel_response {
+                    viewport_width -= left_panel_response.rect.size().x as isize;
+                    left_panel_response.rect.size().x as isize
                 } else {
                     0
                 };
                 if let Some(right_panel_response) = right_panel_response {
-                    width -= right_panel_response.rect.size().x as usize;
+                    viewport_width -= right_panel_response.rect.size().x as isize;
                 }
 
-                (
-                    viewport_start_x,
-                    viewport_start_y,
-                    width,
-                    height,
-                    viewport_top_left_y,
+                Viewport::new(
+                    glm::vec2(viewport_width, viewport_height),
+                    glm::vec2(viewport_top_left_x, viewport_top_left_y),
                 )
             };
 
@@ -773,19 +774,20 @@ fn main() {
         }
         // GUI Ends
 
+        let scene_last_cursor_pos = scene_viewport.calculate_location((
+            &glm::vec2(last_cursor.0 as _, last_cursor.1 as _),
+            &window_viewport,
+        ));
+
         // set opengl viewport
-        let (_, _, viewport_width, viewport_height, _) = viewport;
-        unsafe {
-            gl::Viewport(
-                viewport.0.try_into().unwrap(),
-                viewport.1.try_into().unwrap(),
-                viewport.2.try_into().unwrap(),
-                viewport.3.try_into().unwrap(),
-            );
-        }
+        scene_viewport.set_opengl_viewport(&window_viewport);
 
         // Shader stuff
-        shader::builtins::setup_shaders(&camera, viewport_width, viewport_height);
+        shader::builtins::setup_shaders(
+            &camera,
+            scene_viewport.get_width().try_into().unwrap(),
+            scene_viewport.get_height().try_into().unwrap(),
+        );
 
         // Disable blending, render only opaque objects
         unsafe {
@@ -827,10 +829,10 @@ fn main() {
         // handle casting ray into the scene
         if should_cast_scene_ray {
             let ray_direction = camera.get_raycast_direction(
-                last_cursor.0 - viewport.0 as f64,
-                last_cursor.1 - viewport.4 as f64,
-                viewport_width,
-                viewport_height,
+                scene_last_cursor_pos[0] as f64,
+                scene_last_cursor_pos[1] as f64,
+                scene_viewport.get_width().try_into().unwrap(),
+                scene_viewport.get_height().try_into().unwrap(),
             );
 
             scene.write().unwrap().apply_model_matrices();
@@ -877,11 +879,12 @@ fn main() {
         if window.get_mouse_button(glfw::MouseButtonLeft) == glfw::Action::Press {
             if let Some(shader_id) = selected_shader {
                 let ray_direction = camera.get_raycast_direction(
-                    last_cursor.0 - viewport.0 as f64,
-                    last_cursor.1 - viewport.4 as f64,
-                    viewport_width,
-                    viewport_height,
+                    scene_last_cursor_pos[0] as f64,
+                    scene_last_cursor_pos[1] as f64,
+                    scene_viewport.get_width().try_into().unwrap(),
+                    scene_viewport.get_height().try_into().unwrap(),
                 );
+
                 let mut scene = scene.write().unwrap();
                 scene.apply_model_matrices();
                 if let Some(hit_info) = scene.hit(
@@ -935,14 +938,7 @@ fn main() {
             {
                 // set the opengl viewport for the full frame buffer
                 // for correct GUI element drawing
-                unsafe {
-                    gl::Viewport(
-                        0,
-                        0,
-                        framebuffer_width.try_into().unwrap(),
-                        framebuffer_height.try_into().unwrap(),
-                    );
-                }
+                framebuffer_viewport.set_opengl_viewport(&window_viewport);
                 let _output =
                     egui.end_frame(glm::vec2(framebuffer_width as _, framebuffer_height as _));
             }
