@@ -1,5 +1,5 @@
-use egui::emath::Numeric;
 use enumflags2::BitFlags;
+use serde::{Deserialize, Serialize};
 
 use super::super::bsdf::{SampleData, SamplingTypes, BSDF};
 use super::super::intersectable::IntersectInfo;
@@ -37,6 +37,7 @@ pub fn smith_ggx(ndot_v: f64, alphag: f64) -> f64 {
         + (alphag.powf(2.0) + ndot_v.powf(2.0) - alphag.powf(2.0) * ndot_v.powf(2.0)).sqrt())
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Disney {
     color: glm::DVec4,
     specular: f64,
@@ -49,7 +50,24 @@ pub struct Disney {
     clear_coat: f64,
 }
 
+impl Default for Disney {
+    fn default() -> Self {
+        Self::new(
+            glm::vec4(1.0, 1.0, 1.0, 1.0),
+            0.5,
+            0.0,
+            0.0,
+            0.5,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+        )
+    }
+}
+
 impl Disney {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         color: glm::DVec4,
         specular: f64,
@@ -74,6 +92,8 @@ impl Disney {
         }
     }
 }
+
+#[typetag::serde]
 impl BSDF for Disney {
     fn sample(
         &self,
@@ -172,7 +192,7 @@ impl BSDF for Disney {
                 + gs * fs * ds
                 + clear_vec;
 
-        color + disney_total
+        disney_total.component_mul(&color)
     }
 
     fn get_bsdf_name(&self) -> &str {
