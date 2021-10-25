@@ -103,17 +103,6 @@ fn ray_trace_scene(
         * ray_trace_params.get_width()
         * ray_trace_params.get_height();
 
-    // initialize all pixels to black
-    image
-        .get_pixels_mut()
-        .par_iter_mut()
-        .enumerate()
-        .for_each(|(_j, row)| {
-            row.par_iter_mut().enumerate().for_each(|(_i, pixel)| {
-                *pixel = glm::vec3(0.0, 0.0, 0.0);
-            });
-        });
-
     // ray trace
     for processed_samples in 0..ray_trace_params.get_samples_per_pixel() {
         if *stop_render.read().unwrap() {
@@ -127,11 +116,13 @@ fn ray_trace_scene(
 
         let scene = scene.read().unwrap();
         let shader_list = shader_list.read().unwrap();
+        let image_width = image.width();
         image
             .get_pixels_mut()
             .par_iter_mut()
+            .chunks(image_width)
             .enumerate()
-            .for_each(|(j, row)| {
+            .for_each(|(j, mut row)| {
                 row.par_iter_mut().enumerate().for_each(|(i, pixel)| {
                     let processed_pixels = processed_pixels.fetch_add(1, Ordering::SeqCst);
 
@@ -177,7 +168,7 @@ fn ray_trace_scene(
                         &shader_list,
                     );
 
-                    *pixel += color;
+                    **pixel += color;
                 });
             });
 
@@ -187,11 +178,8 @@ fn ray_trace_scene(
             rendered_image
                 .get_pixels_mut()
                 .par_iter_mut()
-                .enumerate()
-                .for_each(|(_j, row)| {
-                    row.par_iter_mut().enumerate().for_each(|(_i, pixel)| {
-                        *pixel /= (processed_samples + 1) as f64;
-                    });
+                .for_each(|pixel| {
+                    *pixel /= (processed_samples + 1) as f64;
                 });
         }
 
