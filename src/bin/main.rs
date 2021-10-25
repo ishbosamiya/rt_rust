@@ -132,6 +132,7 @@ fn main() {
     let mut use_left_panel = true;
     let mut use_right_panel = true;
 
+    let mut open_rendered_image_window = false;
     let mut background_color = glm::vec4(0.051, 0.051, 0.051, 1.0);
     let mut should_cast_scene_ray = false;
     let mut image_width = 200;
@@ -493,6 +494,11 @@ fn main() {
 
                             ui.separator();
 
+                            ui.checkbox(
+                                &mut open_rendered_image_window,
+                                "Open Rendered Image Window",
+                            );
+
                             ui.add(
                                 egui::Slider::new(&mut camera_image_alpha_value, 0.0..=1.0)
                                     .clamp_to_range(true)
@@ -737,6 +743,26 @@ fn main() {
                 )
             };
 
+            egui::Window::new("Rendered Image Window")
+                .open(&mut open_rendered_image_window)
+                .collapsible(true)
+                .resize(|r| {
+                    r.resizable(true).max_size(egui::vec2(
+                        scene_viewport.get_width() as f32,
+                        scene_viewport.get_height() as f32,
+                    ))
+                })
+                .scroll(true)
+                .show(egui.get_egui_ctx(), |ui| {
+                    ui.image(
+                        egui::TextureId::User(rendered_texture.get_gl_tex().into()),
+                        egui::vec2(
+                            rendered_texture.get_width() as f32,
+                            rendered_texture.get_height() as f32,
+                        ),
+                    );
+                });
+
             egui::Window::new("Camera Data")
                 .open(&mut false)
                 .collapsible(true)
@@ -924,7 +950,9 @@ fn main() {
                     camera_use_depth_for_image,
                 ))
                 .unwrap();
-            match Rc::try_unwrap(rc_refcell_image) {
+            // currently a way to ensure the texture is not deleted
+            // from the GPU until the frame ends
+            let _rendered_texture = match Rc::try_unwrap(rc_refcell_image) {
                 Ok(refcell_image) => refcell_image.into_inner(),
                 Err(_) => unreachable!("rc_refcell_image should not be in a borrowed state now"),
             };
