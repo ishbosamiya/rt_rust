@@ -19,6 +19,10 @@ pub fn schlick_fresnel(u: f64) -> f64 {
     m.powf(5.0)
 }
 
+pub fn smith_ggx_aniso(ndot_v: f64, vdot_x: f64, vdot_y: f64, ax: f64, ay: f64) -> f64 {
+    1.0 / (ndot_v + ((vdot_x * ax).powf(2.0) + (vdot_y * ay).powf(2.0) + ndot_v.powf(2.0)).sqrt())
+}
+
 pub struct Disney {
     color: glm::DVec4,
     specular: f64,
@@ -114,6 +118,8 @@ impl BSDF for Disney {
         let ay = glm::max2_scalar(0.001, self.rough.powf(2.0) * aspect);
         // TODO: Need to get tangent and bitangent at a point
         // let ds = gtr2_aniso(nodt_h, h.dot(intersect_info)
+        let fh = schlick_fresnel(ldot_h);
+        let fs = glm::mix(&cspec, &unit_vec, fh);
 
         color
     }
