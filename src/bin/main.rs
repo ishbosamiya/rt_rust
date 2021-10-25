@@ -292,6 +292,9 @@ fn main() {
     let infinite_grid = InfiniteGrid::default();
 
     let rendered_image = Arc::new(RwLock::new(Image::new(100, 100)));
+    let rendered_texture = Rc::new(RefCell::new(TextureRGBAFloat::from_image(
+        &rendered_image.read().unwrap(),
+    )));
 
     // Spawn the main ray tracing thread
     let (ray_trace_thread_sender, ray_trace_thread_receiver) = mpsc::channel();
@@ -333,10 +336,9 @@ fn main() {
             );
         });
 
-        // TODO: need to fix this performance bottleneck. Should
-        // update rendered_texture only when rendered_image has
-        // changed
-        let mut rendered_texture = TextureRGBAFloat::from_image(&rendered_image.read().unwrap());
+        rendered_texture
+            .borrow_mut()
+            .update_from_image(&rendered_image.read().unwrap());
 
         unsafe {
             let background_color: glm::Vec4 = glm::convert(background_color);
@@ -602,7 +604,8 @@ fn main() {
                             });
 
                             if ui.button("Save Ray Traced Image").clicked() {
-                                let image = Image::from_texture_rgba_float(&rendered_texture);
+                                let image =
+                                    Image::from_texture_rgba_float(&rendered_texture.borrow());
                                 PPM::new(&image)
                                     .write_to_file(&save_image_location)
                                     .unwrap();
@@ -754,6 +757,7 @@ fn main() {
                 })
                 .scroll(true)
                 .show(egui.get_egui_ctx(), |ui| {
+                    let rendered_texture = rendered_texture.borrow();
                     ui.image(
                         egui::TextureId::User(rendered_texture.get_gl_tex().into()),
                         egui::vec2(
@@ -847,7 +851,7 @@ fn main() {
             &glm::vec3(2.0, image_height as f64 / 1000.0, 0.0),
             &glm::vec3(image_width as f64 / 500.0, 2.0, image_height as f64 / 500.0),
             &glm::vec3(0.0, 0.0, 1.0),
-            &mut rendered_texture,
+            &mut rendered_texture.borrow_mut(),
             1.0,
             &mut imm.borrow_mut(),
         );
@@ -939,23 +943,16 @@ fn main() {
             }
 
             // drawing the camera
-            let rc_refcell_image = Rc::new(RefCell::new(rendered_texture));
             path_trace_camera
                 .read()
                 .unwrap()
                 .draw(&mut PathTraceCameraDrawData::new(
                     imm.clone(),
-                    Some(rc_refcell_image.clone()),
+                    Some(rendered_texture.clone()),
                     camera_image_alpha_value,
                     camera_use_depth_for_image,
                 ))
                 .unwrap();
-            // currently a way to ensure the texture is not deleted
-            // from the GPU until the frame ends
-            let _rendered_texture = match Rc::try_unwrap(rc_refcell_image) {
-                Ok(refcell_image) => refcell_image.into_inner(),
-                Err(_) => unreachable!("rc_refcell_image should not be in a borrowed state now"),
-            };
 
             // drawing the infinite grid
             infinite_grid
