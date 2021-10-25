@@ -1,3 +1,5 @@
+use glm::Scalar;
+use rfd::FileDialog;
 use rt::image::{Image, PPM};
 use rt::object::objects::Mesh as MeshObject;
 use rt::object::objects::Sphere as SphereObject;
@@ -15,6 +17,7 @@ use rt::rasterize::texture::TextureRGBAFloat;
 use rt::scene::Scene;
 use rt::sphere::Sphere;
 use rt::ui::DrawUI;
+use rt::viewport::Viewport;
 use rt::{glm, ui};
 
 extern crate lazy_static;
@@ -28,6 +31,7 @@ use std::thread;
 use egui::{FontDefinitions, FontFamily, TextStyle};
 use egui_glfw::EguiBackend;
 use glfw::{Action, Context, Key};
+use serde::{Deserialize, Serialize};
 
 use rt::fps::FPS;
 use rt::mesh;
@@ -37,6 +41,27 @@ use rt::rasterize::drawable::Drawable;
 use rt::rasterize::gpu_immediate::GPUImmediate;
 use rt::rasterize::infinite_grid::{InfiniteGrid, InfiniteGridDrawData};
 use rt::rasterize::shader;
+
+#[derive(Debug, Serialize, Deserialize)]
+struct File {
+    scene: Arc<RwLock<Scene>>,
+    shader_list: Arc<RwLock<ShaderList>>,
+    path_trace_camera: Arc<RwLock<PathTraceCamera>>,
+}
+
+impl File {
+    fn new(
+        scene: Arc<RwLock<Scene>>,
+        shader_list: Arc<RwLock<ShaderList>>,
+        path_trace_camera: Arc<RwLock<PathTraceCamera>>,
+    ) -> Self {
+        Self {
+            scene,
+            shader_list,
+            path_trace_camera,
+        }
+    }
+}
 
 fn main() {
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
@@ -98,10 +123,16 @@ fn main() {
 
     shader::builtins::display_uniform_and_attribute_info();
 
-    let mut last_cursor = window.get_cursor_pos();
+    let mut window_last_cursor = window.get_cursor_pos();
 
     let mut fps = FPS::default();
 
+    let mut use_top_panel = false;
+    let mut use_bottom_panel = false;
+    let mut use_left_panel = true;
+    let mut use_right_panel = true;
+
+    let mut open_rendered_image_window = false;
     let mut background_color = glm::vec4(0.051, 0.051, 0.051, 1.0);
     let mut should_cast_scene_ray = false;
     let mut image_width = 200;
@@ -121,12 +152,23 @@ fn main() {
     let mut normals_color = glm::vec4(1.0, 1.0, 1.0, 1.0);
     let mut camera_image_alpha_value = 0.0;
     let mut camera_use_depth_for_image = true;
-    let mut camera_focal_length = 12.0;
-    let mut camera_sensor_width = 2.0;
-    let mut camera_position = glm::vec3(0.0, 0.0, 10.0);
     let mut selected_shader: Option<ShaderID> = None;
     let mut end_ray_depth: usize = trace_max_depth;
     let mut start_ray_depth: usize = 1;
+
+    let path_trace_camera = {
+        let camera_focal_length = 12.0;
+        let camera_sensor_width = 2.0;
+        let camera_position = glm::vec3(0.0, 0.0, 10.0);
+        let aspect_ratio = image_width as f64 / image_height as f64;
+        let camera_sensor_height = camera_sensor_width / aspect_ratio;
+        PathTraceCamera::new(
+            camera_sensor_height,
+            aspect_ratio,
+            camera_focal_length,
+            camera_position,
+        )
+    };
 
     let path_trace_progress = Arc::new(RwLock::new(Progress::new()));
 
@@ -245,22 +287,28 @@ fn main() {
 
     let scene = Arc::new(RwLock::new(scene));
     let shader_list = Arc::new(RwLock::new(shader_list));
+    let path_trace_camera = Arc::new(RwLock::new(path_trace_camera));
 
     let infinite_grid = InfiniteGrid::default();
 
     let rendered_image = Arc::new(RwLock::new(Image::new(100, 100)));
+    let rendered_texture = Rc::new(RefCell::new(TextureRGBAFloat::from_image(
+        &rendered_image.read().unwrap(),
+    )));
 
     // Spawn the main ray tracing thread
     let (ray_trace_thread_sender, ray_trace_thread_receiver) = mpsc::channel();
     let ray_trace_main_thread_handle = {
         let scene = scene.clone();
         let shader_list = shader_list.clone();
+        let camera = path_trace_camera.clone();
         let rendered_image = rendered_image.clone();
         let path_trace_progress = path_trace_progress.clone();
         thread::spawn(move || {
             path_trace::ray_trace_main(
                 scene,
                 shader_list,
+                camera,
                 rendered_image,
                 path_trace_progress,
                 ray_trace_thread_receiver,
@@ -269,17 +317,6 @@ fn main() {
     };
 
     while !window.should_close() {
-        let path_trace_camera = {
-            let aspect_ratio = image_width as f64 / image_height as f64;
-            let camera_sensor_height = camera_sensor_width / aspect_ratio;
-            PathTraceCamera::new(
-                camera_sensor_height,
-                aspect_ratio,
-                camera_focal_length,
-                camera_position,
-            )
-        };
-
         glfw.poll_events();
 
         glfw::flush_messages(&events).for_each(|(_, event)| {
@@ -289,16 +326,19 @@ fn main() {
                 &event,
                 &mut window,
                 &mut camera,
-                &path_trace_camera,
+                &path_trace_camera.read().unwrap(),
                 &mut should_cast_scene_ray,
-                &mut last_cursor,
+                &mut use_top_panel,
+                &mut use_bottom_panel,
+                &mut use_left_panel,
+                &mut use_right_panel,
+                &mut window_last_cursor,
             );
         });
 
-        // TODO: need to fix this performance bottleneck. Should
-        // update rendered_texture only when rendered_image has
-        // changed
-        let mut rendered_texture = TextureRGBAFloat::from_image(&rendered_image.read().unwrap());
+        rendered_texture
+            .borrow_mut()
+            .update_from_image(&rendered_image.read().unwrap());
 
         unsafe {
             let background_color: glm::Vec4 = glm::convert(background_color);
@@ -311,15 +351,475 @@ fn main() {
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
         }
 
-        let (window_width, window_height) = window.get_size();
-        let (window_width, window_height): (usize, usize) = (
-            window_width.try_into().unwrap(),
-            window_height.try_into().unwrap(),
-        );
+        let window_viewport = {
+            let (window_width, window_height) = window.get_size();
+            Viewport::new(
+                glm::vec2(
+                    window_width.try_into().unwrap(),
+                    window_height.try_into().unwrap(),
+                ),
+                glm::zero(),
+            )
+        };
+        let framebuffer_viewport = {
+            let (framebuffer_width, framebuffer_height) = window.get_framebuffer_size();
+            Viewport::new(
+                glm::vec2(
+                    framebuffer_width.try_into().unwrap(),
+                    framebuffer_height.try_into().unwrap(),
+                ),
+                glm::zero(),
+            )
+        };
+        let scene_viewport;
+
+        // GUI starts
+        {
+            egui.begin_frame(&window, &mut glfw);
+
+            // Draw top, right, bottom and left panels, the order
+            // matters since it goes from outermost to innermost.
+
+            let top_panel_response = if use_top_panel {
+                let response = egui::TopBottomPanel::top("Top Panel")
+                    .resizable(true)
+                    .show(egui.get_egui_ctx(), |_ui| {})
+                    .response;
+                Some(response)
+            } else {
+                None
+            };
+
+            let right_panel_response = if use_right_panel {
+                let response = egui::SidePanel::right("Right Side Panel")
+                    .min_width(0.1 * window_viewport.get_width() as f32)
+                    .resizable(true)
+                    .show(egui.get_egui_ctx(), |ui| {
+                        egui::ScrollArea::auto_sized().show(ui, |ui| {
+                            shader_list.read().unwrap().draw_ui(ui);
+                            if let Ok(mut shader_list) = shader_list.try_write() {
+                                shader_list.draw_ui_mut(ui);
+                                selected_shader = *shader_list.get_selected_shader();
+                            } else {
+                                ui.label("Shaders are currently in use, cannot edit the shaders");
+                            }
+                        });
+                    })
+                    .response;
+                Some(response)
+            } else {
+                None
+            };
+
+            let bottom_panel_response = if use_bottom_panel {
+                let response = egui::TopBottomPanel::bottom("Bottom Panel")
+                    .resizable(true)
+                    .show(egui.get_egui_ctx(), |_ui| {})
+                    .response;
+                Some(response)
+            } else {
+                None
+            };
+
+            let left_panel_response = if use_left_panel {
+                let response = egui::SidePanel::left("Left Side Panel")
+                    .min_width(0.1 * window_viewport.get_width() as f32)
+                    .resizable(true)
+                    .show(egui.get_egui_ctx(), |ui| {
+                        egui::ScrollArea::auto_sized().show(ui, |ui| {
+                            ui.label(format!("fps: {:.2}", fps.update_and_get(Some(60.0))));
+                            ui.add({
+                                let path_trace_progress = &*path_trace_progress.read().unwrap();
+                                egui::ProgressBar::new(path_trace_progress.get_progress() as _)
+                                    .text(format!(
+                                        "Path Trace Progress: {:.2}%",
+                                        path_trace_progress.get_progress() * 100.0
+                                    ))
+                                    .animate(true)
+                            });
+                            ui.label(format!(
+                                "Time Elapsed (in secs) {:.2}",
+                                path_trace_progress.read().unwrap().get_elapsed_time()
+                            ));
+                            ui.label(format!(
+                                "Time Left (in secs) {:.2}",
+                                path_trace_progress.read().unwrap().get_remaining_time()
+                            ));
+
+                            if ui.button("Save File").clicked() {
+                                let file = File::new(
+                                    scene.clone(),
+                                    shader_list.clone(),
+                                    path_trace_camera.clone(),
+                                );
+                                let file_serialized = serde_json::to_string(&file).unwrap();
+                                if let Some(path) = FileDialog::new()
+                                    .add_filter("RT", &["rt"])
+                                    .add_filter("Any", &["*"])
+                                    .set_directory(".")
+                                    .set_file_name("untitled.rt")
+                                    .save_file()
+                                {
+                                    std::fs::write(path, file_serialized).unwrap();
+                                }
+                            }
+                            if ui.button("Load File").clicked() {
+                                if let Some(path) = FileDialog::new()
+                                    .add_filter("RT", &["rt"])
+                                    .add_filter("Any", &["*"])
+                                    .set_directory(".")
+                                    .pick_file()
+                                {
+                                    let json =
+                                        String::from_utf8(std::fs::read(path).unwrap()).unwrap();
+                                    let file: File = serde_json::from_str(&json).unwrap();
+                                    *scene.write().unwrap() =
+                                        Arc::try_unwrap(file.scene).unwrap().into_inner().unwrap();
+                                    *shader_list.write().unwrap() =
+                                        Arc::try_unwrap(file.shader_list)
+                                            .unwrap()
+                                            .into_inner()
+                                            .unwrap();
+                                    *path_trace_camera.write().unwrap() =
+                                        Arc::try_unwrap(file.path_trace_camera)
+                                            .unwrap()
+                                            .into_inner()
+                                            .unwrap();
+                                }
+                            }
+
+                            ui::color_edit_button_dvec4(
+                                ui,
+                                "Background Color",
+                                &mut background_color,
+                            );
+
+                            ui.separator();
+
+                            ui.checkbox(
+                                &mut open_rendered_image_window,
+                                "Open Rendered Image Window",
+                            );
+
+                            ui.add(
+                                egui::Slider::new(&mut camera_image_alpha_value, 0.0..=1.0)
+                                    .clamp_to_range(true)
+                                    .text("Camera Image Alpha"),
+                            );
+
+                            ui.checkbox(&mut camera_use_depth_for_image, "Use Depth for Image");
+
+                            let camera_sensor_width = {
+                                let mut camera_sensor_width =
+                                    path_trace_camera.read().unwrap().get_sensor_width();
+                                ui.add(
+                                    egui::Slider::new(&mut camera_sensor_width, 0.0..=36.0)
+                                        .text("Camera Sensor Width"),
+                                );
+                                camera_sensor_width
+                            };
+
+                            let camera_focal_length = {
+                                let mut camera_focal_length =
+                                    path_trace_camera.read().unwrap().get_focal_length();
+                                ui.add(
+                                    egui::Slider::new(&mut camera_focal_length, 0.0..=15.0)
+                                        .text("Camera Focal Length"),
+                                );
+                                camera_focal_length
+                            };
+
+                            let camera_position = {
+                                let mut camera_position =
+                                    *path_trace_camera.read().unwrap().get_origin();
+                                ui.label("Camera Position");
+                                ui.add(
+                                    egui::Slider::new(&mut camera_position[0], -10.0..=10.0)
+                                        .text("x"),
+                                );
+                                ui.add(
+                                    egui::Slider::new(&mut camera_position[1], -10.0..=10.0)
+                                        .text("y"),
+                                );
+                                ui.add(
+                                    egui::Slider::new(&mut camera_position[2], -10.0..=10.0)
+                                        .text("z"),
+                                );
+                                camera_position
+                            };
+
+                            if let Ok(mut path_trace_camera) = path_trace_camera.try_write() {
+                                path_trace_camera.change_sensor_width(camera_sensor_width);
+                                path_trace_camera
+                                    .change_aspect_ratio(image_width as f64 / image_height as f64);
+                                path_trace_camera.change_focal_length(camera_focal_length);
+                                path_trace_camera.change_origin(camera_position);
+                            }
+
+                            ui.separator();
+
+                            ui.add(
+                                egui::Slider::new(&mut image_width, 1..=1000).text("Image Width"),
+                            );
+                            if image_width == 0 {
+                                image_width = 1;
+                            }
+                            ui.add(
+                                egui::Slider::new(&mut image_height, 1..=1000).text("Image Height"),
+                            );
+                            if image_height == 0 {
+                                image_height = 1;
+                            }
+                            ui.add(
+                                egui::Slider::new(&mut trace_max_depth, 1..=10)
+                                    .text("Trace Max Depth"),
+                            );
+                            ui.add(
+                                egui::Slider::new(&mut samples_per_pixel, 1..=10)
+                                    .text("Samples Per Pixel"),
+                            );
+
+                            ui.horizontal(|ui| {
+                                if ui.button("Ray Trace Scene").clicked() {
+                                    ray_trace_thread_sender
+                                        .send(RayTraceMessage::StartRender(RayTraceParams::new(
+                                            image_width,
+                                            image_height,
+                                            trace_max_depth,
+                                            samples_per_pixel,
+                                        )))
+                                        .unwrap();
+                                }
+
+                                if ui.button("Stop Render").clicked() {
+                                    ray_trace_thread_sender
+                                        .send(RayTraceMessage::StopRender)
+                                        .unwrap();
+                                }
+                            });
+
+                            ui.horizontal(|ui| {
+                                ui.label("Save Location");
+                                ui.text_edit_singleline(&mut save_image_location);
+                            });
+
+                            if ui.button("Save Ray Traced Image").clicked() {
+                                let image =
+                                    Image::from_texture_rgba_float(&rendered_texture.borrow());
+                                PPM::new(&image)
+                                    .write_to_file(&save_image_location)
+                                    .unwrap();
+                            }
+
+                            ui.separator();
+
+                            ui.label("Rays to Shoot");
+                            ui.add(
+                                egui::Slider::new(&mut ray_to_shoot.0, 1..=image_width)
+                                    .logarithmic(true)
+                                    .clamp_to_range(true)
+                                    .text("x"),
+                            );
+                            ui.add(
+                                egui::Slider::new(&mut ray_to_shoot.1, 1..=image_height)
+                                    .logarithmic(true)
+                                    .clamp_to_range(true)
+                                    .text("y"),
+                            );
+                            ui.label("Ray Pixel Start");
+                            ui.add(
+                                egui::Slider::new(
+                                    &mut ray_pixel_start.0,
+                                    0..=(image_width / ray_to_shoot.0) - 1,
+                                )
+                                .clamp_to_range(true)
+                                .text("x"),
+                            );
+                            ui.add(
+                                egui::Slider::new(
+                                    &mut ray_pixel_start.1,
+                                    0..=(image_height / ray_to_shoot.1) - 1,
+                                )
+                                .clamp_to_range(true)
+                                .text("y"),
+                            );
+                            ui.checkbox(&mut show_ray_traversal_info, "Show Ray Traversal Info");
+
+                            ui.add(
+                                egui::Slider::new(&mut start_ray_depth, 1..=end_ray_depth)
+                                    .clamp_to_range(true)
+                                    .text("Start Ray Depth"),
+                            );
+
+                            ui.add(
+                                egui::Slider::new(
+                                    &mut end_ray_depth,
+                                    start_ray_depth..=trace_max_depth,
+                                )
+                                .clamp_to_range(true)
+                                .text("End Ray Depth"),
+                            );
+
+                            ui.checkbox(
+                                &mut draw_normal_at_hit_points,
+                                "Draw Normal at Hit Points",
+                            );
+                            ui.add(
+                                egui::Slider::new(&mut normals_size, 0.0..=2.0)
+                                    .text("Normals Size"),
+                            );
+                            ui::color_edit_button_dvec4(ui, "Normals Color", &mut normals_color);
+
+                            if ui.button("Trace Rays").clicked() {
+                                scene.write().unwrap().apply_model_matrices();
+
+                                let path_trace_camera = path_trace_camera.read().unwrap();
+
+                                ray_traversal_info.clear();
+
+                                for i in 0..ray_to_shoot.0 {
+                                    for j in 0..ray_to_shoot.1 {
+                                        let i =
+                                            i * (image_width / ray_to_shoot.0) + ray_pixel_start.0;
+                                        let j =
+                                            j * (image_height / ray_to_shoot.1) + ray_pixel_start.1;
+                                        // use opengl coords, (0.0, 0.0) is center; (1.0, 1.0) is
+                                        // top right; (-1.0, -1.0) is bottom left
+                                        let u = (((i as f64 + rand::random::<f64>())
+                                            / (image_width - 1) as f64)
+                                            - 0.5)
+                                            * 2.0;
+                                        let v = (((j as f64 + rand::random::<f64>())
+                                            / (image_height - 1) as f64)
+                                            - 0.5)
+                                            * 2.0;
+
+                                        let ray = path_trace_camera.get_ray(u, v);
+
+                                        let (_color, traversal_info) = path_trace::trace_ray(
+                                            &ray,
+                                            &path_trace_camera,
+                                            &scene.read().unwrap(),
+                                            trace_max_depth,
+                                            &shader_list.read().unwrap(),
+                                        );
+                                        ray_traversal_info.push(traversal_info);
+                                    }
+                                }
+
+                                scene.write().unwrap().unapply_model_matrices();
+                            }
+                        });
+                    })
+                    .response;
+                Some(response)
+            } else {
+                None
+            };
+
+            scene_viewport = {
+                let mut viewport_width = framebuffer_viewport.get_width();
+                let mut viewport_height = framebuffer_viewport.get_height();
+
+                let viewport_top_left_y = if let Some(top_panel_response) = top_panel_response {
+                    viewport_height -= top_panel_response.rect.size().y as isize;
+                    top_panel_response.rect.size().y as isize
+                } else {
+                    0
+                };
+                if let Some(bottom_panel_response) = bottom_panel_response {
+                    viewport_height -= bottom_panel_response.rect.size().y as isize;
+                }
+                let viewport_top_left_x = if let Some(left_panel_response) = left_panel_response {
+                    viewport_width -= left_panel_response.rect.size().x as isize;
+                    left_panel_response.rect.size().x as isize
+                } else {
+                    0
+                };
+                if let Some(right_panel_response) = right_panel_response {
+                    viewport_width -= right_panel_response.rect.size().x as isize;
+                }
+
+                Viewport::new(
+                    glm::vec2(viewport_width, viewport_height),
+                    glm::vec2(viewport_top_left_x, viewport_top_left_y),
+                )
+            };
+
+            egui::Window::new("Rendered Image Window")
+                .open(&mut open_rendered_image_window)
+                .collapsible(true)
+                .resize(|r| {
+                    r.resizable(true).max_size(egui::vec2(
+                        scene_viewport.get_width() as f32,
+                        scene_viewport.get_height() as f32,
+                    ))
+                })
+                .scroll(true)
+                .show(egui.get_egui_ctx(), |ui| {
+                    let rendered_texture = rendered_texture.borrow();
+                    ui.image(
+                        egui::TextureId::User(rendered_texture.get_gl_tex().into()),
+                        egui::vec2(
+                            rendered_texture.get_width() as f32,
+                            rendered_texture.get_height() as f32,
+                        ),
+                    );
+                });
+
+            egui::Window::new("Camera Data")
+                .open(&mut false)
+                .collapsible(true)
+                .show(egui.get_egui_ctx(), |ui| {
+                    egui::ScrollArea::auto_sized().show(ui, |ui| {
+                        ui.label(format!(
+                            "position: {}",
+                            vec_to_string(&camera.get_position())
+                        ));
+                        ui.label(format!("front: {}", vec_to_string(&camera.get_front())));
+                        ui.label(format!("up: {}", vec_to_string(&camera.get_up())));
+                        ui.label(format!("right: {}", vec_to_string(&camera.get_right())));
+                        ui.label(format!(
+                            "world_up: {}",
+                            vec_to_string(camera.get_world_up())
+                        ));
+                        ui.label(format!("yaw: {:.2}", camera.get_yaw()));
+                        ui.label(format!("pitch: {:.2}", camera.get_pitch()));
+                        ui.label(format!("zoom: {:.2}", camera.get_zoom()));
+                        ui.label(format!("near_plane: {:.2}", camera.get_near_plane()));
+                        ui.label(format!("far_plane: {:.2}", camera.get_far_plane()));
+
+                        ui.separator();
+
+                        ui.label(format!(
+                            "position: {}",
+                            vec_to_string(&camera.get_position().normalize())
+                        ));
+                        ui.label(format!(
+                            "front: {}",
+                            vec_to_string(&camera.get_front().normalize())
+                        ));
+                    });
+                });
+        }
+        // GUI Ends
+
+        let scene_last_cursor_pos = scene_viewport.calculate_location((
+            &glm::vec2(window_last_cursor.0 as _, window_last_cursor.1 as _),
+            &window_viewport,
+        ));
+
+        // set opengl viewport
+        scene_viewport.set_opengl_viewport(&window_viewport);
 
         // Shader stuff
-        shader::builtins::setup_shaders(&camera, window_width, window_height);
+        shader::builtins::setup_shaders(
+            &camera,
+            scene_viewport.get_width().try_into().unwrap(),
+            scene_viewport.get_height().try_into().unwrap(),
+        );
 
+        // Disable blending, render only opaque objects
         unsafe {
             gl::Disable(gl::BLEND);
         }
@@ -351,7 +851,7 @@ fn main() {
             &glm::vec3(2.0, image_height as f64 / 1000.0, 0.0),
             &glm::vec3(image_width as f64 / 500.0, 2.0, image_height as f64 / 500.0),
             &glm::vec3(0.0, 0.0, 1.0),
-            &mut rendered_texture,
+            &mut rendered_texture.borrow_mut(),
             1.0,
             &mut imm.borrow_mut(),
         );
@@ -359,13 +859,15 @@ fn main() {
         // handle casting ray into the scene
         if should_cast_scene_ray {
             let ray_direction = camera.get_raycast_direction(
-                last_cursor.0,
-                last_cursor.1,
-                window_width,
-                window_height,
+                scene_last_cursor_pos[0] as f64,
+                scene_last_cursor_pos[1] as f64,
+                scene_viewport.get_width().try_into().unwrap(),
+                scene_viewport.get_height().try_into().unwrap(),
             );
 
             scene.write().unwrap().apply_model_matrices();
+
+            let path_trace_camera = path_trace_camera.read().unwrap();
 
             // trace ray into scene from the rasterizer camera
             // position to get the first hitpoint
@@ -407,11 +909,12 @@ fn main() {
         if window.get_mouse_button(glfw::MouseButtonLeft) == glfw::Action::Press {
             if let Some(shader_id) = selected_shader {
                 let ray_direction = camera.get_raycast_direction(
-                    last_cursor.0,
-                    last_cursor.1,
-                    window_width,
-                    window_height,
+                    scene_last_cursor_pos[0] as f64,
+                    scene_last_cursor_pos[1] as f64,
+                    scene_viewport.get_width().try_into().unwrap(),
+                    scene_viewport.get_height().try_into().unwrap(),
                 );
+
                 let mut scene = scene.write().unwrap();
                 scene.apply_model_matrices();
                 if let Some(hit_info) = scene.hit(
@@ -440,234 +943,32 @@ fn main() {
             }
 
             // drawing the camera
-            let rc_refcell_image = Rc::new(RefCell::new(rendered_texture));
             path_trace_camera
+                .read()
+                .unwrap()
                 .draw(&mut PathTraceCameraDrawData::new(
                     imm.clone(),
-                    Some(rc_refcell_image.clone()),
+                    Some(rendered_texture.clone()),
                     camera_image_alpha_value,
                     camera_use_depth_for_image,
                 ))
                 .unwrap();
-            rendered_texture = match Rc::try_unwrap(rc_refcell_image) {
-                Ok(refcell_image) => refcell_image.into_inner(),
-                Err(_) => unreachable!("rc_refcell_image should not be in a borrowed state now"),
-            };
 
             // drawing the infinite grid
             infinite_grid
                 .draw(&mut InfiniteGridDrawData::new(imm.clone()))
                 .unwrap();
 
-            // GUI starts
+            // Draw GUI
             {
-                egui.begin_frame(&window, &mut glfw);
-                egui::Window::new("Hello world!").show(egui.get_egui_ctx(), |ui| {
-                    egui::ScrollArea::auto_sized().show(ui, |ui| {
-                        ui.label(format!("fps: {:.2}", fps.update_and_get(Some(60.0))));
-                        ui.add({
-                            let path_trace_progress = &*path_trace_progress.read().unwrap();
-                            egui::ProgressBar::new(path_trace_progress.get_progress() as _)
-                                .text(format!(
-                                    "Path Trace Progress: {:.2}%",
-                                    path_trace_progress.get_progress() * 100.0
-                                ))
-                                .animate(true)
-                        });
-                        ui.label(format!(
-                            "Time Elapsed (in secs) {:.2}",
-                            path_trace_progress.read().unwrap().get_elapsed_time()
-                        ));
-                        ui.label(format!(
-                            "Time Left (in secs) {:.2}",
-                            path_trace_progress.read().unwrap().get_remaining_time()
-                        ));
-
-                        ui::color_edit_button_dvec4(ui, "Background Color", &mut background_color);
-
-                        ui.separator();
-
-                        ui.add(
-                            egui::Slider::new(&mut camera_image_alpha_value, 0.0..=1.0)
-                                .clamp_to_range(true)
-                                .text("Camera Image Alpha"),
-                        );
-
-                        ui.checkbox(&mut camera_use_depth_for_image, "Use Depth for Image");
-
-                        ui.add(
-                            egui::Slider::new(&mut camera_sensor_width, 0.0..=36.0)
-                                .text("Camera Sensor Width"),
-                        );
-
-                        ui.add(
-                            egui::Slider::new(&mut camera_focal_length, 0.0..=15.0)
-                                .text("Camera Focal Length"),
-                        );
-
-                        ui.label("Camera Position");
-                        ui.add(egui::Slider::new(&mut camera_position[0], -10.0..=10.0).text("x"));
-                        ui.add(egui::Slider::new(&mut camera_position[1], -10.0..=10.0).text("y"));
-                        ui.add(egui::Slider::new(&mut camera_position[2], -10.0..=10.0).text("z"));
-
-                        ui.separator();
-
-                        ui.add(egui::Slider::new(&mut image_width, 1..=1000).text("Image Width"));
-                        if image_width == 0 {
-                            image_width = 1;
-                        }
-                        ui.add(egui::Slider::new(&mut image_height, 1..=1000).text("Image Height"));
-                        if image_height == 0 {
-                            image_height = 1;
-                        }
-                        ui.add(
-                            egui::Slider::new(&mut trace_max_depth, 1..=10).text("Trace Max Depth"),
-                        );
-                        ui.add(
-                            egui::Slider::new(&mut samples_per_pixel, 1..=10)
-                                .text("Samples Per Pixel"),
-                        );
-
-                        ui.horizontal(|ui| {
-                            if ui.button("Ray Trace Scene").clicked() {
-                                ray_trace_thread_sender
-                                    .send(RayTraceMessage::StartRender(RayTraceParams::new(
-                                        image_width,
-                                        image_height,
-                                        trace_max_depth,
-                                        samples_per_pixel,
-                                        path_trace_camera.clone(),
-                                    )))
-                                    .unwrap();
-                            }
-
-                            if ui.button("Stop Render").clicked() {
-                                ray_trace_thread_sender
-                                    .send(RayTraceMessage::StopRender)
-                                    .unwrap();
-                            }
-                        });
-
-                        ui.horizontal(|ui| {
-                            ui.label("Save Location");
-                            ui.text_edit_singleline(&mut save_image_location);
-                        });
-
-                        if ui.button("Save Ray Traced Image").clicked() {
-                            let image = Image::from_texture_rgba_float(&rendered_texture);
-                            PPM::new(&image)
-                                .write_to_file(&save_image_location)
-                                .unwrap();
-                        }
-
-                        ui.separator();
-
-                        ui.label("Rays to Shoot");
-                        ui.add(
-                            egui::Slider::new(&mut ray_to_shoot.0, 1..=image_width)
-                                .logarithmic(true)
-                                .clamp_to_range(true)
-                                .text("x"),
-                        );
-                        ui.add(
-                            egui::Slider::new(&mut ray_to_shoot.1, 1..=image_height)
-                                .logarithmic(true)
-                                .clamp_to_range(true)
-                                .text("y"),
-                        );
-                        ui.label("Ray Pixel Start");
-                        ui.add(
-                            egui::Slider::new(
-                                &mut ray_pixel_start.0,
-                                0..=(image_width / ray_to_shoot.0) - 1,
-                            )
-                            .clamp_to_range(true)
-                            .text("x"),
-                        );
-                        ui.add(
-                            egui::Slider::new(
-                                &mut ray_pixel_start.1,
-                                0..=(image_height / ray_to_shoot.1) - 1,
-                            )
-                            .clamp_to_range(true)
-                            .text("y"),
-                        );
-                        ui.checkbox(&mut show_ray_traversal_info, "Show Ray Traversal Info");
-
-                        ui.add(
-                            egui::Slider::new(&mut start_ray_depth, 1..=end_ray_depth)
-                                .clamp_to_range(true)
-                                .text("Start Ray Depth"),
-                        );
-
-                        ui.add(
-                            egui::Slider::new(
-                                &mut end_ray_depth,
-                                start_ray_depth..=trace_max_depth,
-                            )
-                            .clamp_to_range(true)
-                            .text("End Ray Depth"),
-                        );
-
-                        ui.checkbox(&mut draw_normal_at_hit_points, "Draw Normal at Hit Points");
-                        ui.add(
-                            egui::Slider::new(&mut normals_size, 0.0..=2.0).text("Normals Size"),
-                        );
-                        ui::color_edit_button_dvec4(ui, "Normals Color", &mut normals_color);
-
-                        if ui.button("Trace Rays").clicked() {
-                            scene.write().unwrap().apply_model_matrices();
-
-                            ray_traversal_info.clear();
-
-                            for i in 0..ray_to_shoot.0 {
-                                for j in 0..ray_to_shoot.1 {
-                                    let i = i * (image_width / ray_to_shoot.0) + ray_pixel_start.0;
-                                    let j = j * (image_height / ray_to_shoot.1) + ray_pixel_start.1;
-                                    // use opengl coords, (0.0, 0.0) is center; (1.0, 1.0) is
-                                    // top right; (-1.0, -1.0) is bottom left
-                                    let u = (((i as f64 + rand::random::<f64>())
-                                        / (image_width - 1) as f64)
-                                        - 0.5)
-                                        * 2.0;
-                                    let v = (((j as f64 + rand::random::<f64>())
-                                        / (image_height - 1) as f64)
-                                        - 0.5)
-                                        * 2.0;
-
-                                    let ray = path_trace_camera.get_ray(u, v);
-
-                                    let (_color, traversal_info) = path_trace::trace_ray(
-                                        &ray,
-                                        &path_trace_camera,
-                                        &scene.read().unwrap(),
-                                        trace_max_depth,
-                                        &shader_list.read().unwrap(),
-                                    );
-                                    ray_traversal_info.push(traversal_info);
-                                }
-                            }
-
-                            scene.write().unwrap().unapply_model_matrices();
-                        }
-                    });
-                });
-
-                egui::SidePanel::right("Shader Panel")
-                    .min_width(0.2 * window_width as f32)
-                    .show(egui.get_egui_ctx(), |ui| {
-                        shader_list.read().unwrap().draw_ui(ui);
-                        if let Ok(mut shader_list) = shader_list.try_write() {
-                            shader_list.draw_ui_mut(ui);
-                            selected_shader = *shader_list.get_selected_shader();
-                        } else {
-                            ui.label("Shaders are currently in use, cannot edit the shaders");
-                        }
-                    });
-
-                let _output = egui.end_frame(glm::vec2(window_width as _, window_height as _));
+                // set the opengl viewport for the full frame buffer
+                // for correct GUI element drawing
+                framebuffer_viewport.set_opengl_viewport(&window_viewport);
+                let _output = egui.end_frame(glm::vec2(
+                    framebuffer_viewport.get_width() as _,
+                    framebuffer_viewport.get_height() as _,
+                ));
             }
-            // GUI ends
         }
 
         // Swap front and back buffers
@@ -681,24 +982,78 @@ fn main() {
     ray_trace_main_thread_handle.join().unwrap();
 }
 
+fn vec_to_string<T: Scalar + std::fmt::Display, const R: usize>(vec: &glm::TVec<T, R>) -> String {
+    let mut res = "[".to_string();
+    for i in 0..R {
+        if i != R - 1 {
+            res = format!("{}{:.2}, ", res, vec[i]);
+        } else {
+            res = format!("{}{:.2}]", res, vec[i]);
+        }
+    }
+    res
+}
+
+#[allow(clippy::too_many_arguments)]
 fn handle_window_event(
     event: &glfw::WindowEvent,
     window: &mut glfw::Window,
     camera: &mut RasterizeCamera,
     path_trace_camera: &PathTraceCamera,
     should_cast_scene_ray: &mut bool,
-    last_cursor: &mut (f64, f64),
+    use_top_panel: &mut bool,
+    use_bottom_panel: &mut bool,
+    use_left_panel: &mut bool,
+    use_right_panel: &mut bool,
+    window_last_cursor: &mut (f64, f64),
 ) {
-    let cursor = window.get_cursor_pos();
+    let window_cursor = window.get_cursor_pos();
     match event {
-        glfw::WindowEvent::Key(Key::Escape, _, Action::Press, _) => {
-            window.set_should_close(true);
+        glfw::WindowEvent::Key(Key::Up, _, Action::Press, _) => {
+            *use_top_panel = !*use_top_panel;
+        }
+        glfw::WindowEvent::Key(Key::Down, _, Action::Press, _) => {
+            *use_bottom_panel = !*use_bottom_panel;
+        }
+        glfw::WindowEvent::Key(Key::Left, _, Action::Press, _) => {
+            *use_left_panel = !*use_left_panel;
+        }
+        glfw::WindowEvent::Key(Key::Right, _, Action::Press, _) => {
+            *use_right_panel = !*use_right_panel;
+        }
+        glfw::WindowEvent::Key(
+            Key::Num1 | Key::Kp1,
+            _,
+            Action::Press,
+            glfw::Modifiers::Control,
+        ) => {
+            *camera = RasterizeCamera::new(
+                glm::vec3(0.0, 0.0, -camera.get_position().norm()),
+                *camera.get_world_up(),
+                90.0,
+                0.0,
+                camera.get_zoom(),
+            )
         }
         glfw::WindowEvent::Key(Key::Num1 | Key::Kp1, _, Action::Press, _) => {
             *camera = RasterizeCamera::new(
                 glm::vec3(0.0, 0.0, camera.get_position().norm()),
                 *camera.get_world_up(),
                 -90.0,
+                0.0,
+                camera.get_zoom(),
+            )
+        }
+        glfw::WindowEvent::Key(
+            Key::Num3 | Key::Kp3,
+            _,
+            Action::Press,
+            glfw::Modifiers::Control,
+        ) => {
+            *camera = RasterizeCamera::new(
+                glm::vec3(-camera.get_position().norm(), 0.0, 0.0),
+                *camera.get_world_up(),
+                0.0,
                 0.0,
                 camera.get_zoom(),
             )
@@ -712,6 +1067,20 @@ fn handle_window_event(
                 camera.get_zoom(),
             )
         }
+        glfw::WindowEvent::Key(
+            Key::Num7 | Key::Kp7,
+            _,
+            Action::Press,
+            glfw::Modifiers::Control,
+        ) => {
+            *camera = RasterizeCamera::new(
+                glm::vec3(0.0, -camera.get_position().norm(), 0.0),
+                *camera.get_world_up(),
+                -90.0,
+                90.0,
+                camera.get_zoom(),
+            )
+        }
         glfw::WindowEvent::Key(Key::Num7 | Key::Kp7, _, Action::Press, _) => {
             *camera = RasterizeCamera::new(
                 glm::vec3(0.0, camera.get_position().norm(), 0.0),
@@ -722,21 +1091,34 @@ fn handle_window_event(
             )
         }
         glfw::WindowEvent::Key(Key::Num0 | Key::Kp0, _, Action::Press, _) => {
-            // TODO: when path_trace::camera::Camera changes, even
-            // this will need to change, right now it is basically
-            // hard coded values since that camera cannot turn
-            let focal_length = (path_trace_camera.get_camera_plane_center()
-                - path_trace_camera.get_origin())
-            .norm();
-            let camera_sensor_size = (path_trace_camera.get_horizontal()[0] * 2.0)
-                .max(path_trace_camera.get_vertical()[1] * 2.0);
-            let fov = 2.0 * (camera_sensor_size / (2.0 * focal_length)).atan();
+            let fov = path_trace_camera
+                .get_fov_hor()
+                .max(path_trace_camera.get_fov_ver());
             *camera = RasterizeCamera::new(
                 *path_trace_camera.get_origin(),
                 *path_trace_camera.get_vertical(),
                 -90.0,
                 0.0,
                 fov.to_degrees(),
+            );
+        }
+        glfw::WindowEvent::Key(Key::C, _, Action::Press, glfw::Modifiers::Shift) => {
+            let angle = camera.get_front().xz().angle(&-camera.get_position().xz());
+            let distance_to_move = camera.get_position().xz().norm() * angle.sin();
+            let move_vector = glm::vec3(camera.get_right()[0], 0.0, camera.get_right()[2])
+                .normalize()
+                * distance_to_move;
+            let move_vector = if camera.get_right().dot(&camera.get_position()) > 0.0 {
+                -move_vector
+            } else {
+                move_vector
+            };
+            *camera = RasterizeCamera::new(
+                camera.get_position() + move_vector,
+                *camera.get_world_up(),
+                camera.get_yaw(),
+                camera.get_pitch(),
+                camera.get_zoom(),
             );
         }
 
@@ -758,22 +1140,22 @@ fn handle_window_event(
     if window.get_mouse_button(glfw::MouseButtonMiddle) == glfw::Action::Press {
         if window.get_key(glfw::Key::LeftShift) == glfw::Action::Press {
             camera.pan(
-                last_cursor.0,
-                last_cursor.1,
-                cursor.0,
-                cursor.1,
+                window_last_cursor.0,
+                window_last_cursor.1,
+                window_cursor.0,
+                window_cursor.1,
                 1.0,
                 window_width,
                 window_height,
             );
         } else if window.get_key(glfw::Key::LeftControl) == glfw::Action::Press {
-            camera.move_forward(last_cursor.1, cursor.1, window_height);
+            camera.move_forward(window_last_cursor.1, window_cursor.1, window_height);
         } else {
             camera.rotate_wrt_camera_origin(
-                last_cursor.0,
-                last_cursor.1,
-                cursor.0,
-                cursor.1,
+                window_last_cursor.0,
+                window_last_cursor.1,
+                window_cursor.0,
+                window_cursor.1,
                 0.1,
                 false,
             );
@@ -786,5 +1168,5 @@ fn handle_window_event(
         *should_cast_scene_ray = true;
     }
 
-    *last_cursor = cursor;
+    *window_last_cursor = window_cursor;
 }

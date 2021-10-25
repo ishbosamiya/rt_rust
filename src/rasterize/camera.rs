@@ -59,12 +59,28 @@ impl Camera {
         self.front
     }
 
+    pub fn get_right(&self) -> glm::DVec3 {
+        self.right
+    }
+
+    pub fn get_up(&self) -> glm::DVec3 {
+        self.up
+    }
+
     pub fn get_near_plane(&self) -> f64 {
         self.near_plane
     }
 
     pub fn get_far_plane(&self) -> f64 {
         self.far_plane
+    }
+
+    pub fn get_yaw(&self) -> f64 {
+        self.yaw
+    }
+
+    pub fn get_pitch(&self) -> f64 {
+        self.pitch
     }
 
     pub fn get_zoom(&self) -> f64 {

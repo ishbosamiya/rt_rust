@@ -1,13 +1,21 @@
 use enumflags2::BitFlags;
+use serde::{Deserialize, Serialize};
 
 use super::super::bsdf::{SampleData, SamplingTypes, BSDF};
 use super::super::intersectable::IntersectInfo;
 use crate::ui::DrawUI;
 use crate::{glm, ui};
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Emissive {
     color: glm::DVec4,
     power: f64,
+}
+
+impl Default for Emissive {
+    fn default() -> Self {
+        Self::new(glm::vec4(1.0, 1.0, 1.0, 1.0), 1.0)
+    }
 }
 
 impl Emissive {
@@ -16,6 +24,7 @@ impl Emissive {
     }
 }
 
+#[typetag::serde]
 impl BSDF for Emissive {
     fn sample(
         &self,

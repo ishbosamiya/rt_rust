@@ -1,15 +1,16 @@
 use std::convert::TryInto;
 
-use gl::types::{GLuint, GLvoid};
-
 use crate::image::Image;
 
 pub struct TextureRGBAFloat {
+    /// id that matches Image id from which the texture is made from
+    id: usize,
+
     width: usize,
     height: usize,
     pixels: Vec<(f32, f32, f32, f32)>,
 
-    gl_tex: GLuint,
+    gl_tex: gl::types::GLuint,
 }
 
 impl TextureRGBAFloat {
@@ -17,6 +18,7 @@ impl TextureRGBAFloat {
         let gl_tex = Self::gen_gl_texture();
         let pixels = Vec::new();
         let res = Self {
+            id: rand::random(),
             width,
             height,
             pixels,
@@ -45,15 +47,13 @@ impl TextureRGBAFloat {
     pub fn from_image(tex: &Image) -> Self {
         let gl_tex = Self::gen_gl_texture();
         let res = Self {
+            id: tex.get_id(),
             width: tex.width(),
             height: tex.height(),
             pixels: tex
                 .get_pixels()
                 .iter()
-                .flat_map(|row| {
-                    row.iter()
-                        .map(|pixel| (pixel[0] as f32, pixel[1] as f32, pixel[2] as f32, 1.0))
-                })
+                .map(|pixel| (pixel[0] as f32, pixel[1] as f32, pixel[2] as f32, 1.0))
                 .collect(),
             gl_tex,
         };
@@ -63,6 +63,16 @@ impl TextureRGBAFloat {
         res.new_texture_to_gl();
 
         res
+    }
+
+    pub fn update_from_image(&mut self, tex: &Image) {
+        // If the ids are the same, the pixels are also the same so
+        // don't do anything
+        if self.id == tex.get_id() {
+            return;
+        }
+
+        *self = Self::from_image(tex);
     }
 
     pub fn activate(&mut self, texture_target: u8) {
@@ -120,12 +130,12 @@ impl TextureRGBAFloat {
                 0,
                 gl::RGBA,
                 gl::FLOAT,
-                self.pixels.as_ptr() as *const GLvoid,
+                self.pixels.as_ptr() as *const gl::types::GLvoid,
             )
         }
     }
 
-    fn gen_gl_texture() -> GLuint {
+    fn gen_gl_texture() -> gl::types::GLuint {
         let mut gl_tex = 0;
         unsafe {
             gl::GenTextures(1, &mut gl_tex);
@@ -163,7 +173,7 @@ impl TextureRGBAFloat {
         gl_tex
     }
 
-    pub fn get_gl_tex(&self) -> GLuint {
+    pub fn get_gl_tex(&self) -> gl::types::GLuint {
         self.gl_tex
     }
 

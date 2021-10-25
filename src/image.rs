@@ -6,19 +6,23 @@ use crate::rasterize::texture::TextureRGBAFloat;
 
 #[derive(Debug, Clone)]
 pub struct Image {
-    pixels: Vec<Vec<glm::DVec3>>,
+    /// If the id has changed, the pixel data might have also
+    /// changed. Every time the image is borrowed mutably, the id is
+    /// update.
+    id: usize,
+
+    pixels: Vec<glm::DVec3>,
     width: usize,
     height: usize,
 }
 
 impl Image {
     pub fn new(width: usize, height: usize) -> Image {
-        let mut pixels: Vec<Vec<glm::DVec3>> = Vec::with_capacity(height);
-        let mut empty_row = Vec::with_capacity(width);
-        empty_row.resize(width, glm::vec3(0.0, 0.0, 0.0));
-        pixels.resize(height, empty_row);
+        let mut pixels: Vec<glm::DVec3> = Vec::with_capacity(width * height);
+        pixels.resize(width * height, glm::vec3(0.0, 0.0, 0.0));
 
         Image {
+            id: rand::random(),
             pixels,
             width,
             height,
@@ -27,26 +31,28 @@ impl Image {
 
     pub fn from_texture_rgba_float(tex: &TextureRGBAFloat) -> Image {
         Self {
+            id: rand::random(),
             pixels: tex
                 .get_pixels()
-                .chunks(tex.get_height())
-                .map(|row| {
-                    row.iter()
-                        .map(|(r, g, b, _a)| glm::vec3(*r as f64, *g as f64, *b as f64))
-                        .collect()
-                })
+                .iter()
+                .map(|(r, g, b, _a)| glm::vec3(*r as f64, *g as f64, *b as f64))
                 .collect(),
             width: tex.get_width(),
             height: tex.get_height(),
         }
     }
 
+    pub fn get_id(&self) -> usize {
+        self.id
+    }
+
     pub fn set_pixel(&mut self, i: usize, j: usize, data: glm::DVec3) {
-        self.pixels[i][j] = data;
+        self.id = rand::random();
+        self.pixels[i * self.width + j] = data;
     }
 
     pub fn get_pixel(&self, i: usize, j: usize) -> &glm::DVec3 {
-        &self.pixels[i][j]
+        &self.pixels[i * self.width + j]
     }
 
     pub fn width(&self) -> usize {
@@ -57,11 +63,12 @@ impl Image {
         self.height
     }
 
-    pub fn get_pixels_mut(&mut self) -> &mut Vec<Vec<glm::DVec3>> {
+    pub fn get_pixels_mut(&mut self) -> &mut Vec<glm::DVec3> {
+        self.id = rand::random();
         &mut self.pixels
     }
 
-    pub fn get_pixels(&self) -> &Vec<Vec<glm::DVec3>> {
+    pub fn get_pixels(&self) -> &Vec<glm::DVec3> {
         &self.pixels
     }
 
@@ -136,7 +143,7 @@ impl PPM<'_> {
         let max_val = "255\n";
         string_data.push_str(max_val);
 
-        for i in self.image.get_pixels() {
+        for i in self.image.get_pixels().chunks(self.image.width()) {
             for j in i {
                 let j = glm::clamp(j, 0.0, 1.0);
                 string_data.push_str(&((j[0] * 255.0) as i64 % 256).to_string());

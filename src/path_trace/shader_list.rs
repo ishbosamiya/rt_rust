@@ -1,15 +1,26 @@
-use std::collections::HashMap;
+use std::{
+    collections::{hash_map, HashMap},
+    fmt::Debug,
+};
 
 use crate::ui::DrawUI;
 
 use super::bsdf::BSDF;
+use super::shaders::ShaderType;
+
+use serde::{Deserialize, Serialize};
 
 /// A unique identifier given to each `Shader` during its
 /// initialization.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct ShaderID(usize);
 
-pub trait Shader: Sync + Send {
+#[typetag::serde(tag = "type")]
+pub trait Shader: Debug + Sync + Send {
+    fn default() -> Self
+    where
+        Self: Sized;
+
     /// Set the `ShaderID`, can be requested for later using
     /// `get_shader_id()`
     fn set_shader_id(&mut self, shader_id: ShaderID);
@@ -26,6 +37,7 @@ pub trait Shader: Sync + Send {
     fn get_shader_name(&self) -> &String;
 }
 
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ShaderList {
     /// list of all shaders indexed by their ShaderID
     shaders: HashMap<ShaderID, Box<dyn Shader>>,
@@ -34,6 +46,8 @@ pub struct ShaderList {
 
     /// selected shader if there exists one
     selected_shader: Option<ShaderID>,
+    /// current shader type for adding new shader
+    shader_type_for_add: ShaderType,
 }
 
 impl ShaderList {
@@ -42,11 +56,12 @@ impl ShaderList {
             shaders: HashMap::new(),
             shader_ids: Vec::new(),
             selected_shader: None,
+            shader_type_for_add: ShaderType::default(),
         }
     }
 
-    pub fn get_shaders(&self) -> &HashMap<ShaderID, Box<dyn Shader>> {
-        &self.shaders
+    pub fn get_shaders(&self) -> hash_map::Values<'_, ShaderID, Box<dyn Shader>> {
+        self.shaders.values()
     }
 
     pub fn get_shader(&self, shader_id: ShaderID) -> Option<&dyn Shader> {
@@ -70,6 +85,19 @@ impl ShaderList {
         self.shader_ids.push(shader_id);
         shader_id
     }
+
+    pub fn delete_shader(&mut self, shader_id: ShaderID) {
+        self.shader_ids.remove(
+            self.shader_ids
+                .iter()
+                .enumerate()
+                .find(|(_, id)| shader_id == **id)
+                .unwrap()
+                .0,
+        );
+
+        self.shaders.remove(&shader_id).unwrap();
+    }
 }
 
 impl Default for ShaderList {
@@ -88,10 +116,12 @@ impl DrawUI for ShaderList {
             ui.horizontal_wrapped(|ui| {
                 ui.label(format!(
                     "Selected Shader: {}",
-                    self.shaders
-                        .get(&selected_shader)
-                        .unwrap()
-                        .get_shader_name()
+                    match self.shaders.get(&selected_shader) {
+                        Some(shader) => {
+                            shader.get_shader_name()
+                        }
+                        None => "Not available",
+                    }
                 ));
                 if ui.button("Deselect").clicked() {
                     self.deselect_shader();
@@ -103,6 +133,7 @@ impl DrawUI for ShaderList {
 
         let selected_shader = &mut self.selected_shader;
         let shaders = &mut self.shaders;
+        let mut delete_shader = None;
         ui.separator();
         self.shader_ids
             .iter()
@@ -115,6 +146,9 @@ impl DrawUI for ShaderList {
                     if ui.button("Select Shader").clicked() {
                         *selected_shader = Some(shader.get_shader_id());
                     }
+                    if ui.button("X").clicked() {
+                        delete_shader = Some(shader.get_shader_id());
+                    }
                 });
 
                 ui.text_edit_singleline(shader.get_shader_name_mut());
@@ -124,5 +158,27 @@ impl DrawUI for ShaderList {
 
                 ui.separator();
             });
+
+        if let Some(shader_id) = delete_shader {
+            self.delete_shader(shader_id);
+        }
+
+        ui.horizontal_wrapped(|ui| {
+            egui::ComboBox::from_id_source(egui::Id::new("Shader Type"))
+                .selected_text(format!("{}", self.shader_type_for_add))
+                .show_ui(ui, |ui| {
+                    ShaderType::all().for_each(|shader_type| {
+                        ui.selectable_value(
+                            &mut self.shader_type_for_add,
+                            shader_type,
+                            format!("{}", shader_type),
+                        );
+                    });
+                });
+
+            if ui.button("Add Shader").clicked() {
+                self.add_shader(self.shader_type_for_add.generate_shader());
+            }
+        });
     }
 }

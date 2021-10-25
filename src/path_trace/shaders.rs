@@ -1,6 +1,8 @@
+use std::fmt::Display;
 use std::sync::Mutex;
 
 use lazy_static::lazy_static;
+use serde::{Deserialize, Serialize};
 
 use crate::path_trace::{
     bsdf::BSDF,
@@ -37,51 +39,105 @@ impl Iterator for NameGen {
 }
 
 macro_rules! ShaderFromBSDF {
-    ( $shader_name:ident ; $bsdf:ty ) => {
-        pub struct $shader_name {
-            bsdf: $bsdf,
-            shader_id: Option<ShaderID>,
-            name: String,
+    ( $( $shader_name:ident, $bsdf:ty ); *) => {
+        $(
+            #[derive(Debug, Clone, Serialize, Deserialize)]
+            pub struct $shader_name {
+                bsdf: $bsdf,
+                shader_id: Option<ShaderID>,
+                name: String,
+            }
+
+            impl $shader_name {
+                pub fn new(bsdf: $bsdf) -> Self {
+                    Self {
+                        bsdf,
+                        shader_id: None,
+                        name: SHADER_NAME_GEN.lock().unwrap().next().unwrap(),
+                    }
+                }
+            }
+
+            #[typetag::serde]
+            impl Shader for $shader_name {
+                fn default() -> Self
+                where
+                    Self: Sized,
+                {
+                    Self::new(Default::default())
+                }
+
+                fn set_shader_id(&mut self, shader_id: ShaderID) {
+                    self.shader_id = Some(shader_id);
+                }
+
+                fn get_bsdf(&self) -> &dyn BSDF {
+                    &self.bsdf
+                }
+
+                fn get_bsdf_mut(&mut self) -> &mut dyn BSDF {
+                    &mut self.bsdf
+                }
+
+                fn get_shader_id(&self) -> ShaderID {
+                    self.shader_id.unwrap()
+                }
+
+                fn get_shader_name_mut(&mut self) -> &mut String {
+                    &mut self.name
+                }
+
+                fn get_shader_name(&self) -> &String {
+                    &self.name
+                }
+            }
+        )*
+
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+	pub enum ShaderType {
+            $(
+                $shader_name,
+            )*
         }
 
-        impl $shader_name {
-            pub fn new(bsdf: $bsdf) -> Self {
-                Self {
-                    bsdf,
-                    shader_id: None,
-                    name: SHADER_NAME_GEN.lock().unwrap().next().unwrap(),
+        impl ShaderType {
+            pub fn all() -> impl Iterator<Item = Self> {
+                [
+                    $(
+                        Self::$shader_name,
+                    )*
+                ]
+                    .iter()
+                    .copied()
+            }
+
+            pub fn generate_shader(&self) -> Box<dyn Shader> {
+                match self {
+                    $(
+                        Self::$shader_name => Box::new($shader_name::default()),
+                    )*
                 }
             }
         }
 
-        impl Shader for $shader_name {
-            fn set_shader_id(&mut self, shader_id: ShaderID) {
-                self.shader_id = Some(shader_id);
-            }
-
-            fn get_bsdf(&self) -> &dyn BSDF {
-                &self.bsdf
-            }
-
-            fn get_bsdf_mut(&mut self) -> &mut dyn BSDF {
-                &mut self.bsdf
-            }
-
-            fn get_shader_id(&self) -> ShaderID {
-                self.shader_id.unwrap()
-            }
-
-            fn get_shader_name_mut(&mut self) -> &mut String {
-                &mut self.name
-            }
-
-            fn get_shader_name(&self) -> &String {
-                &self.name
+        impl Display for ShaderType {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                match self {
+                    $(
+                        Self::$shader_name => write!(f, stringify!($shader_name)),
+                    )*
+                }
             }
         }
     };
 }
 
-ShaderFromBSDF!(Lambert; bsdfs::lambert::Lambert);
-ShaderFromBSDF!(Glossy; bsdfs::glossy::Glossy);
-ShaderFromBSDF!(Emissive; bsdfs::emissive::Emissive);
+ShaderFromBSDF!(Lambert, bsdfs::lambert::Lambert;
+                Glossy, bsdfs::glossy::Glossy;
+                Emissive, bsdfs::emissive::Emissive);
+
+impl Default for ShaderType {
+    fn default() -> Self {
+        Self::Lambert
+    }
+}

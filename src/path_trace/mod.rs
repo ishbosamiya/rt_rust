@@ -17,6 +17,7 @@ use std::thread::JoinHandle;
 use std::time::Instant;
 
 use enumflags2::BitFlags;
+use lazy_static::lazy_static;
 use rayon::prelude::*;
 
 use crate::glm;
@@ -29,16 +30,22 @@ use crate::path_trace::ray::Ray;
 use crate::progress::Progress;
 use crate::scene::Scene;
 
+use self::shader_list::Shader;
 use self::shader_list::ShaderList;
 use self::traversal_info::SingleRayInfo;
 use self::traversal_info::TraversalInfo;
+
+lazy_static! {
+    static ref DEFAULT_SHADER: self::shaders::Lambert = self::shaders::Lambert::new(
+        self::bsdfs::lambert::Lambert::new(glm::vec4(0.0, 0.0, 0.0, 1.0))
+    );
+}
 
 pub struct RayTraceParams {
     width: usize,
     height: usize,
     trace_max_depth: usize,
     samples_per_pixel: usize,
-    camera: Camera,
 }
 
 impl RayTraceParams {
@@ -47,14 +54,12 @@ impl RayTraceParams {
         height: usize,
         trace_max_depth: usize,
         samples_per_pixel: usize,
-        camera: Camera,
     ) -> Self {
         Self {
             width,
             height,
             trace_max_depth,
             samples_per_pixel,
-            camera,
         }
     }
 
@@ -77,17 +82,13 @@ impl RayTraceParams {
     pub fn get_samples_per_pixel(&self) -> usize {
         self.samples_per_pixel
     }
-
-    /// Get a reference to the ray trace params's camera.
-    pub fn get_camera(&self) -> &Camera {
-        &self.camera
-    }
 }
 
 fn ray_trace_scene(
     ray_trace_params: RayTraceParams,
     scene: Arc<RwLock<Scene>>,
     shader_list: Arc<RwLock<ShaderList>>,
+    camera: Arc<RwLock<Camera>>,
     rendered_image: Arc<RwLock<Image>>,
     progress: Arc<RwLock<Progress>>,
     stop_render: Arc<RwLock<bool>>,
@@ -95,21 +96,12 @@ fn ray_trace_scene(
     let mut image = Image::new(ray_trace_params.get_width(), ray_trace_params.get_height());
     progress.write().unwrap().reset();
 
+    let camera = camera.read().unwrap();
+
     let progress_previous_update = Arc::new(RwLock::new(Instant::now()));
     let total_number_of_samples = ray_trace_params.get_samples_per_pixel()
         * ray_trace_params.get_width()
         * ray_trace_params.get_height();
-
-    // initialize all pixels to black
-    image
-        .get_pixels_mut()
-        .par_iter_mut()
-        .enumerate()
-        .for_each(|(_j, row)| {
-            row.par_iter_mut().enumerate().for_each(|(_i, pixel)| {
-                *pixel = glm::vec3(0.0, 0.0, 0.0);
-            });
-        });
 
     // ray trace
     for processed_samples in 0..ray_trace_params.get_samples_per_pixel() {
@@ -124,11 +116,13 @@ fn ray_trace_scene(
 
         let scene = scene.read().unwrap();
         let shader_list = shader_list.read().unwrap();
+        let image_width = image.width();
         image
             .get_pixels_mut()
             .par_iter_mut()
+            .chunks(image_width)
             .enumerate()
-            .for_each(|(j, row)| {
+            .for_each(|(j, mut row)| {
                 row.par_iter_mut().enumerate().for_each(|(i, pixel)| {
                     let processed_pixels = processed_pixels.fetch_add(1, Ordering::SeqCst);
 
@@ -164,17 +158,17 @@ fn ray_trace_scene(
                         - 0.5)
                         * 2.0;
 
-                    let ray = ray_trace_params.get_camera().get_ray(u, v);
+                    let ray = camera.get_ray(u, v);
 
                     let (color, _traversal_info) = trace_ray(
                         &ray,
-                        ray_trace_params.get_camera(),
+                        &camera,
                         &scene,
                         ray_trace_params.get_trace_max_depth(),
                         &shader_list,
                     );
 
-                    *pixel += color;
+                    **pixel += color;
                 });
             });
 
@@ -184,11 +178,8 @@ fn ray_trace_scene(
             rendered_image
                 .get_pixels_mut()
                 .par_iter_mut()
-                .enumerate()
-                .for_each(|(_j, row)| {
-                    row.par_iter_mut().enumerate().for_each(|(_i, pixel)| {
-                        *pixel /= (processed_samples + 1) as f64;
-                    });
+                .for_each(|pixel| {
+                    *pixel /= (processed_samples + 1) as f64;
                 });
         }
 
@@ -225,6 +216,7 @@ fn ray_trace_stop_render(
 pub fn ray_trace_main(
     scene: Arc<RwLock<Scene>>,
     shader_list: Arc<RwLock<ShaderList>>,
+    camera: Arc<RwLock<Camera>>,
     rendered_image: Arc<RwLock<Image>>,
     progress: Arc<RwLock<Progress>>,
     message_receiver: Receiver<RayTraceMessage>,
@@ -241,6 +233,7 @@ pub fn ray_trace_main(
 
                 let scene = scene.clone();
                 let shader_list = shader_list.clone();
+                let camera = camera.clone();
                 let rendered_image = rendered_image.clone();
                 let progress = progress.clone();
                 let stop_render = stop_render.clone();
@@ -249,6 +242,7 @@ pub fn ray_trace_main(
                         params,
                         scene,
                         shader_list,
+                        camera,
                         rendered_image,
                         progress,
                         stop_render,
@@ -390,10 +384,17 @@ fn shade_environment(ray: &Ray, camera: &Camera) -> glm::DVec3 {
 
 /// Shade the point of intersection when the ray hits an object
 fn shade_hit(ray: &Ray, intersect_info: &IntersectInfo, shader_list: &ShaderList) -> ShadeHitData {
-    let shader = shader_list
-        .get_shader(intersect_info.get_shader_id().unwrap())
-        .unwrap()
-        .get_bsdf();
+    // TODO: currently using a default shader only if the shader has
+    // been deleted but there is no way to inform this to the user as
+    // of now. Need to figure out a way to let the user know that the
+    // object doesn't have a shader valid assigned.
+    let shader = match shader_list.get_shader(intersect_info.get_shader_id().unwrap()) {
+        Some(shader) => shader.get_bsdf(),
+        None => {
+            // use a default shader when shader is no longer available in the shader_list
+            DEFAULT_SHADER.get_bsdf()
+        }
+    };
 
     // wo: outgoing ray direction
     //

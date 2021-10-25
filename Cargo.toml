@@ -7,20 +7,24 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-nalgebra-glm = "0.13"
+nalgebra-glm = { version = "0.13", features = ["serde-serialize"] }
 rand = "0.8"
 crossbeam-channel = "0.5"
 crossbeam = "0.8"
 lazy_static = "1.4"
 gl = "0.14"
 paste = "1.0"
-generational-arena = "0.2.8"
+generational-arena = { version = "0.2", features = ["serde"] }
 itertools = "0.10"
 glfw = "0.41"
 egui = "0.14"
 egui_glfw = { git = "ssh://git@github.com/ishbosamiya/egui_glfw.git" }
 enumflags2 = "0.7"
 rayon = "1.5"
+serde = { version = "1.0", features = ["derive", "rc"] }
+serde_json = "1.0"
+typetag = "0.1"
+rfd = "0.5"
 
 [dev-dependencies]
 criterion = { version = "0.3.4", features = ["html_reports"]}
