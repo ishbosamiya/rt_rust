@@ -6,6 +6,11 @@ use crate::rasterize::texture::TextureRGBAFloat;
 
 #[derive(Debug, Clone)]
 pub struct Image {
+    /// If the id has changed, the pixel data might have also
+    /// changed. Every time the image is borrowed mutably, the id is
+    /// update.
+    id: usize,
+
     pixels: Vec<glm::DVec3>,
     width: usize,
     height: usize,
@@ -17,6 +22,7 @@ impl Image {
         pixels.resize(width * height, glm::vec3(0.0, 0.0, 0.0));
 
         Image {
+            id: rand::random(),
             pixels,
             width,
             height,
@@ -25,6 +31,7 @@ impl Image {
 
     pub fn from_texture_rgba_float(tex: &TextureRGBAFloat) -> Image {
         Self {
+            id: rand::random(),
             pixels: tex
                 .get_pixels()
                 .iter()
@@ -35,7 +42,12 @@ impl Image {
         }
     }
 
+    pub fn get_id(&self) -> usize {
+        self.id
+    }
+
     pub fn set_pixel(&mut self, i: usize, j: usize, data: glm::DVec3) {
+        self.id = rand::random();
         self.pixels[i * self.width + j] = data;
     }
 
@@ -52,6 +64,7 @@ impl Image {
     }
 
     pub fn get_pixels_mut(&mut self) -> &mut Vec<glm::DVec3> {
+        self.id = rand::random();
         &mut self.pixels
     }
 
