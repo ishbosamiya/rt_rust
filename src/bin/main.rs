@@ -3,7 +3,6 @@ use rfd::FileDialog;
 use rt::image::{Image, PPM};
 use rt::meshio::MeshIO;
 use rt::object::objects::Mesh as MeshObject;
-use rt::object::objects::Sphere as SphereObject;
 use rt::object::{Object, ObjectDrawData};
 use rt::path_trace::camera::Camera as PathTraceCamera;
 use rt::path_trace::camera::CameraDrawData as PathTraceCameraDrawData;
@@ -16,7 +15,6 @@ use rt::progress::Progress;
 use rt::rasterize::gpu_utils::draw_plane_with_image;
 use rt::rasterize::texture::TextureRGBAFloat;
 use rt::scene::Scene;
-use rt::sphere::Sphere;
 use rt::ui::DrawUI;
 use rt::viewport::Viewport;
 use rt::{glm, ui};
@@ -35,7 +33,6 @@ use glfw::{Action, Context, Key};
 use serde::{Deserialize, Serialize};
 
 use rt::fps::FPS;
-use rt::mesh;
 use rt::mesh::MeshUseShader;
 use rt::rasterize::camera::Camera as RasterizeCamera;
 use rt::rasterize::drawable::Drawable;
@@ -110,8 +107,6 @@ fn main() {
         .insert(TextStyle::Small, (FontFamily::Proportional, 15.0));
     egui.get_egui_ctx().set_fonts(fonts);
 
-    let mesh = mesh::builtins::get_monkey_subd_00_triangulated();
-
     let mut camera = RasterizeCamera::new(
         glm::vec3(0.0, 0.0, 3.0),
         glm::vec3(0.0, 1.0, 0.0),
@@ -173,120 +168,26 @@ fn main() {
 
     let path_trace_progress = Arc::new(RwLock::new(Progress::new()));
 
-    let (shader_list, shader_ids) = {
+    let shader_list = {
         let mut shader_list = ShaderList::new();
-        let mut shader_ids = Vec::new();
 
-        let id = shader_list.add_shader(Box::new(path_trace::shaders::Lambert::new(
+        shader_list.add_shader(Box::new(path_trace::shaders::Lambert::new(
             path_trace::bsdfs::lambert::Lambert::new(glm::vec4(1.0, 1.0, 1.0, 1.0)),
         )));
-        shader_ids.push(id);
-        let id = shader_list.add_shader(Box::new(path_trace::shaders::Lambert::new(
+        shader_list.add_shader(Box::new(path_trace::shaders::Lambert::new(
             path_trace::bsdfs::lambert::Lambert::new(glm::vec4(1.0, 0.0, 0.0, 1.0)),
         )));
-        shader_ids.push(id);
-        let id = shader_list.add_shader(Box::new(path_trace::shaders::Glossy::new(
+        shader_list.add_shader(Box::new(path_trace::shaders::Glossy::new(
             path_trace::bsdfs::glossy::Glossy::new(glm::vec4(1.0, 1.0, 1.0, 1.0)),
         )));
-        shader_ids.push(id);
-        let id = shader_list.add_shader(Box::new(path_trace::shaders::Emissive::new(
+        shader_list.add_shader(Box::new(path_trace::shaders::Emissive::new(
             path_trace::bsdfs::emissive::Emissive::new(glm::vec4(1.0, 0.4, 1.0, 1.0), 5.0),
         )));
-        shader_ids.push(id);
 
-        (shader_list, shader_ids)
+        shader_list
     };
 
-    let mut scene = Scene::new();
-    scene.add_object({
-        let mut object = Box::new(SphereObject::new(
-            Sphere::new(glm::vec3(0.0, 2.0, -2.0), 0.9),
-            glm::vec4(0.0, 0.0, 1.0, 1.0),
-            glm::vec4(1.0, 0.0, 0.0, 1.0),
-        ));
-        object.set_path_trace_shader_id(shader_ids[0]);
-        object
-    });
-    scene.add_object({
-        let mut object = Box::new(SphereObject::new(
-            Sphere::new(glm::vec3(0.0, -2.0, -2.0), 0.9),
-            glm::vec4(0.0, 0.0, 1.0, 1.0),
-            glm::vec4(1.0, 0.0, 0.0, 1.0),
-        ));
-        object.set_path_trace_shader_id(shader_ids[0]);
-        object
-    });
-    scene.add_object({
-        let mut object = Box::new(SphereObject::new(
-            Sphere::new(glm::vec3(2.0, 0.0, -2.0), 0.9),
-            glm::vec4(0.0, 0.0, 1.0, 1.0),
-            glm::vec4(1.0, 0.0, 0.0, 1.0),
-        ));
-        object.set_path_trace_shader_id(shader_ids[0]);
-        object
-    });
-    scene.add_object({
-        let mut object = Box::new(SphereObject::new(
-            Sphere::new(glm::vec3(-2.0, 0.0, -2.0), 0.9),
-            glm::vec4(0.0, 0.0, 1.0, 1.0),
-            glm::vec4(1.0, 0.0, 0.0, 1.0),
-        ));
-        object.set_path_trace_shader_id(shader_ids[0]);
-        object
-    });
-    scene.add_object({
-        let mut object = Box::new(MeshObject::new(
-            mesh.clone(),
-            MeshUseShader::DirectionalLight {
-                color: glm::vec3(0.3, 0.2, 0.7),
-            },
-            None,
-        ));
-        object.set_path_trace_shader_id(shader_ids[1]);
-        object
-    });
-    // scene.add_object({
-    //     let mut object = Box::new(SphereObject::new(
-    //         Sphere::new(glm::vec3(0.0, 0.0, -2.0), 0.9),
-    //         glm::vec4(0.0, 0.0, 1.0, 1.0),
-    //         glm::vec4(1.0, 0.0, 0.0, 1.0),
-    //     ));
-    //     object.set_path_trace_shader_id(shader_ids[3]);
-    //     object
-    // });
-    // scene.add_object({
-    //     let mut object = Box::new(MeshObject::new(
-    //         mesh::builtins::get_plane_subd_00().clone(),
-    //         MeshUseShader::DirectionalLight,
-    //         None,
-    //     ));
-    //     object.set_path_trace_shader_id(shader_ids[2]);
-    //     object.set_model_matrix(glm::rotate_x(
-    //         &glm::scale(
-    //             &glm::translate(&glm::identity(), &glm::vec3(0.0, 0.0, 5.0)),
-    //             &glm::vec3(5.0, 5.0, 5.0),
-    //         ),
-    //         glm::radians(&glm::vec1(90.0))[0],
-    //     ));
-    //     object
-    // });
-
-    scene.get_objects_mut().iter_mut().for_each(|object| {
-        if object.get_model_matrix().is_none() {
-            object.set_model_matrix(glm::translate(&glm::identity(), &glm::vec3(0.0, 0.0, -2.0)));
-        }
-    });
-
-    // build bvh
-    {
-        scene.apply_model_matrices();
-
-        scene.build_bvh(0.01);
-
-        scene.unapply_model_matrices();
-    }
-
-    let scene = Arc::new(RwLock::new(scene));
+    let scene = Arc::new(RwLock::new(Scene::new()));
     let shader_list = Arc::new(RwLock::new(shader_list));
     let path_trace_camera = Arc::new(RwLock::new(path_trace_camera));
 
