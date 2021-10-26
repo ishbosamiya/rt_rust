@@ -405,7 +405,7 @@ fn shade_hit(ray: &Ray, intersect_info: &IntersectInfo, shader_list: &ShaderList
     let wo = -ray.get_direction();
 
     // wi: incoming way direction
-    let op_sample_data = shader.sample(ray.get_direction(), intersect_info, BitFlags::all());
+    let op_sample_data = shader.sample(&wo, intersect_info, BitFlags::all());
 
     if let Some(sample_data) = op_sample_data {
         let wi = sample_data.get_wi().normalize();
