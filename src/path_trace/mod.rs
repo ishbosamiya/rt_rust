@@ -388,13 +388,10 @@ fn shade_hit(ray: &Ray, intersect_info: &IntersectInfo, shader_list: &ShaderList
     // been deleted but there is no way to inform this to the user as
     // of now. Need to figure out a way to let the user know that the
     // object doesn't have a shader valid assigned.
-    let shader = match shader_list.get_shader(intersect_info.get_shader_id().unwrap()) {
-        Some(shader) => shader.get_bsdf(),
-        None => {
-            // use a default shader when shader is no longer available in the shader_list
-            DEFAULT_SHADER.get_bsdf()
-        }
-    };
+    let shader = intersect_info
+        .get_shader_id()
+        .and_then(|shader_id| shader_list.get_shader(shader_id))
+        .map_or(DEFAULT_SHADER.get_bsdf(), |shader| shader.get_bsdf());
 
     // wo: outgoing ray direction
     //
