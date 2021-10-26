@@ -408,7 +408,7 @@ fn shade_hit(ray: &Ray, intersect_info: &IntersectInfo, shader_list: &ShaderList
     let op_sample_data = shader.sample(ray.get_direction(), intersect_info, BitFlags::all());
 
     if let Some(sample_data) = op_sample_data {
-        let wi = sample_data.get_wi();
+        let wi = sample_data.get_wi().normalize();
         let sampling_type = sample_data.get_sampling_type();
 
         // BSDF returns the incoming ray direction at the point of
