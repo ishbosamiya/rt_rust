@@ -18,10 +18,13 @@ use rt::sphere::Sphere;
 use rt::ui::DrawUI;
 use rt::{glm, ui};
 
+extern crate gtk;
 extern crate lazy_static;
 
+use gtk::{FileChooserAction, FileChooserDialog, FileFilter};
 use std::cell::RefCell;
 use std::convert::TryInto;
+use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::{mpsc, Arc, RwLock};
 use std::thread;
@@ -537,6 +540,14 @@ fn main() {
                                     .unwrap()
                                     .into_inner()
                                     .unwrap();
+                        }
+
+                        if ui.button("Open..").clicked() {
+                            // let task = rfd::AsyncFileDialog::new()
+                            //     .add_filter("Obj Files", &["obj"])
+                            //     .set_directory("/")
+                            //     .pick_file();
+                            // let dialog = FileChooserDialog::new(Some("Select obj file"), )
                         }
 
                         ui::color_edit_button_dvec4(ui, "Background Color", &mut background_color);
