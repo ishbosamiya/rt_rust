@@ -1148,6 +1148,10 @@ where
         ExtraData: Copy,
         F: Fn((&glm::DVec3, &glm::DVec3), T) -> Option<RayHitData<T, ExtraData>>,
     {
+        if self.totleaf == 0 {
+            return None;
+        }
+
         let root_index = self.nodes[self.totleaf];
 
         let data = RayCastData::new(co, dir);
