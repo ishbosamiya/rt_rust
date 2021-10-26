@@ -87,6 +87,34 @@ impl Scene {
 
         self.bvh = Some(bvh);
     }
+
+    pub fn get_min_max_bounds(&self) -> (glm::DVec3, glm::DVec3) {
+        let bvh = self.bvh.as_ref().unwrap();
+        bvh.get_min_max_bounds()
+
+        // TODO: need to use the model matrices
+        // self.objects.iter().fold(
+        //     (
+        //         glm::vec3(f64::MAX, f64::MAX, f64::MAX),
+        //         glm::vec3(f64::MIN, f64::MIN, f64::MIN),
+        //     ),
+        //     |acc, object| {
+        //         let (min, max) = object.get_min_max_bounds();
+        //         (
+        //             glm::vec3(
+        //                 min[0].min(acc.0[0]),
+        //                 min[1].min(acc.0[1]),
+        //                 min[2].min(acc.0[2]),
+        //             ),
+        //             glm::vec3(
+        //                 max[0].max(acc.1[0]),
+        //                 max[1].max(acc.1[1]),
+        //                 max[2].max(acc.1[2]),
+        //             ),
+        //         )
+        //     },
+        // )
+    }
 }
 
 impl Intersectable for Scene {
