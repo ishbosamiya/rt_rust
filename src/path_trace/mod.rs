@@ -411,25 +411,26 @@ fn shade_hit(ray: &Ray, intersect_info: &IntersectInfo, shader_list: &ShaderList
         let wi = sample_data.get_wi().normalize();
         let sampling_type = sample_data.get_sampling_type();
 
+        let color = shader.eval(&wi, &wo, intersect_info);
+
         // BSDF returns the incoming ray direction at the point of
         // intersection but for the next ray that is shot in the opposite
         // direction (into the scene), thus need to take the inverse of
         // `wi`.
-        let wi = -wi;
+        let next_ray_dir = -wi;
 
-        let color = shader.eval(&wi, &wo, intersect_info);
         let emission = shader.emission(intersect_info);
         if let Some(emission) = emission {
             ShadeHitData::Both(ShadeHitDataBoth::new(
                 color,
                 emission,
-                Ray::new(*intersect_info.get_point(), wi),
+                Ray::new(*intersect_info.get_point(), next_ray_dir),
                 sampling_type,
             ))
         } else {
             ShadeHitData::ScatterOnly(ShadeHitDataScatterOnly::new(
                 color,
-                Ray::new(*intersect_info.get_point(), wi),
+                Ray::new(*intersect_info.get_point(), next_ray_dir),
                 sampling_type,
             ))
         }
