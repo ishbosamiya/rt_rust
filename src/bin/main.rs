@@ -20,6 +20,7 @@ use rt::{glm, ui};
 
 extern crate gtk;
 extern crate lazy_static;
+extern crate rfd;
 
 use gtk::{FileChooserAction, FileChooserDialog, FileFilter};
 use std::cell::RefCell;
@@ -543,11 +544,14 @@ fn main() {
                         }
 
                         if ui.button("Open..").clicked() {
-                            // let task = rfd::AsyncFileDialog::new()
-                            //     .add_filter("Obj Files", &["obj"])
-                            //     .set_directory("/")
-                            //     .pick_file();
-                            // let dialog = FileChooserDialog::new(Some("Select obj file"), )
+                            let task = rfd::FileDialog::new()
+                                .add_filter("Obj Files", &["obj"])
+                                .set_directory("/")
+                                .pick_file();
+                            if let Some(task) = task {
+                                let file_path = std::path::PathBuf::from(task.path);
+                                // TODO: Call read obj from here
+                            }
                         }
 
                         ui::color_edit_button_dvec4(ui, "Background Color", &mut background_color);
