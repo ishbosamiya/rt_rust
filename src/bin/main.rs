@@ -1,6 +1,7 @@
 use glm::Scalar;
 use rfd::FileDialog;
 use rt::image::{Image, PPM};
+use rt::meshio::MeshIO;
 use rt::object::objects::Mesh as MeshObject;
 use rt::object::objects::Sphere as SphereObject;
 use rt::object::{Object, ObjectDrawData};
@@ -485,6 +486,47 @@ fn main() {
                                             .unwrap()
                                             .into_inner()
                                             .unwrap();
+                                }
+                            }
+
+                            if ui.button("Load OBJ file to scene").clicked() {
+                                if let Some(path) = FileDialog::new()
+                                    .add_filter("OBJ", &["obj"])
+                                    .add_filter("Any", &["*"])
+                                    .set_directory(".")
+                                    .pick_file()
+                                {
+                                    // TODO: Handle errors throught the process
+
+                                    // read the file
+                                    let meshio = MeshIO::read(path).unwrap();
+                                    // split the meshio based on
+                                    // objects and create mesh(s) from
+                                    // meshio(s)
+                                    meshio.split().drain(0..).for_each(|meshio| {
+                                        let mut mesh = rt::mesh::Mesh::read(&meshio).unwrap();
+                                        // build bvh for mesh
+                                        mesh.build_bvh(0.01);
+                                        // add mesh to scene
+                                        let mut object = MeshObject::new(
+                                            mesh,
+                                            MeshUseShader::DirectionalLight {
+                                                color: glm::vec3(0.3, 0.2, 0.7),
+                                            },
+                                            None,
+                                        );
+                                        object.set_model_matrix(glm::identity());
+                                        scene.write().unwrap().add_object(Box::new(object));
+                                    });
+                                    // update scene bvh
+                                    {
+                                        let mut scene = scene.write().unwrap();
+                                        scene.apply_model_matrices();
+
+                                        scene.build_bvh(0.01);
+
+                                        scene.unapply_model_matrices();
+                                    }
                                 }
                             }
 
