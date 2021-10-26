@@ -39,8 +39,8 @@ impl IntersectInfo {
         self.object_id
     }
 
-    pub fn set_shader_id(&mut self, shader_id: ShaderID) {
-        self.shader_id = Some(shader_id);
+    pub fn set_shader_id(&mut self, shader_id: Option<ShaderID>) {
+        self.shader_id = shader_id;
     }
 
     pub fn get_shader_id(&self) -> Option<ShaderID> {

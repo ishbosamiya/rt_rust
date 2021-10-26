@@ -81,7 +81,7 @@ pub trait Object:
     }
 
     fn set_path_trace_shader_id(&mut self, shader_id: PathTraceShaderID);
-    fn get_path_trace_shader_id(&self) -> PathTraceShaderID;
+    fn get_path_trace_shader_id(&self) -> Option<PathTraceShaderID>;
 
     fn set_object_id(&mut self, object_id: ObjectID);
     fn get_object_id(&self) -> ObjectID;
@@ -211,8 +211,8 @@ pub mod objects {
                 self.shader_id = Some(shader_id)
             }
 
-            fn get_path_trace_shader_id(&self) -> ShaderID {
-                self.shader_id.unwrap()
+            fn get_path_trace_shader_id(&self) -> Option<ShaderID> {
+                self.shader_id
             }
 
             fn set_object_id(&mut self, object_id: ObjectID) {
@@ -358,8 +358,8 @@ pub mod objects {
                 self.shader_id = Some(shader_id)
             }
 
-            fn get_path_trace_shader_id(&self) -> ShaderID {
-                self.shader_id.unwrap()
+            fn get_path_trace_shader_id(&self) -> Option<ShaderID> {
+                self.shader_id
             }
 
             fn set_object_id(&mut self, object_id: ObjectID) {
