@@ -134,7 +134,8 @@ macro_rules! ShaderFromBSDF {
 
 ShaderFromBSDF!(Lambert, bsdfs::lambert::Lambert;
                 Glossy, bsdfs::glossy::Glossy;
-                Emissive, bsdfs::emissive::Emissive);
+                Emissive, bsdfs::emissive::Emissive;
+                Blinnphong, bsdfs::blinnphong::Blinnphong);
 
 impl Default for ShaderType {
     fn default() -> Self {

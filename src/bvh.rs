@@ -1206,6 +1206,16 @@ where
             }
         }
     }
+
+    pub fn get_min_max_bounds(&self) -> (glm::DVec3, glm::DVec3) {
+        let root_index = self.nodes[self.totleaf];
+        let root = &self.node_array.get(root_index.0).unwrap();
+
+        (
+            glm::vec3(root.bv[0], root.bv[2], root.bv[4]),
+            glm::vec3(root.bv[1], root.bv[3], root.bv[5]),
+        )
+    }
 }
 
 fn implicit_needed_branches(tree_type: u8, leafs: usize) -> usize {

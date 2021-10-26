@@ -103,17 +103,6 @@ fn ray_trace_scene(
         * ray_trace_params.get_width()
         * ray_trace_params.get_height();
 
-    // initialize all pixels to black
-    image
-        .get_pixels_mut()
-        .par_iter_mut()
-        .enumerate()
-        .for_each(|(_j, row)| {
-            row.par_iter_mut().enumerate().for_each(|(_i, pixel)| {
-                *pixel = glm::vec3(0.0, 0.0, 0.0);
-            });
-        });
-
     // ray trace
     for processed_samples in 0..ray_trace_params.get_samples_per_pixel() {
         if *stop_render.read().unwrap() {
@@ -127,11 +116,13 @@ fn ray_trace_scene(
 
         let scene = scene.read().unwrap();
         let shader_list = shader_list.read().unwrap();
+        let image_width = image.width();
         image
             .get_pixels_mut()
             .par_iter_mut()
+            .chunks(image_width)
             .enumerate()
-            .for_each(|(j, row)| {
+            .for_each(|(j, mut row)| {
                 row.par_iter_mut().enumerate().for_each(|(i, pixel)| {
                     let processed_pixels = processed_pixels.fetch_add(1, Ordering::SeqCst);
 
@@ -177,7 +168,7 @@ fn ray_trace_scene(
                         &shader_list,
                     );
 
-                    *pixel += color;
+                    **pixel += color;
                 });
             });
 
@@ -187,11 +178,8 @@ fn ray_trace_scene(
             rendered_image
                 .get_pixels_mut()
                 .par_iter_mut()
-                .enumerate()
-                .for_each(|(_j, row)| {
-                    row.par_iter_mut().enumerate().for_each(|(_i, pixel)| {
-                        *pixel /= (processed_samples + 1) as f64;
-                    });
+                .for_each(|pixel| {
+                    *pixel /= (processed_samples + 1) as f64;
                 });
         }
 
@@ -417,31 +405,32 @@ fn shade_hit(ray: &Ray, intersect_info: &IntersectInfo, shader_list: &ShaderList
     let wo = -ray.get_direction();
 
     // wi: incoming way direction
-    let op_sample_data = shader.sample(ray.get_direction(), intersect_info, BitFlags::all());
+    let op_sample_data = shader.sample(&wo, intersect_info, BitFlags::all());
 
     if let Some(sample_data) = op_sample_data {
-        let wi = sample_data.get_wi();
+        let wi = sample_data.get_wi().normalize();
         let sampling_type = sample_data.get_sampling_type();
+
+        let color = shader.eval(&wi, &wo, intersect_info);
 
         // BSDF returns the incoming ray direction at the point of
         // intersection but for the next ray that is shot in the opposite
         // direction (into the scene), thus need to take the inverse of
         // `wi`.
-        let wi = -wi;
+        let next_ray_dir = -wi;
 
-        let color = shader.eval(&wi, &wo, intersect_info);
         let emission = shader.emission(intersect_info);
         if let Some(emission) = emission {
             ShadeHitData::Both(ShadeHitDataBoth::new(
                 color,
                 emission,
-                Ray::new(*intersect_info.get_point(), wi),
+                Ray::new(*intersect_info.get_point(), next_ray_dir),
                 sampling_type,
             ))
         } else {
             ShadeHitData::ScatterOnly(ShadeHitDataScatterOnly::new(
                 color,
-                Ray::new(*intersect_info.get_point(), wi),
+                Ray::new(*intersect_info.get_point(), next_ray_dir),
                 sampling_type,
             ))
         }
