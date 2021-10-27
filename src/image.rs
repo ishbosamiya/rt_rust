@@ -48,11 +48,11 @@ impl Image {
 
     pub fn set_pixel(&mut self, i: usize, j: usize, data: glm::DVec3) {
         self.id = rand::random();
-        self.pixels[i * self.width + j] = data;
+        self.pixels[j * self.width + i] = data;
     }
 
     pub fn get_pixel(&self, i: usize, j: usize) -> &glm::DVec3 {
-        &self.pixels[i * self.width + j]
+        &self.pixels[j * self.width + i]
     }
 
     pub fn width(&self) -> usize {
