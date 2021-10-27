@@ -187,7 +187,9 @@ fn main() {
         shader_list
     };
 
-    let scene = Arc::new(RwLock::new(Scene::new()));
+    let mut scene = Scene::new();
+    scene.build_bvh(0.01);
+    let scene = Arc::new(RwLock::new(scene));
     let shader_list = Arc::new(RwLock::new(shader_list));
     let path_trace_camera = Arc::new(RwLock::new(path_trace_camera));
 
