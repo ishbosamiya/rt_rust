@@ -1,6 +1,7 @@
 pub mod bsdf;
 pub mod bsdfs;
 pub mod camera;
+pub mod environment;
 pub mod intersectable;
 pub mod ray;
 pub mod shader_list;
@@ -19,7 +20,6 @@ use std::time::Instant;
 use enumflags2::BitFlags;
 use lazy_static::lazy_static;
 use rayon::prelude::*;
-use rfd::FileDialog;
 
 use crate::glm;
 use crate::image::Image;
@@ -30,8 +30,9 @@ use crate::path_trace::intersectable::Intersectable;
 use crate::path_trace::ray::Ray;
 use crate::progress::Progress;
 use crate::scene::Scene;
-use crate::ui::DrawUI;
 
+use self::environment::Environment;
+use self::environment::EnvironmentShadingData;
 use self::shader_list::Shader;
 use self::shader_list::ShaderList;
 use self::traversal_info::SingleRayInfo;
@@ -83,63 +84,6 @@ impl RayTraceParams {
     /// Get ray trace params's samples_per_pixel.
     pub fn get_samples_per_pixel(&self) -> usize {
         self.samples_per_pixel
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct Environment {
-    hdr: Image,
-    strength: f64,
-}
-
-impl Environment {
-    pub fn new(hdr: Image, strength: f64) -> Self {
-        Self { hdr, strength }
-    }
-
-    /// Get a reference to the environment's hdr.
-    pub fn get_hdr(&self) -> &Image {
-        &self.hdr
-    }
-
-    /// Get environment's strength.
-    pub fn get_strength(&self) -> f64 {
-        self.strength
-    }
-
-    /// Set the environment's strength.
-    pub fn set_strength(&mut self, strength: f64) {
-        self.strength = strength;
-    }
-
-    /// Set the environment's hdr.
-    pub fn set_hdr(&mut self, hdr: Image) {
-        self.hdr = hdr;
-    }
-}
-
-impl DrawUI for Environment {
-    fn draw_ui(&self, _ui: &mut egui::Ui) {}
-
-    fn draw_ui_mut(&mut self, ui: &mut egui::Ui) {
-        ui.add(egui::Slider::new(&mut self.strength, 0.0..=5.0).text("Environment Strength"));
-
-        if ui.button("Load Environment Image").clicked() {
-            if let Some(path) = FileDialog::new()
-                .add_filter("HDR", &["hdr"])
-                .add_filter("Any", &["*"])
-                .set_directory(".")
-                .pick_file()
-            {
-                let hdr = image::codecs::hdr::HdrDecoder::new(std::io::BufReader::new(
-                    std::fs::File::open(path).unwrap(),
-                ))
-                .unwrap();
-                let width = hdr.metadata().width as _;
-                let height = hdr.metadata().height as _;
-                self.hdr = Image::from_vec_rgb_f32(&hdr.read_image_hdr().unwrap(), width, height);
-            }
-        }
     }
 }
 
@@ -453,39 +397,6 @@ pub fn direction_to_equirectangular(dir: &glm::DVec3) -> glm::DVec2 {
             std::f64::consts::PI,
         ),
     )
-}
-
-pub struct EnvironmentShadingData<'a> {
-    hdr: &'a Image,
-    strength: f64,
-}
-
-impl<'a> EnvironmentShadingData<'a> {
-    /// # Safety
-    ///
-    /// In most instances, this structure should be created from
-    /// [`Environment`] instead of creating it manually. It is as
-    /// simple as `environment.into()`.
-    ///
-    pub unsafe fn new(hdr: &'a Image, strength: f64) -> Self {
-        Self { hdr, strength }
-    }
-
-    /// Get a reference to the environment hdr.
-    pub fn get_hdr(&self) -> &'a Image {
-        self.hdr
-    }
-
-    /// Get environment strength.
-    pub fn get_strength(&self) -> f64 {
-        self.strength
-    }
-}
-
-impl<'a> From<&'a Environment> for EnvironmentShadingData<'a> {
-    fn from(env: &'a Environment) -> Self {
-        unsafe { Self::new(env.get_hdr(), env.get_strength()) }
-    }
 }
 
 fn shade_environment(ray: &Ray, environment: &EnvironmentShadingData) -> glm::DVec3 {
