@@ -306,6 +306,47 @@ fn main() {
                     .resizable(true)
                     .show(egui.get_egui_ctx(), |ui| {
                         egui::ScrollArea::auto_sized().show(ui, |ui| {
+                            if ui.button("Load Environment Image").clicked() {
+                                if let Some(path) = FileDialog::new()
+                                    .add_filter("HDR", &["hdr"])
+                                    .add_filter("Any", &["*"])
+                                    .set_directory(".")
+                                    .pick_file()
+                                {
+                                    let hdr = image::codecs::hdr::HdrDecoder::new(
+                                        std::io::BufReader::new(std::fs::File::open(path).unwrap()),
+                                    )
+                                    .unwrap();
+                                    let width = hdr.metadata().width as _;
+                                    let height = hdr.metadata().height as _;
+                                    let image = Image::from_vec_rgb_f32(
+                                        &hdr.read_image_hdr().unwrap(),
+                                        width,
+                                        height,
+                                    );
+
+                                    *environment_image.write().unwrap() = image;
+
+                                    environment_texture
+                                        .borrow_mut()
+                                        .update_from_image(&environment_image.read().unwrap());
+                                }
+                            }
+
+                            ui.label("Environment Image");
+                            let environment_texture_ui_width =
+                                250.0_f32.min(0.3 * window_viewport.get_width() as f32);
+                            ui.image(
+                                egui::TextureId::User(
+                                    environment_texture.borrow().get_gl_tex().into(),
+                                ),
+                                egui::vec2(
+                                    environment_texture_ui_width,
+                                    environment_texture_ui_width
+                                        * environment_texture.borrow().get_height() as f32
+                                        / environment_texture.borrow().get_width() as f32,
+                                ),
+                            );
                             shader_list.read().unwrap().draw_ui(ui);
                             if let Ok(mut shader_list) = shader_list.try_write() {
                                 shader_list.draw_ui_mut(ui);
