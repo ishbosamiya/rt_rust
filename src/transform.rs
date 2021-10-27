@@ -5,8 +5,11 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub struct Transform {
+    /// Location (in meters)
     pub location: glm::DVec3,
+    /// Rotation (in degrees)
     pub rotation: glm::DVec3,
+    /// Scale
     pub scale: glm::DVec3,
 }
 

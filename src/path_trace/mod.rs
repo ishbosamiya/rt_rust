@@ -6,7 +6,6 @@ pub mod intersectable;
 pub mod ray;
 pub mod shader_list;
 pub mod shaders;
-pub mod transform;
 pub mod traversal_info;
 
 use std::sync::atomic::AtomicUsize;

@@ -1,9 +1,7 @@
 use rfd::FileDialog;
 use serde::{Deserialize, Serialize};
 
-use crate::{image::Image, ui::DrawUI};
-
-use super::transform::Transform;
+use crate::{image::Image, transform::Transform, ui::DrawUI};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Environment {

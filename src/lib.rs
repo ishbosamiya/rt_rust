@@ -13,4 +13,5 @@ pub mod sphere;
 pub mod ui;
 pub mod util;
 pub use nalgebra_glm as glm;
+pub mod transform;
 pub mod viewport;
