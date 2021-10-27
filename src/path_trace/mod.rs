@@ -84,14 +84,45 @@ impl RayTraceParams {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct Environment {
+    hdr: Image,
+    strength: f64,
+}
+
+impl Environment {
+    pub fn new(hdr: Image, strength: f64) -> Self {
+        Self { hdr, strength }
+    }
+
+    /// Get a reference to the environment's hdr.
+    pub fn get_hdr(&self) -> &Image {
+        &self.hdr
+    }
+
+    /// Get environment's strength.
+    pub fn get_strength(&self) -> f64 {
+        self.strength
+    }
+
+    /// Set the environment's strength.
+    pub fn set_strength(&mut self, strength: f64) {
+        self.strength = strength;
+    }
+
+    /// Set the environment's hdr.
+    pub fn set_hdr(&mut self, hdr: Image) {
+        self.hdr = hdr;
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 fn ray_trace_scene(
     ray_trace_params: RayTraceParams,
     scene: Arc<RwLock<Scene>>,
     shader_list: Arc<RwLock<ShaderList>>,
     camera: Arc<RwLock<Camera>>,
-    environment_image: Arc<RwLock<Image>>,
-    environment_strength: Arc<RwLock<f64>>,
+    environment: Arc<RwLock<Environment>>,
     rendered_image: Arc<RwLock<Image>>,
     progress: Arc<RwLock<Progress>>,
     stop_render: Arc<RwLock<bool>>,
@@ -119,8 +150,8 @@ fn ray_trace_scene(
 
         let scene = scene.read().unwrap();
         let shader_list = shader_list.read().unwrap();
-        let environment_image = environment_image.read().unwrap();
-        let environment_strength = environment_strength.read().unwrap();
+        let environment: &Environment = &environment.read().unwrap();
+        let environment = environment.into();
         let image_width = image.width();
         image
             .get_pixels_mut()
@@ -171,8 +202,7 @@ fn ray_trace_scene(
                         &scene,
                         ray_trace_params.get_trace_max_depth(),
                         &shader_list,
-                        &environment_image,
-                        *environment_strength,
+                        &environment,
                     );
 
                     **pixel += color;
@@ -224,8 +254,7 @@ pub fn ray_trace_main(
     scene: Arc<RwLock<Scene>>,
     shader_list: Arc<RwLock<ShaderList>>,
     camera: Arc<RwLock<Camera>>,
-    environment_image: Arc<RwLock<Image>>,
-    environment_strength: Arc<RwLock<f64>>,
+    environment: Arc<RwLock<Environment>>,
     rendered_image: Arc<RwLock<Image>>,
     progress: Arc<RwLock<Progress>>,
     message_receiver: Receiver<RayTraceMessage>,
@@ -243,8 +272,7 @@ pub fn ray_trace_main(
                 let scene = scene.clone();
                 let shader_list = shader_list.clone();
                 let camera = camera.clone();
-                let environment_image = environment_image.clone();
-                let environment_strength = environment_strength.clone();
+                let environment = environment.clone();
                 let rendered_image = rendered_image.clone();
                 let progress = progress.clone();
                 let stop_render = stop_render.clone();
@@ -254,8 +282,7 @@ pub fn ray_trace_main(
                         scene,
                         shader_list,
                         camera,
-                        environment_image,
-                        environment_strength,
+                        environment,
                         rendered_image,
                         progress,
                         stop_render,
@@ -401,9 +428,42 @@ pub fn direction_to_equirectangular(dir: &glm::DVec3) -> glm::DVec2 {
     )
 }
 
-fn shade_environment(ray: &Ray, environment_image: &Image, strength: f64) -> glm::DVec3 {
+pub struct EnvironmentShadingData<'a> {
+    hdr: &'a Image,
+    strength: f64,
+}
+
+impl<'a> EnvironmentShadingData<'a> {
+    /// # Safety
+    ///
+    /// In most instances, this structure should be created from
+    /// [`Environment`] instead of creating it manually. It is as
+    /// simple as `environment.into()`.
+    ///
+    pub unsafe fn new(hdr: &'a Image, strength: f64) -> Self {
+        Self { hdr, strength }
+    }
+
+    /// Get a reference to the environment hdr.
+    pub fn get_hdr(&self) -> &'a Image {
+        self.hdr
+    }
+
+    /// Get environment strength.
+    pub fn get_strength(&self) -> f64 {
+        self.strength
+    }
+}
+
+impl<'a> From<&'a Environment> for EnvironmentShadingData<'a> {
+    fn from(env: &'a Environment) -> Self {
+        unsafe { Self::new(env.get_hdr(), env.get_strength()) }
+    }
+}
+
+fn shade_environment(ray: &Ray, environment: &EnvironmentShadingData) -> glm::DVec3 {
     let uv = direction_to_equirectangular(ray.get_direction());
-    *environment_image.get_pixel_uv(&uv) * strength
+    *environment.get_hdr().get_pixel_uv(&uv) * environment.get_strength()
 }
 
 /// Shade the point of intersection when the ray hits an object
@@ -481,8 +541,7 @@ pub fn trace_ray(
     scene: &Scene,
     depth: usize,
     shader_list: &ShaderList,
-    environment_image: &Image,
-    environment_strength: f64,
+    environment: &EnvironmentShadingData,
 ) -> (glm::DVec3, TraversalInfo) {
     if depth == 0 {
         return (glm::zero(), TraversalInfo::new());
@@ -495,7 +554,7 @@ pub fn trace_ray(
                 next_ray,
                 sampling_type: _,
             }) => {
-                let (traced_color, mut traversal_info) = trace_ray(&next_ray, camera, scene, depth - 1, shader_list, environment_image, environment_strength);
+                let (traced_color, mut traversal_info) = trace_ray(&next_ray, camera, scene, depth - 1, shader_list, environment);
                 let val = emission_color
                     + glm::vec3(
                         color[0] * traced_color[0],
@@ -510,7 +569,7 @@ pub fn trace_ray(
                 next_ray,
                 sampling_type: _,
             }) => {
-                let (traced_color, mut traversal_info) = trace_ray(&next_ray, camera, scene, depth - 1, shader_list, environment_image, environment_strength);
+                let (traced_color, mut traversal_info) = trace_ray(&next_ray, camera, scene, depth - 1, shader_list, environment);
                 let val = glm::vec3(
                     color[0] * traced_color[0],
                     color[1] * traced_color[1],
@@ -531,7 +590,7 @@ pub fn trace_ray(
         }
     } else {
         let mut traversal_info = TraversalInfo::new();
-        let color = shade_environment(ray, environment_image, environment_strength);
+        let color = shade_environment(ray, environment);
         traversal_info.add_ray(SingleRayInfo::new(*ray, None, color, None));
         (color, traversal_info)
     }

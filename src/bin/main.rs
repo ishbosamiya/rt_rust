@@ -10,7 +10,7 @@ use rt::path_trace::intersectable::Intersectable;
 use rt::path_trace::ray::Ray;
 use rt::path_trace::shader_list::{ShaderID, ShaderList};
 use rt::path_trace::traversal_info::{TraversalInfo, TraversalInfoDrawData};
-use rt::path_trace::{self, RayTraceMessage, RayTraceParams};
+use rt::path_trace::{self, Environment, RayTraceMessage, RayTraceParams};
 use rt::progress::Progress;
 use rt::rasterize::gpu_utils::draw_plane_with_image;
 use rt::rasterize::texture::TextureRGBAFloat;
@@ -199,10 +199,9 @@ fn main() {
     let rendered_texture = Rc::new(RefCell::new(TextureRGBAFloat::from_image(
         &rendered_image.read().unwrap(),
     )));
-    let environment_image = Arc::new(RwLock::new(Image::new(100, 30)));
-    let environment_strength = Arc::new(RwLock::new(1.0));
+    let environment = Arc::new(RwLock::new(Environment::new(Image::new(100, 30), 1.0)));
     let environment_texture = Rc::new(RefCell::new(TextureRGBAFloat::from_image(
-        &environment_image.read().unwrap(),
+        environment.read().unwrap().get_hdr(),
     )));
 
     // Spawn the main ray tracing thread
@@ -211,8 +210,7 @@ fn main() {
         let scene = scene.clone();
         let shader_list = shader_list.clone();
         let camera = path_trace_camera.clone();
-        let environment_image = environment_image.clone();
-        let environment_strength = environment_strength.clone();
+        let environment = environment.clone();
         let rendered_image = rendered_image.clone();
         let path_trace_progress = path_trace_progress.clone();
         thread::spawn(move || {
@@ -220,8 +218,7 @@ fn main() {
                 scene,
                 shader_list,
                 camera,
-                environment_image,
-                environment_strength,
+                environment,
                 rendered_image,
                 path_trace_progress,
                 ray_trace_thread_receiver,
@@ -311,15 +308,15 @@ fn main() {
                         egui::ScrollArea::auto_sized().show(ui, |ui| {
                             let new_environment_strength = {
                                 let mut environment_strength =
-                                    *environment_strength.read().unwrap();
+                                    environment.read().unwrap().get_strength();
                                 ui.add(
                                     egui::Slider::new(&mut environment_strength, 0.0..=5.0)
                                         .text("Environment Strength"),
                                 );
                                 environment_strength
                             };
-                            if let Ok(mut environment_strength) = environment_strength.try_write() {
-                                *environment_strength = new_environment_strength;
+                            if let Ok(mut environment) = environment.try_write() {
+                                environment.set_strength(new_environment_strength);
                             }
 
                             if ui.button("Load Environment Image").clicked() {
@@ -341,11 +338,13 @@ fn main() {
                                         height,
                                     );
 
-                                    *environment_image.write().unwrap() = image;
+                                    if let Ok(mut environment) = environment.try_write() {
+                                        environment.set_hdr(image);
+                                    }
 
                                     environment_texture
                                         .borrow_mut()
-                                        .update_from_image(&environment_image.read().unwrap());
+                                        .update_from_image(environment.read().unwrap().get_hdr());
                                 }
                             }
 
@@ -704,14 +703,15 @@ fn main() {
 
                                         let ray = path_trace_camera.get_ray(u, v);
 
+                                        let environment: &Environment =
+                                            &environment.read().unwrap();
                                         let (_color, traversal_info) = path_trace::trace_ray(
                                             &ray,
                                             &path_trace_camera,
                                             &scene.read().unwrap(),
                                             trace_max_depth,
                                             &shader_list.read().unwrap(),
-                                            &environment_image.read().unwrap(),
-                                            *environment_strength.read().unwrap(),
+                                            &environment.into(),
                                         );
                                         ray_traversal_info.push(traversal_info);
                                     }
@@ -881,14 +881,14 @@ fn main() {
 
             // trace ray into scene from the rasterizer camera
             // position to get the first hitpoint
+            let environment: &Environment = &environment.read().unwrap();
             let (_color, traversal_info) = path_trace::trace_ray(
                 &Ray::new(camera.get_position(), ray_direction),
                 &path_trace_camera,
                 &scene.read().unwrap(),
                 1,
                 &shader_list.read().unwrap(),
-                &environment_image.read().unwrap(),
-                *environment_strength.read().unwrap(),
+                &environment.into(),
             );
 
             // generate the new ray from the path_trace_camera's
@@ -908,8 +908,7 @@ fn main() {
                 &scene.read().unwrap(),
                 trace_max_depth,
                 &shader_list.read().unwrap(),
-                &environment_image.read().unwrap(),
-                *environment_strength.read().unwrap(),
+                &environment.into(),
             );
 
             scene.write().unwrap().unapply_model_matrices();
