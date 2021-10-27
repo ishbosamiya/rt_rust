@@ -325,20 +325,21 @@ fn main() {
                             environment_texture
                                 .borrow_mut()
                                 .update_from_image(environment.read().unwrap().get_hdr());
-                            ui.label("Environment Image");
-                            let environment_texture_ui_width =
-                                250.0_f32.min(0.3 * window_viewport.get_width() as f32);
-                            ui.image(
-                                egui::TextureId::User(
-                                    environment_texture.borrow().get_gl_tex().into(),
-                                ),
-                                egui::vec2(
-                                    environment_texture_ui_width,
-                                    environment_texture_ui_width
-                                        * environment_texture.borrow().get_height() as f32
-                                        / environment_texture.borrow().get_width() as f32,
-                                ),
-                            );
+                            ui.collapsing("Environment Image", |ui| {
+                                let environment_texture_ui_width =
+                                    250.0_f32.min(0.3 * window_viewport.get_width() as f32);
+                                ui.image(
+                                    egui::TextureId::User(
+                                        environment_texture.borrow().get_gl_tex().into(),
+                                    ),
+                                    egui::vec2(
+                                        environment_texture_ui_width,
+                                        environment_texture_ui_width
+                                            * environment_texture.borrow().get_height() as f32
+                                            / environment_texture.borrow().get_width() as f32,
+                                    ),
+                                );
+                            });
 
                             ui.separator();
 

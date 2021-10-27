@@ -85,8 +85,10 @@ impl DrawUI for Environment {
             }
         }
 
-        self.transform.draw_ui(ui);
-        self.transform.draw_ui_mut(ui);
+        ui.collapsing("Environment Transform", |ui| {
+            self.transform.draw_ui(ui);
+            self.transform.draw_ui_mut(ui);
+        });
     }
 }
 

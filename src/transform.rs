@@ -24,9 +24,7 @@ impl Default for Transform {
 }
 
 impl DrawUI for Transform {
-    fn draw_ui(&self, ui: &mut egui::Ui) {
-        ui.label("Transformations");
-    }
+    fn draw_ui(&self, _ui: &mut egui::Ui) {}
 
     fn draw_ui_mut(&mut self, ui: &mut egui::Ui) {
         // For Location
