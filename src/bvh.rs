@@ -781,6 +781,12 @@ where
     pub fn balance(&mut self) {
         assert_eq!(self.totbranch, 0);
 
+        if self.totleaf == 0 {
+            // no need to balance the bvh when there are no elements
+            // in the bvh
+            return;
+        }
+
         self.non_recursive_bvh_div_nodes(self.totleaf - 1, self.totleaf);
 
         self.totbranch = implicit_needed_branches(self.tree_type, self.totleaf);
@@ -863,6 +869,12 @@ where
     /// `update_node()`, `update_tree()` updates the other nodes of
     /// the tree.
     pub fn update_tree(&mut self) {
+        if self.totleaf == 0 {
+            // no need to balance the bvh when there are no elements
+            // in the bvh
+            return;
+        }
+
         let root_start = self.totleaf;
         let mut index = self.totleaf + self.totbranch - 1;
 
@@ -1020,6 +1032,11 @@ where
     where
         F: Fn(T, T) -> bool,
     {
+        if self.totleaf == 0 {
+            // no elements so no overlap possible
+            return None;
+        }
+
         // TODO(ish): add multithreading support
         let use_threading = false;
         let root_node_len = self.overlap_thread_num();
@@ -1149,6 +1166,7 @@ where
         F: Fn((&glm::DVec3, &glm::DVec3), T) -> Option<RayHitData<T, ExtraData>>,
     {
         if self.totleaf == 0 {
+            // no elements so no ray intersection possible
             return None;
         }
 
@@ -1320,6 +1338,11 @@ where
     type Error = ();
 
     fn draw(&self, draw_data: &mut BVHDrawData) -> Result<(), ()> {
+        if self.totleaf == 0 {
+            // no nodes to draw
+            return Ok(());
+        }
+
         let imm = &mut draw_data.imm.borrow_mut();
         let smooth_color_3d_shader = shader::builtins::get_smooth_color_3d_shader()
             .as_ref()
