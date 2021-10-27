@@ -6,6 +6,7 @@ pub mod intersectable;
 pub mod ray;
 pub mod shader_list;
 pub mod shaders;
+pub mod transform;
 pub mod traversal_info;
 
 use std::sync::atomic::AtomicUsize;
@@ -28,8 +29,10 @@ use crate::path_trace::camera::Camera;
 use crate::path_trace::intersectable::IntersectInfo;
 use crate::path_trace::intersectable::Intersectable;
 use crate::path_trace::ray::Ray;
+use crate::path_trace::transform::Transform;
 use crate::progress::Progress;
 use crate::scene::Scene;
+use crate::util;
 
 use self::environment::Environment;
 use self::environment::EnvironmentShadingData;
@@ -401,6 +404,10 @@ pub fn direction_to_equirectangular(dir: &glm::DVec3) -> glm::DVec2 {
 
 fn shade_environment(ray: &Ray, environment: &EnvironmentShadingData) -> glm::DVec3 {
     let uv = direction_to_equirectangular(ray.get_direction());
+    let trans: Transform = Default::default();
+    let transform_matrix = trans.get_matrix();
+    // Apply matrix (Re Check Formula)
+    // let uv = glm::vec3_to_vec2(&util::vec2_apply_model_matrix(&uv, &transform_matrix));
     *environment.get_hdr().get_pixel_uv(&uv) * environment.get_strength()
 }
 
