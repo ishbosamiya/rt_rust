@@ -60,6 +60,10 @@ impl BSDF for Lambert {
     fn get_bsdf_name(&self) -> &str {
         "Lambert"
     }
+
+    fn get_base_color(&self) -> glm::DVec3 {
+        glm::vec4_to_vec3(&self.color)
+    }
 }
 
 impl DrawUI for Lambert {

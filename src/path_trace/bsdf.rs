@@ -77,4 +77,6 @@ pub trait BSDF: DrawUI {
     }
 
     fn get_bsdf_name(&self) -> &str;
+
+    fn get_base_color(&self) -> glm::DVec3;
 }

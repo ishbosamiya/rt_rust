@@ -4,6 +4,7 @@ use std::{
 };
 
 use crate::ui::DrawUI;
+use crate::{glm, ui};
 
 use super::bsdf::BSDF;
 use super::shaders::ShaderType;
@@ -35,6 +36,12 @@ pub trait Shader: Debug + Sync + Send {
     fn get_shader_name_mut(&mut self) -> &mut String;
     /// Get reference to the name of the shader
     fn get_shader_name(&self) -> &String;
+
+    /// Get reference shader's viewport color for the object
+    fn get_viewport_color(&self) -> &glm::DVec3;
+    /// Get mutable reference to shader's viewport color for the
+    /// object
+    fn get_viewport_color_mut(&mut self) -> &mut glm::DVec3;
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -155,6 +162,18 @@ impl DrawUI for ShaderList {
 
                 shader.get_bsdf().draw_ui(ui);
                 shader.get_bsdf_mut().draw_ui_mut(ui);
+
+                ui.horizontal_wrapped(|ui| {
+                    ui::color_edit_button_dvec3(
+                        ui,
+                        "Viewport Color",
+                        shader.get_viewport_color_mut(),
+                    );
+
+                    if ui.button("From BSDF").clicked() {
+                        *shader.get_viewport_color_mut() = shader.get_bsdf().get_base_color();
+                    }
+                });
 
                 ui.separator();
             });

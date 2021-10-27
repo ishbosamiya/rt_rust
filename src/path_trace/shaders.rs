@@ -2,8 +2,10 @@ use std::fmt::Display;
 use std::sync::Mutex;
 
 use lazy_static::lazy_static;
+use paste::paste;
 use serde::{Deserialize, Serialize};
 
+use crate::glm;
 use crate::path_trace::{
     bsdf::BSDF,
     bsdfs,
@@ -38,14 +40,29 @@ impl Iterator for NameGen {
     }
 }
 
+macro_rules! DefineShader {
+    ( $shader_name:ident, $bsdf:ty, $default_viewport_color:literal ) => {
+        #[derive(Debug, Clone, Serialize, Deserialize)]
+        pub struct $shader_name {
+            bsdf: $bsdf,
+            shader_id: Option<ShaderID>,
+            name: String,
+
+            #[serde(default = $default_viewport_color)]
+            viewport_color: glm::DVec3,
+        }
+    };
+}
+
 macro_rules! ShaderFromBSDF {
     ( $( $shader_name:ident, $bsdf:ty ); *) => {
         $(
-            #[derive(Debug, Clone, Serialize, Deserialize)]
-            pub struct $shader_name {
-                bsdf: $bsdf,
-                shader_id: Option<ShaderID>,
-                name: String,
+            paste! {
+                DefineShader!($shader_name, $bsdf, stringify!([<default_ $shader_name:lower _viewport_color>]));
+
+                fn [<default_ $shader_name _viewport_color>]() -> glm::DVec3 {
+                    glm::zero()
+                }
             }
 
             impl $shader_name {
@@ -54,6 +71,7 @@ macro_rules! ShaderFromBSDF {
                         bsdf,
                         shader_id: None,
                         name: SHADER_NAME_GEN.lock().unwrap().next().unwrap(),
+                        viewport_color: bsdf.get_base_color(),
                     }
                 }
             }
@@ -89,6 +107,14 @@ macro_rules! ShaderFromBSDF {
 
                 fn get_shader_name(&self) -> &String {
                     &self.name
+                }
+
+                fn get_viewport_color(&self) -> &glm::DVec3 {
+                    &self.viewport_color
+                }
+
+                fn get_viewport_color_mut(&mut self) -> &mut glm::DVec3 {
+                    &mut self.viewport_color
                 }
             }
         )*
