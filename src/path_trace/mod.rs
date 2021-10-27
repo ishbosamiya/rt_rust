@@ -29,7 +29,6 @@ use crate::path_trace::camera::Camera;
 use crate::path_trace::intersectable::IntersectInfo;
 use crate::path_trace::intersectable::Intersectable;
 use crate::path_trace::ray::Ray;
-use crate::path_trace::transform::Transform;
 use crate::progress::Progress;
 use crate::scene::Scene;
 use crate::util;
@@ -403,11 +402,12 @@ pub fn direction_to_equirectangular(dir: &glm::DVec3) -> glm::DVec2 {
 }
 
 fn shade_environment(ray: &Ray, environment: &EnvironmentShadingData) -> glm::DVec3 {
-    let uv = direction_to_equirectangular(ray.get_direction());
-    let trans: Transform = Default::default();
-    let transform_matrix = trans.get_matrix();
-    // Apply matrix (Re Check Formula)
-    // let uv = glm::vec3_to_vec2(&util::vec2_apply_model_matrix(&uv, &transform_matrix));
+    let transformed_direction = util::vec3_apply_model_matrix(
+        ray.get_direction(),
+        &environment.get_transform().get_matrix(),
+    );
+
+    let uv = direction_to_equirectangular(&transformed_direction);
     *environment.get_hdr().get_pixel_uv(&uv) * environment.get_strength()
 }
 

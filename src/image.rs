@@ -78,17 +78,13 @@ impl Image {
 
     /// Get the pixel from the specified UV coordinates
     ///
-    /// # Panics
-    ///
-    /// User must ensure provided UVs are between 0.0 and 1.0, will
-    /// panic otherwise. This is currently the case since wrapping
-    /// methods are currently not supported.
+    /// Wrapping mode is set to repeat. TODO: need to make wrapping
+    /// mode user definable
     ///
     /// UV bottom left is (0.0, 0.0) and top right is (1.0, 1.0), same
     /// as OpenGL
     pub fn get_pixel_uv(&self, uv: &glm::DVec2) -> &glm::DVec3 {
-        assert!(uv[0] >= 0.0 && uv[0] <= 1.0);
-        assert!(uv[1] >= 0.0 && uv[1] <= 1.0);
+        let uv = glm::vec2(uv[0] % 1.0, uv[1] % 1.0);
 
         self.get_pixel(
             (uv[0] * self.width as f64) as _,

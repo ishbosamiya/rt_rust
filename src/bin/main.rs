@@ -10,7 +10,6 @@ use rt::path_trace::environment::Environment;
 use rt::path_trace::intersectable::Intersectable;
 use rt::path_trace::ray::Ray;
 use rt::path_trace::shader_list::{ShaderID, ShaderList};
-use rt::path_trace::transform::Transform;
 use rt::path_trace::traversal_info::{TraversalInfo, TraversalInfoDrawData};
 use rt::path_trace::{self, RayTraceMessage, RayTraceParams};
 use rt::progress::Progress;
@@ -340,11 +339,6 @@ fn main() {
                                         / environment_texture.borrow().get_width() as f32,
                                 ),
                             );
-
-                            ui.separator();
-                            // TODO: Add object for Transform as part of function
-                            let trans: Transform = Default::default();
-                            trans.draw_ui_mut(ui);
 
                             ui.separator();
 
