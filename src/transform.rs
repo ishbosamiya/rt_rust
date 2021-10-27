@@ -28,19 +28,25 @@ impl DrawUI for Transform {
 
     fn draw_ui_mut(&mut self, ui: &mut egui::Ui) {
         // For Location
-        ui.add(egui::Slider::new(&mut self.location[0], -10.0..=10.0).text("Location-X"));
-        ui.add(egui::Slider::new(&mut self.location[1], -10.0..=10.0).text("Location-Y"));
-        ui.add(egui::Slider::new(&mut self.location[2], -10.0..=10.0).text("Location-Z"));
+        ui.collapsing("Location", |ui| {
+            ui.add(egui::Slider::new(&mut self.location[0], -10.0..=10.0).text("X"));
+            ui.add(egui::Slider::new(&mut self.location[1], -10.0..=10.0).text("Y"));
+            ui.add(egui::Slider::new(&mut self.location[2], -10.0..=10.0).text("Z"));
+        });
 
         // For Rotation
-        ui.add(egui::Slider::new(&mut self.rotation[0], 0.0..=360.0).text("Rotation-X"));
-        ui.add(egui::Slider::new(&mut self.rotation[1], 0.0..=360.0).text("Rotation-Y"));
-        ui.add(egui::Slider::new(&mut self.rotation[2], 0.0..=360.0).text("Rotation-Z"));
+        ui.collapsing("Rotation", |ui| {
+            ui.add(egui::Slider::new(&mut self.rotation[0], 0.0..=360.0).text("X"));
+            ui.add(egui::Slider::new(&mut self.rotation[1], 0.0..=360.0).text("Y"));
+            ui.add(egui::Slider::new(&mut self.rotation[2], 0.0..=360.0).text("Z"));
+        });
 
         // For Scale
-        ui.add(egui::Slider::new(&mut self.scale[0], 0.0..=10.0).text("Scale-X"));
-        ui.add(egui::Slider::new(&mut self.scale[1], 0.0..=10.0).text("Scale-Y"));
-        ui.add(egui::Slider::new(&mut self.scale[2], 0.0..=10.0).text("Scale-Z"));
+        ui.collapsing("Scaling", |ui| {
+            ui.add(egui::Slider::new(&mut self.scale[0], 0.0..=10.0).text("X"));
+            ui.add(egui::Slider::new(&mut self.scale[1], 0.0..=10.0).text("Y"));
+            ui.add(egui::Slider::new(&mut self.scale[2], 0.0..=10.0).text("Z"));
+        });
     }
 }
 
