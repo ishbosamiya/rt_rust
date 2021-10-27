@@ -306,48 +306,15 @@ fn main() {
                     .resizable(true)
                     .show(egui.get_egui_ctx(), |ui| {
                         egui::ScrollArea::auto_sized().show(ui, |ui| {
-                            let new_environment_strength = {
-                                let mut environment_strength =
-                                    environment.read().unwrap().get_strength();
-                                ui.add(
-                                    egui::Slider::new(&mut environment_strength, 0.0..=5.0)
-                                        .text("Environment Strength"),
-                                );
-                                environment_strength
-                            };
+                            environment.read().unwrap().draw_ui(ui);
                             if let Ok(mut environment) = environment.try_write() {
-                                environment.set_strength(new_environment_strength);
+                                environment.draw_ui_mut(ui);
+                            } else {
+                                ui.label("Environment currently in use, cannot edit environment");
                             }
-
-                            if ui.button("Load Environment Image").clicked() {
-                                if let Some(path) = FileDialog::new()
-                                    .add_filter("HDR", &["hdr"])
-                                    .add_filter("Any", &["*"])
-                                    .set_directory(".")
-                                    .pick_file()
-                                {
-                                    let hdr = image::codecs::hdr::HdrDecoder::new(
-                                        std::io::BufReader::new(std::fs::File::open(path).unwrap()),
-                                    )
-                                    .unwrap();
-                                    let width = hdr.metadata().width as _;
-                                    let height = hdr.metadata().height as _;
-                                    let image = Image::from_vec_rgb_f32(
-                                        &hdr.read_image_hdr().unwrap(),
-                                        width,
-                                        height,
-                                    );
-
-                                    if let Ok(mut environment) = environment.try_write() {
-                                        environment.set_hdr(image);
-                                    }
-
-                                    environment_texture
-                                        .borrow_mut()
-                                        .update_from_image(environment.read().unwrap().get_hdr());
-                                }
-                            }
-
+                            environment_texture
+                                .borrow_mut()
+                                .update_from_image(environment.read().unwrap().get_hdr());
                             ui.label("Environment Image");
                             let environment_texture_ui_width =
                                 250.0_f32.min(0.3 * window_viewport.get_width() as f32);
@@ -362,6 +329,9 @@ fn main() {
                                         / environment_texture.borrow().get_width() as f32,
                                 ),
                             );
+
+                            ui.separator();
+
                             shader_list.read().unwrap().draw_ui(ui);
                             if let Ok(mut shader_list) = shader_list.try_write() {
                                 shader_list.draw_ui_mut(ui);

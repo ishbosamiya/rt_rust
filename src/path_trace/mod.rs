@@ -19,6 +19,7 @@ use std::time::Instant;
 use enumflags2::BitFlags;
 use lazy_static::lazy_static;
 use rayon::prelude::*;
+use rfd::FileDialog;
 
 use crate::glm;
 use crate::image::Image;
@@ -29,6 +30,7 @@ use crate::path_trace::intersectable::Intersectable;
 use crate::path_trace::ray::Ray;
 use crate::progress::Progress;
 use crate::scene::Scene;
+use crate::ui::DrawUI;
 
 use self::shader_list::Shader;
 use self::shader_list::ShaderList;
@@ -113,6 +115,31 @@ impl Environment {
     /// Set the environment's hdr.
     pub fn set_hdr(&mut self, hdr: Image) {
         self.hdr = hdr;
+    }
+}
+
+impl DrawUI for Environment {
+    fn draw_ui(&self, _ui: &mut egui::Ui) {}
+
+    fn draw_ui_mut(&mut self, ui: &mut egui::Ui) {
+        ui.add(egui::Slider::new(&mut self.strength, 0.0..=5.0).text("Environment Strength"));
+
+        if ui.button("Load Environment Image").clicked() {
+            if let Some(path) = FileDialog::new()
+                .add_filter("HDR", &["hdr"])
+                .add_filter("Any", &["*"])
+                .set_directory(".")
+                .pick_file()
+            {
+                let hdr = image::codecs::hdr::HdrDecoder::new(std::io::BufReader::new(
+                    std::fs::File::open(path).unwrap(),
+                ))
+                .unwrap();
+                let width = hdr.metadata().width as _;
+                let height = hdr.metadata().height as _;
+                self.hdr = Image::from_vec_rgb_f32(&hdr.read_image_hdr().unwrap(), width, height);
+            }
+        }
     }
 }
 
