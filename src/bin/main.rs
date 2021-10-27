@@ -3,7 +3,7 @@ use rfd::FileDialog;
 use rt::image::{Image, PPM};
 use rt::meshio::MeshIO;
 use rt::object::objects::Mesh as MeshObject;
-use rt::object::{Object, ObjectDrawData};
+use rt::object::Object;
 use rt::path_trace::camera::Camera as PathTraceCamera;
 use rt::path_trace::camera::CameraDrawData as PathTraceCameraDrawData;
 use rt::path_trace::environment::Environment;
@@ -15,7 +15,7 @@ use rt::path_trace::{self, RayTraceMessage, RayTraceParams};
 use rt::progress::Progress;
 use rt::rasterize::gpu_utils::draw_plane_with_image;
 use rt::rasterize::texture::TextureRGBAFloat;
-use rt::scene::Scene;
+use rt::scene::{Scene, SceneDrawData};
 use rt::ui::DrawUI;
 use rt::viewport::Viewport;
 use rt::{glm, ui};
@@ -824,7 +824,7 @@ fn main() {
         scene
             .read()
             .unwrap()
-            .draw(&mut ObjectDrawData::new(imm.clone()))
+            .draw(&mut SceneDrawData::new(imm.clone(), shader_list.clone()))
             .unwrap();
 
         // drawing ray traversal info if needed

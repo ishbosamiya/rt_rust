@@ -2,7 +2,6 @@ use std::fmt::Display;
 use std::sync::Mutex;
 
 use lazy_static::lazy_static;
-use paste::paste;
 use serde::{Deserialize, Serialize};
 
 use crate::glm;
@@ -40,29 +39,17 @@ impl Iterator for NameGen {
     }
 }
 
-macro_rules! DefineShader {
-    ( $shader_name:ident, $bsdf:ty, $default_viewport_color:literal ) => {
-        #[derive(Debug, Clone, Serialize, Deserialize)]
-        pub struct $shader_name {
-            bsdf: $bsdf,
-            shader_id: Option<ShaderID>,
-            name: String,
-
-            #[serde(default = $default_viewport_color)]
-            viewport_color: glm::DVec3,
-        }
-    };
-}
-
 macro_rules! ShaderFromBSDF {
-    ( $( $shader_name:ident, $bsdf:ty ); *) => {
+    ( $default_viewport_color:literal, $( $shader_name:ident, $bsdf:ty ); *) => {
         $(
-            paste! {
-                DefineShader!($shader_name, $bsdf, stringify!([<default_ $shader_name:lower _viewport_color>]));
+            #[derive(Debug, Clone, Serialize, Deserialize)]
+            pub struct $shader_name {
+                bsdf: $bsdf,
+                shader_id: Option<ShaderID>,
+                name: String,
 
-                fn [<default_ $shader_name _viewport_color>]() -> glm::DVec3 {
-                    glm::zero()
-                }
+                #[serde(default = $default_viewport_color)]
+                viewport_color: glm::DVec3,
             }
 
             impl $shader_name {
@@ -158,7 +145,12 @@ macro_rules! ShaderFromBSDF {
     };
 }
 
-ShaderFromBSDF!(Lambert, bsdfs::lambert::Lambert;
+fn default_viewport_color() -> glm::DVec3 {
+    glm::zero()
+}
+
+ShaderFromBSDF!("default_viewport_color",
+                Lambert, bsdfs::lambert::Lambert;
                 Glossy, bsdfs::glossy::Glossy;
                 Emissive, bsdfs::emissive::Emissive;
                 Blinnphong, bsdfs::blinnphong::Blinnphong);

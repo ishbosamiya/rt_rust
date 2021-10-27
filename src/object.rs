@@ -45,13 +45,17 @@ pub struct ObjectDrawData {
     ///
     /// TODO: need to find a better way to handle this.
     use_model_matrix: bool,
+
+    /// Color of object
+    viewport_color: glm::DVec4,
 }
 
 impl ObjectDrawData {
-    pub fn new(imm: Rc<RefCell<GPUImmediate>>) -> Self {
+    pub fn new(imm: Rc<RefCell<GPUImmediate>>, viewport_color: glm::DVec4) -> Self {
         Self {
             imm,
             use_model_matrix: true,
+            viewport_color,
         }
     }
 
@@ -62,6 +66,10 @@ impl ObjectDrawData {
     /// details on why this needs to exist.
     pub unsafe fn set_use_model_matrix(&mut self, use_model_matrix: bool) {
         self.use_model_matrix = use_model_matrix;
+    }
+
+    pub fn set_viewport_color(&mut self, viewport_color: glm::DVec4) {
+        self.viewport_color = viewport_color;
     }
 }
 
@@ -166,7 +174,7 @@ pub mod objects {
                     .draw(&mut SphereDrawData::new(
                         extra_data.imm.clone(),
                         model,
-                        self.outside_color,
+                        glm::convert(extra_data.viewport_color),
                         self.inside_color,
                     ))
                     .map_err(|_error| DrawError::Sphere(()))?;
@@ -328,7 +336,9 @@ pub mod objects {
                 self.data
                     .draw(&mut MeshDrawData::new(
                         extra_data.imm.clone(),
-                        self.use_shader,
+                        MeshUseShader::DirectionalLight {
+                            color: glm::vec4_to_vec3(&extra_data.viewport_color),
+                        },
                         self.bvh_draw_data,
                     ))
                     .map_err(DrawError::Mesh)

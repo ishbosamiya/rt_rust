@@ -1,3 +1,7 @@
+use std::cell::RefCell;
+use std::rc::Rc;
+use std::sync::{Arc, RwLock};
+
 use crate::bvh::BVHTree;
 #[cfg(not(feature = "scene_no_bvh"))]
 use crate::bvh::{RayHitData, RayHitOptionalData};
@@ -6,7 +10,9 @@ use crate::glm;
 use crate::object::{DrawError, Object, ObjectDrawData, ObjectID};
 use crate::path_trace::intersectable::{IntersectInfo, Intersectable};
 use crate::path_trace::ray::Ray;
+use crate::path_trace::shader_list::ShaderList;
 use crate::rasterize::drawable::Drawable;
+use crate::rasterize::gpu_immediate::GPUImmediate;
 
 use serde::{Deserialize, Serialize};
 
@@ -188,17 +194,41 @@ impl Intersectable for Scene {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct SceneDrawData {
+    imm: Rc<RefCell<GPUImmediate>>,
+    shader_list: Arc<RwLock<ShaderList>>,
+}
+
+impl SceneDrawData {
+    pub fn new(imm: Rc<RefCell<GPUImmediate>>, shader_list: Arc<RwLock<ShaderList>>) -> Self {
+        Self { imm, shader_list }
+    }
+}
+
 impl Drawable for Scene {
-    type ExtraData = ObjectDrawData;
+    type ExtraData = SceneDrawData;
     type Error = DrawError;
 
     fn draw(&self, extra_data: &mut Self::ExtraData) -> Result<(), DrawError> {
+        let shader_list = extra_data.shader_list.read().unwrap();
+        let mut object_draw_data = ObjectDrawData::new(extra_data.imm.clone(), glm::zero());
         unsafe {
-            extra_data.set_use_model_matrix(!self.model_matrices_applied);
+            object_draw_data.set_use_model_matrix(!self.model_matrices_applied);
         }
-        self.get_objects()
-            .iter()
-            .try_for_each(|object| object.draw(extra_data))?;
+        self.get_objects().iter().try_for_each(|object| {
+            let viewport_color = object
+                .get_path_trace_shader_id()
+                .and_then(|shader_id| shader_list.get_shader(shader_id))
+                .map_or_else(glm::zero, |shader| *shader.get_viewport_color());
+            object_draw_data.set_viewport_color(glm::vec4(
+                viewport_color[0],
+                viewport_color[1],
+                viewport_color[2],
+                1.0,
+            ));
+            object.draw(&mut object_draw_data)
+        })?;
         Ok(())
     }
 }
