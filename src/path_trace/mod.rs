@@ -84,11 +84,13 @@ impl RayTraceParams {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn ray_trace_scene(
     ray_trace_params: RayTraceParams,
     scene: Arc<RwLock<Scene>>,
     shader_list: Arc<RwLock<ShaderList>>,
     camera: Arc<RwLock<Camera>>,
+    environment_image: Arc<RwLock<Image>>,
     rendered_image: Arc<RwLock<Image>>,
     progress: Arc<RwLock<Progress>>,
     stop_render: Arc<RwLock<bool>>,
@@ -116,6 +118,7 @@ fn ray_trace_scene(
 
         let scene = scene.read().unwrap();
         let shader_list = shader_list.read().unwrap();
+        let environment_image = environment_image.read().unwrap();
         let image_width = image.width();
         image
             .get_pixels_mut()
@@ -166,6 +169,7 @@ fn ray_trace_scene(
                         &scene,
                         ray_trace_params.get_trace_max_depth(),
                         &shader_list,
+                        &environment_image,
                     );
 
                     **pixel += color;
@@ -217,6 +221,7 @@ pub fn ray_trace_main(
     scene: Arc<RwLock<Scene>>,
     shader_list: Arc<RwLock<ShaderList>>,
     camera: Arc<RwLock<Camera>>,
+    environment_image: Arc<RwLock<Image>>,
     rendered_image: Arc<RwLock<Image>>,
     progress: Arc<RwLock<Progress>>,
     message_receiver: Receiver<RayTraceMessage>,
@@ -234,6 +239,7 @@ pub fn ray_trace_main(
                 let scene = scene.clone();
                 let shader_list = shader_list.clone();
                 let camera = camera.clone();
+                let environment_image = environment_image.clone();
                 let rendered_image = rendered_image.clone();
                 let progress = progress.clone();
                 let stop_render = stop_render.clone();
@@ -243,6 +249,7 @@ pub fn ray_trace_main(
                         scene,
                         shader_list,
                         camera,
+                        environment_image,
                         rendered_image,
                         progress,
                         stop_render,
@@ -369,17 +376,28 @@ impl ShadeHitDataEmissionOnly {
     }
 }
 
-fn shade_environment(ray: &Ray, camera: &Camera) -> glm::DVec3 {
-    let color_1 = glm::vec3(0.8, 0.8, 0.8);
-    let color_2 = glm::vec3(0.2, 0.2, 0.8);
+pub fn direction_to_equirectangular_range(dir: &glm::DVec3, range: &glm::DVec4) -> glm::DVec2 {
+    let u = (-dir[2].atan2(dir[0]) - range[1]) / range[0];
+    let v = ((dir[1] / dir.norm()).acos() - range[3]) / range[2];
 
-    let camera_origin_y = camera.get_origin()[1];
-    let camera_vertical_range = camera.get_vertical()[1];
-    let y_val = (camera_origin_y + ray.get_direction()[1]) / camera_vertical_range;
-    let y_val = (y_val + 1.0) / 2.0;
-    let y_val = y_val.clamp(0.0, 1.0);
+    glm::vec2(u, v)
+}
 
-    glm::lerp(&color_1, &color_2, y_val)
+pub fn direction_to_equirectangular(dir: &glm::DVec3) -> glm::DVec2 {
+    direction_to_equirectangular_range(
+        dir,
+        &glm::vec4(
+            -std::f64::consts::TAU,
+            std::f64::consts::PI,
+            -std::f64::consts::PI,
+            std::f64::consts::PI,
+        ),
+    )
+}
+
+fn shade_environment(ray: &Ray, environment_image: &Image) -> glm::DVec3 {
+    let uv = direction_to_equirectangular(ray.get_direction());
+    *environment_image.get_pixel_uv(&uv)
 }
 
 /// Shade the point of intersection when the ray hits an object
@@ -457,6 +475,7 @@ pub fn trace_ray(
     scene: &Scene,
     depth: usize,
     shader_list: &ShaderList,
+    environment_image: &Image,
 ) -> (glm::DVec3, TraversalInfo) {
     if depth == 0 {
         return (glm::zero(), TraversalInfo::new());
@@ -469,7 +488,7 @@ pub fn trace_ray(
                 next_ray,
                 sampling_type: _,
             }) => {
-                let (traced_color, mut traversal_info) = trace_ray(&next_ray, camera, scene, depth - 1, shader_list);
+                let (traced_color, mut traversal_info) = trace_ray(&next_ray, camera, scene, depth - 1, shader_list, environment_image);
                 let val = emission_color
                     + glm::vec3(
                         color[0] * traced_color[0],
@@ -484,7 +503,7 @@ pub fn trace_ray(
                 next_ray,
                 sampling_type: _,
             }) => {
-                let (traced_color, mut traversal_info) = trace_ray(&next_ray, camera, scene, depth - 1, shader_list);
+                let (traced_color, mut traversal_info) = trace_ray(&next_ray, camera, scene, depth - 1, shader_list, environment_image);
                 let val = glm::vec3(
                     color[0] * traced_color[0],
                     color[1] * traced_color[1],
@@ -505,7 +524,7 @@ pub fn trace_ray(
         }
     } else {
         let mut traversal_info = TraversalInfo::new();
-        let color = shade_environment(ray, camera);
+        let color = shade_environment(ray, environment_image);
         traversal_info.add_ray(SingleRayInfo::new(*ray, None, color, None));
         (color, traversal_info)
     }

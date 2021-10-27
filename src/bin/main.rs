@@ -199,6 +199,10 @@ fn main() {
     let rendered_texture = Rc::new(RefCell::new(TextureRGBAFloat::from_image(
         &rendered_image.read().unwrap(),
     )));
+    let environment_image = Arc::new(RwLock::new(Image::new(100, 30)));
+    let environment_texture = Rc::new(RefCell::new(TextureRGBAFloat::from_image(
+        &environment_image.read().unwrap(),
+    )));
 
     // Spawn the main ray tracing thread
     let (ray_trace_thread_sender, ray_trace_thread_receiver) = mpsc::channel();
@@ -206,6 +210,7 @@ fn main() {
         let scene = scene.clone();
         let shader_list = shader_list.clone();
         let camera = path_trace_camera.clone();
+        let environment_image = environment_image.clone();
         let rendered_image = rendered_image.clone();
         let path_trace_progress = path_trace_progress.clone();
         thread::spawn(move || {
@@ -213,6 +218,7 @@ fn main() {
                 scene,
                 shader_list,
                 camera,
+                environment_image,
                 rendered_image,
                 path_trace_progress,
                 ray_trace_thread_receiver,
@@ -647,6 +653,7 @@ fn main() {
                                             &scene.read().unwrap(),
                                             trace_max_depth,
                                             &shader_list.read().unwrap(),
+                                            &environment_image.read().unwrap(),
                                         );
                                         ray_traversal_info.push(traversal_info);
                                     }
@@ -822,6 +829,7 @@ fn main() {
                 &scene.read().unwrap(),
                 1,
                 &shader_list.read().unwrap(),
+                &environment_image.read().unwrap(),
             );
 
             // generate the new ray from the path_trace_camera's
@@ -841,6 +849,7 @@ fn main() {
                 &scene.read().unwrap(),
                 trace_max_depth,
                 &shader_list.read().unwrap(),
+                &environment_image.read().unwrap(),
             );
 
             scene.write().unwrap().unapply_model_matrices();
