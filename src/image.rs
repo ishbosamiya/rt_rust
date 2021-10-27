@@ -1,6 +1,8 @@
 use std::fs::File;
 use std::io::prelude::*;
 
+use image::Pixel;
+
 use crate::glm;
 use crate::rasterize::texture::TextureRGBAFloat;
 
@@ -39,6 +41,24 @@ impl Image {
                 .collect(),
             width: tex.get_width(),
             height: tex.get_height(),
+        }
+    }
+
+    pub fn from_vec_rgb_f32(pixels: &[image::Rgb<f32>], width: usize, height: usize) -> Image {
+        Self {
+            id: rand::random(),
+            pixels: pixels
+                .iter()
+                .map(|rgb| {
+                    glm::vec3(
+                        rgb.channels()[0] as f64,
+                        rgb.channels()[1] as f64,
+                        rgb.channels()[2] as f64,
+                    )
+                })
+                .collect(),
+            width,
+            height,
         }
     }
 
