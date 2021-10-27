@@ -200,6 +200,7 @@ fn main() {
         &rendered_image.read().unwrap(),
     )));
     let environment_image = Arc::new(RwLock::new(Image::new(100, 30)));
+    let environment_strength = Arc::new(RwLock::new(1.0));
     let environment_texture = Rc::new(RefCell::new(TextureRGBAFloat::from_image(
         &environment_image.read().unwrap(),
     )));
@@ -211,6 +212,7 @@ fn main() {
         let shader_list = shader_list.clone();
         let camera = path_trace_camera.clone();
         let environment_image = environment_image.clone();
+        let environment_strength = environment_strength.clone();
         let rendered_image = rendered_image.clone();
         let path_trace_progress = path_trace_progress.clone();
         thread::spawn(move || {
@@ -219,6 +221,7 @@ fn main() {
                 shader_list,
                 camera,
                 environment_image,
+                environment_strength,
                 rendered_image,
                 path_trace_progress,
                 ray_trace_thread_receiver,
@@ -306,6 +309,19 @@ fn main() {
                     .resizable(true)
                     .show(egui.get_egui_ctx(), |ui| {
                         egui::ScrollArea::auto_sized().show(ui, |ui| {
+                            let new_environment_strength = {
+                                let mut environment_strength =
+                                    *environment_strength.read().unwrap();
+                                ui.add(
+                                    egui::Slider::new(&mut environment_strength, 0.0..=5.0)
+                                        .text("Environment Strength"),
+                                );
+                                environment_strength
+                            };
+                            if let Ok(mut environment_strength) = environment_strength.try_write() {
+                                *environment_strength = new_environment_strength;
+                            }
+
                             if ui.button("Load Environment Image").clicked() {
                                 if let Some(path) = FileDialog::new()
                                     .add_filter("HDR", &["hdr"])
@@ -695,6 +711,7 @@ fn main() {
                                             trace_max_depth,
                                             &shader_list.read().unwrap(),
                                             &environment_image.read().unwrap(),
+                                            *environment_strength.read().unwrap(),
                                         );
                                         ray_traversal_info.push(traversal_info);
                                     }
@@ -871,6 +888,7 @@ fn main() {
                 1,
                 &shader_list.read().unwrap(),
                 &environment_image.read().unwrap(),
+                *environment_strength.read().unwrap(),
             );
 
             // generate the new ray from the path_trace_camera's
@@ -891,6 +909,7 @@ fn main() {
                 trace_max_depth,
                 &shader_list.read().unwrap(),
                 &environment_image.read().unwrap(),
+                *environment_strength.read().unwrap(),
             );
 
             scene.write().unwrap().unapply_model_matrices();
