@@ -2,11 +2,12 @@ use std::fs::File;
 use std::io::prelude::*;
 
 use image::Pixel;
+use serde::{Deserialize, Serialize};
 
 use crate::glm;
 use crate::rasterize::texture::TextureRGBAFloat;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Image {
     /// If the id has changed, the pixel data might have also
     /// changed. Every time the image is borrowed mutably, the id is

@@ -46,6 +46,13 @@ struct File {
     scene: Arc<RwLock<Scene>>,
     shader_list: Arc<RwLock<ShaderList>>,
     path_trace_camera: Arc<RwLock<PathTraceCamera>>,
+
+    #[serde(default = "default_environment")]
+    environment: Arc<RwLock<Environment>>,
+}
+
+fn default_environment() -> Arc<RwLock<Environment>> {
+    Arc::new(RwLock::new(Environment::default()))
 }
 
 impl File {
@@ -53,11 +60,13 @@ impl File {
         scene: Arc<RwLock<Scene>>,
         shader_list: Arc<RwLock<ShaderList>>,
         path_trace_camera: Arc<RwLock<PathTraceCamera>>,
+        environment: Arc<RwLock<Environment>>,
     ) -> Self {
         Self {
             scene,
             shader_list,
             path_trace_camera,
+            environment,
         }
     }
 }
@@ -200,7 +209,7 @@ fn main() {
     let rendered_texture = Rc::new(RefCell::new(TextureRGBAFloat::from_image(
         &rendered_image.read().unwrap(),
     )));
-    let environment = Arc::new(RwLock::new(Environment::new(Image::new(100, 30), 1.0)));
+    let environment = Arc::new(RwLock::new(Environment::default()));
     let environment_texture = Rc::new(RefCell::new(TextureRGBAFloat::from_image(
         environment.read().unwrap().get_hdr(),
     )));
@@ -388,6 +397,7 @@ fn main() {
                                     scene.clone(),
                                     shader_list.clone(),
                                     path_trace_camera.clone(),
+                                    environment.clone(),
                                 );
                                 let file_serialized = serde_json::to_string(&file).unwrap();
                                 if let Some(path) = FileDialog::new()
@@ -419,6 +429,11 @@ fn main() {
                                             .unwrap();
                                     *path_trace_camera.write().unwrap() =
                                         Arc::try_unwrap(file.path_trace_camera)
+                                            .unwrap()
+                                            .into_inner()
+                                            .unwrap();
+                                    *environment.write().unwrap() =
+                                        Arc::try_unwrap(file.environment)
                                             .unwrap()
                                             .into_inner()
                                             .unwrap();
