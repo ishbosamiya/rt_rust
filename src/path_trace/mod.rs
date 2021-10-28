@@ -505,6 +505,7 @@ pub fn trace_ray(
                         color[1] * traced_color[1],
                         color[2] * traced_color[2],
                     );
+                let val = val / (1.0 + info.get_t() * info.get_t());
                 traversal_info.add_ray(SingleRayInfo::new(*ray, Some(*info.get_point()), val, Some(info.get_normal().unwrap())));
                 (val, traversal_info)
             }
@@ -519,11 +520,13 @@ pub fn trace_ray(
                     color[1] * traced_color[1],
                     color[2] * traced_color[2],
                 );
+                let val = val / (1.0 + info.get_t() * info.get_t());
                 traversal_info.add_ray(SingleRayInfo::new(*ray, Some(*info.get_point()), val, Some(info.get_normal().unwrap())));
                 (val, traversal_info)
             }
             ShadeHitData::EmissionOnly(ShadeHitDataEmissionOnly { emission_color }) => {
                 let val = emission_color;
+                let val = val / (1.0 + info.get_t() * info.get_t());
                 let mut traversal_info = TraversalInfo::new();
                 traversal_info.add_ray(SingleRayInfo::new(*ray, Some(*info.get_point()), val, Some(info.get_normal().unwrap())));
                 (val, traversal_info)
