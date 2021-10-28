@@ -43,3 +43,6 @@ debug = true
 [features]
 mesh_no_bvh = []
 scene_no_bvh = []
+
+[patch.crates-io]
+generational-arena = { git = "ssh://git@github.com/JOE1994/generational-arena.git", branch = 'fix_bug' }
