@@ -42,9 +42,8 @@ use self::traversal_info::SingleRayInfo;
 use self::traversal_info::TraversalInfo;
 
 lazy_static! {
-    static ref DEFAULT_SHADER: self::shaders::Lambert = self::shaders::Lambert::new(
-        self::bsdfs::lambert::Lambert::new(glm::vec4(0.0, 0.0, 0.0, 1.0))
-    );
+    static ref DEFAULT_SHADER: self::shaders::Lambert =
+        self::shaders::Lambert::new(self::bsdfs::lambert::Lambert::new(glm::vec3(0.0, 0.0, 0.0)));
 }
 
 pub struct RayTraceParams {

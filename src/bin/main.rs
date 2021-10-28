@@ -183,10 +183,10 @@ fn main() {
         let mut shader_list = ShaderList::new();
 
         shader_list.add_shader(Box::new(path_trace::shaders::Lambert::new(
-            path_trace::bsdfs::lambert::Lambert::new(glm::vec4(1.0, 1.0, 1.0, 1.0)),
+            path_trace::bsdfs::lambert::Lambert::new(glm::vec3(1.0, 1.0, 1.0)),
         )));
         shader_list.add_shader(Box::new(path_trace::shaders::Lambert::new(
-            path_trace::bsdfs::lambert::Lambert::new(glm::vec4(1.0, 0.0, 0.0, 1.0)),
+            path_trace::bsdfs::lambert::Lambert::new(glm::vec3(1.0, 0.0, 0.0)),
         )));
         shader_list.add_shader(Box::new(path_trace::shaders::Glossy::new(
             path_trace::bsdfs::glossy::Glossy::new(glm::vec3(1.0, 1.0, 1.0)),

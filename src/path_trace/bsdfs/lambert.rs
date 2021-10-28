@@ -10,17 +10,17 @@ use crate::{glm, ui};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Lambert {
-    color: glm::DVec4,
+    color: glm::DVec3,
 }
 
 impl Default for Lambert {
     fn default() -> Self {
-        Self::new(glm::vec4(1.0, 1.0, 1.0, 1.0))
+        Self::new(glm::vec3(1.0, 1.0, 1.0))
     }
 }
 
 impl Lambert {
-    pub fn new(color: glm::DVec4) -> Self {
+    pub fn new(color: glm::DVec3) -> Self {
         Self { color }
     }
 }
@@ -55,9 +55,7 @@ impl BSDF for Lambert {
         _intersect_info: &IntersectInfo,
     ) -> glm::DVec3 {
         #[allow(clippy::let_and_return)]
-        let color = glm::vec4_to_vec3(&self.color);
-
-        color
+        self.color
     }
 
     fn get_bsdf_name(&self) -> &str {
@@ -65,7 +63,7 @@ impl BSDF for Lambert {
     }
 
     fn get_base_color(&self) -> glm::DVec3 {
-        glm::vec4_to_vec3(&self.color)
+        self.color
     }
 }
 
@@ -75,6 +73,6 @@ impl DrawUI for Lambert {
     }
 
     fn draw_ui_mut(&mut self, ui: &mut egui::Ui) {
-        ui::color_edit_button_dvec4(ui, "Base Color", &mut self.color);
+        ui::color_edit_button_dvec3(ui, "Base Color", &mut self.color);
     }
 }
