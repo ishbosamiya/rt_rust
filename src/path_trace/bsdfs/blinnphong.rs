@@ -10,19 +10,19 @@ use crate::{glm, ui};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Blinnphong {
-    color: glm::DVec4,
+    color: glm::DVec3,
     n: f64,
     divide_by_n_dot_l: bool,
 }
 
 impl Default for Blinnphong {
     fn default() -> Self {
-        Self::new(glm::vec4(1.0, 1.0, 1.0, 1.0), 100.0, false)
+        Self::new(glm::vec3(1.0, 1.0, 1.0), 100.0, false)
     }
 }
 
 impl Blinnphong {
-    pub fn new(color: glm::DVec4, n: f64, divide_by_n_dot_l: bool) -> Self {
+    pub fn new(color: glm::DVec3, n: f64, divide_by_n_dot_l: bool) -> Self {
         Self {
             color,
             n,
@@ -60,8 +60,6 @@ impl BSDF for Blinnphong {
         _wo_medium: &Medium,
         intersect_info: &IntersectInfo,
     ) -> glm::DVec3 {
-        let color = glm::vec4_to_vec3(&self.color);
-
         let h = (-wi + wo).normalize();
 
         let val = intersect_info
@@ -77,7 +75,7 @@ impl BSDF for Blinnphong {
             val
         };
 
-        color.component_mul(&glm::vec3(val, val, val))
+        self.color.component_mul(&glm::vec3(val, val, val))
     }
 
     fn get_bsdf_name(&self) -> &str {
@@ -85,7 +83,7 @@ impl BSDF for Blinnphong {
     }
 
     fn get_base_color(&self) -> glm::DVec3 {
-        glm::vec4_to_vec3(&self.color)
+        self.color
     }
 }
 
@@ -95,7 +93,7 @@ impl DrawUI for Blinnphong {
     }
 
     fn draw_ui_mut(&mut self, ui: &mut egui::Ui) {
-        ui::color_edit_button_dvec4(ui, "Base Color", &mut self.color);
+        ui::color_edit_button_dvec3(ui, "Base Color", &mut self.color);
         ui.add(egui::Slider::new(&mut self.n, 1.0..=1000.0).text("n"));
         ui.checkbox(&mut self.divide_by_n_dot_l, "Divide by N.L");
     }
