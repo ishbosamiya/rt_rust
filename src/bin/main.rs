@@ -503,67 +503,74 @@ fn main() {
 
                             ui.checkbox(&mut camera_use_depth_for_image, "Use Depth for Image");
 
-                            let camera_sensor_width = {
-                                let mut camera_sensor_width =
-                                    path_trace_camera.read().unwrap().get_sensor_width();
-                                ui.add(
-                                    egui::Slider::new(&mut camera_sensor_width, 0.0..=36.0)
-                                        .text("Camera Sensor Width"),
-                                );
-                                camera_sensor_width
-                            };
+                            ui.collapsing("Camera", |ui| {
+                                let camera_sensor_width = {
+                                    let mut camera_sensor_width =
+                                        path_trace_camera.read().unwrap().get_sensor_width();
+                                    ui.add(
+                                        egui::Slider::new(&mut camera_sensor_width, 0.0..=36.0)
+                                            .text("Camera Sensor Width"),
+                                    );
+                                    camera_sensor_width
+                                };
 
-                            let camera_focal_length = {
-                                let mut camera_focal_length =
-                                    path_trace_camera.read().unwrap().get_focal_length();
-                                ui.add(
-                                    egui::Slider::new(&mut camera_focal_length, 0.0..=15.0)
-                                        .text("Camera Focal Length"),
-                                );
-                                camera_focal_length
-                            };
+                                let camera_focal_length = {
+                                    let mut camera_focal_length =
+                                        path_trace_camera.read().unwrap().get_focal_length();
+                                    ui.add(
+                                        egui::Slider::new(&mut camera_focal_length, 0.0..=15.0)
+                                            .text("Camera Focal Length"),
+                                    );
+                                    camera_focal_length
+                                };
 
-                            let camera_position = {
-                                let mut camera_position =
-                                    *path_trace_camera.read().unwrap().get_origin();
-                                ui.label("Camera Position");
-                                ui.add(
-                                    egui::Slider::new(&mut camera_position[0], -10.0..=10.0)
-                                        .text("x"),
-                                );
-                                ui.add(
-                                    egui::Slider::new(&mut camera_position[1], -10.0..=10.0)
-                                        .text("y"),
-                                );
-                                ui.add(
-                                    egui::Slider::new(&mut camera_position[2], -10.0..=10.0)
-                                        .text("z"),
-                                );
-                                camera_position
-                            };
+                                let camera_position = {
+                                    let mut camera_position =
+                                        *path_trace_camera.read().unwrap().get_origin();
+                                    ui.label("Camera Position");
+                                    ui.add(
+                                        egui::Slider::new(&mut camera_position[0], -10.0..=10.0)
+                                            .text("x"),
+                                    );
+                                    ui.add(
+                                        egui::Slider::new(&mut camera_position[1], -10.0..=10.0)
+                                            .text("y"),
+                                    );
+                                    ui.add(
+                                        egui::Slider::new(&mut camera_position[2], -10.0..=10.0)
+                                            .text("z"),
+                                    );
+                                    camera_position
+                                };
 
-                            if let Ok(mut path_trace_camera) = path_trace_camera.try_write() {
-                                path_trace_camera.change_sensor_width(camera_sensor_width);
-                                path_trace_camera
-                                    .change_aspect_ratio(image_width as f64 / image_height as f64);
-                                path_trace_camera.change_focal_length(camera_focal_length);
-                                path_trace_camera.change_origin(camera_position);
-                            }
+                                if let Ok(mut path_trace_camera) = path_trace_camera.try_write() {
+                                    path_trace_camera.change_sensor_width(camera_sensor_width);
+                                    path_trace_camera.change_aspect_ratio(
+                                        image_width as f64 / image_height as f64,
+                                    );
+                                    path_trace_camera.change_focal_length(camera_focal_length);
+                                    path_trace_camera.change_origin(camera_position);
+                                }
+                            });
 
                             ui.separator();
 
-                            ui.add(
-                                egui::Slider::new(&mut image_width, 1..=1000).text("Image Width"),
-                            );
-                            if image_width == 0 {
-                                image_width = 1;
-                            }
-                            ui.add(
-                                egui::Slider::new(&mut image_height, 1..=1000).text("Image Height"),
-                            );
-                            if image_height == 0 {
-                                image_height = 1;
-                            }
+                            ui.collapsing("Image", |ui| {
+                                ui.add(
+                                    egui::Slider::new(&mut image_width, 1..=1000)
+                                        .text("Image Width"),
+                                );
+                                if image_width == 0 {
+                                    image_width = 1;
+                                }
+                                ui.add(
+                                    egui::Slider::new(&mut image_height, 1..=1000)
+                                        .text("Image Height"),
+                                );
+                                if image_height == 0 {
+                                    image_height = 1;
+                                }
+                            });
                             ui.add(
                                 egui::Slider::new(&mut trace_max_depth, 1..=10)
                                     .text("Trace Max Depth"),
@@ -607,105 +614,114 @@ fn main() {
 
                             ui.separator();
 
-                            ui.label("Rays to Shoot");
-                            ui.add(
-                                egui::Slider::new(&mut ray_to_shoot.0, 1..=image_width)
-                                    .logarithmic(true)
+                            ui.collapsing("Ray", |ui| {
+                                ui.label("Rays to Shoot");
+                                ui.add(
+                                    egui::Slider::new(&mut ray_to_shoot.0, 1..=image_width)
+                                        .logarithmic(true)
+                                        .clamp_to_range(true)
+                                        .text("x"),
+                                );
+                                ui.add(
+                                    egui::Slider::new(&mut ray_to_shoot.1, 1..=image_height)
+                                        .logarithmic(true)
+                                        .clamp_to_range(true)
+                                        .text("y"),
+                                );
+                                ui.label("Ray Pixel Start");
+                                ui.add(
+                                    egui::Slider::new(
+                                        &mut ray_pixel_start.0,
+                                        0..=(image_width / ray_to_shoot.0) - 1,
+                                    )
                                     .clamp_to_range(true)
                                     .text("x"),
-                            );
-                            ui.add(
-                                egui::Slider::new(&mut ray_to_shoot.1, 1..=image_height)
-                                    .logarithmic(true)
+                                );
+                                ui.add(
+                                    egui::Slider::new(
+                                        &mut ray_pixel_start.1,
+                                        0..=(image_height / ray_to_shoot.1) - 1,
+                                    )
                                     .clamp_to_range(true)
                                     .text("y"),
-                            );
-                            ui.label("Ray Pixel Start");
-                            ui.add(
-                                egui::Slider::new(
-                                    &mut ray_pixel_start.0,
-                                    0..=(image_width / ray_to_shoot.0) - 1,
-                                )
-                                .clamp_to_range(true)
-                                .text("x"),
-                            );
-                            ui.add(
-                                egui::Slider::new(
-                                    &mut ray_pixel_start.1,
-                                    0..=(image_height / ray_to_shoot.1) - 1,
-                                )
-                                .clamp_to_range(true)
-                                .text("y"),
-                            );
-                            ui.checkbox(&mut show_ray_traversal_info, "Show Ray Traversal Info");
+                                );
+                                ui.checkbox(
+                                    &mut show_ray_traversal_info,
+                                    "Show Ray Traversal Info",
+                                );
 
-                            ui.add(
-                                egui::Slider::new(&mut start_ray_depth, 1..=end_ray_depth)
+                                ui.add(
+                                    egui::Slider::new(&mut start_ray_depth, 1..=end_ray_depth)
+                                        .clamp_to_range(true)
+                                        .text("Start Ray Depth"),
+                                );
+
+                                ui.add(
+                                    egui::Slider::new(
+                                        &mut end_ray_depth,
+                                        start_ray_depth..=trace_max_depth,
+                                    )
                                     .clamp_to_range(true)
-                                    .text("Start Ray Depth"),
-                            );
+                                    .text("End Ray Depth"),
+                                );
 
-                            ui.add(
-                                egui::Slider::new(
-                                    &mut end_ray_depth,
-                                    start_ray_depth..=trace_max_depth,
-                                )
-                                .clamp_to_range(true)
-                                .text("End Ray Depth"),
-                            );
+                                ui.checkbox(
+                                    &mut draw_normal_at_hit_points,
+                                    "Draw Normal at Hit Points",
+                                );
+                                ui.add(
+                                    egui::Slider::new(&mut normals_size, 0.0..=2.0)
+                                        .text("Normals Size"),
+                                );
+                                ui::color_edit_button_dvec4(
+                                    ui,
+                                    "Normals Color",
+                                    &mut normals_color,
+                                );
 
-                            ui.checkbox(
-                                &mut draw_normal_at_hit_points,
-                                "Draw Normal at Hit Points",
-                            );
-                            ui.add(
-                                egui::Slider::new(&mut normals_size, 0.0..=2.0)
-                                    .text("Normals Size"),
-                            );
-                            ui::color_edit_button_dvec4(ui, "Normals Color", &mut normals_color);
+                                if ui.button("Trace Rays").clicked() {
+                                    scene.write().unwrap().apply_model_matrices();
 
-                            if ui.button("Trace Rays").clicked() {
-                                scene.write().unwrap().apply_model_matrices();
+                                    let path_trace_camera = path_trace_camera.read().unwrap();
 
-                                let path_trace_camera = path_trace_camera.read().unwrap();
+                                    ray_traversal_info.clear();
 
-                                ray_traversal_info.clear();
+                                    for i in 0..ray_to_shoot.0 {
+                                        for j in 0..ray_to_shoot.1 {
+                                            let i = i * (image_width / ray_to_shoot.0)
+                                                + ray_pixel_start.0;
+                                            let j = j * (image_height / ray_to_shoot.1)
+                                                + ray_pixel_start.1;
+                                            // use opengl coords, (0.0, 0.0) is center; (1.0, 1.0) is
+                                            // top right; (-1.0, -1.0) is bottom left
+                                            let u = (((i as f64 + rand::random::<f64>())
+                                                / (image_width - 1) as f64)
+                                                - 0.5)
+                                                * 2.0;
+                                            let v = (((j as f64 + rand::random::<f64>())
+                                                / (image_height - 1) as f64)
+                                                - 0.5)
+                                                * 2.0;
 
-                                for i in 0..ray_to_shoot.0 {
-                                    for j in 0..ray_to_shoot.1 {
-                                        let i =
-                                            i * (image_width / ray_to_shoot.0) + ray_pixel_start.0;
-                                        let j =
-                                            j * (image_height / ray_to_shoot.1) + ray_pixel_start.1;
-                                        // use opengl coords, (0.0, 0.0) is center; (1.0, 1.0) is
-                                        // top right; (-1.0, -1.0) is bottom left
-                                        let u = (((i as f64 + rand::random::<f64>())
-                                            / (image_width - 1) as f64)
-                                            - 0.5)
-                                            * 2.0;
-                                        let v = (((j as f64 + rand::random::<f64>())
-                                            / (image_height - 1) as f64)
-                                            - 0.5)
-                                            * 2.0;
+                                            let ray = path_trace_camera.get_ray(u, v);
 
-                                        let ray = path_trace_camera.get_ray(u, v);
-
-                                        let environment: &Environment =
-                                            &environment.read().unwrap();
-                                        let (_color, traversal_info) = path_trace::trace_ray(
-                                            &ray,
-                                            &path_trace_camera,
-                                            &scene.read().unwrap(),
-                                            trace_max_depth,
-                                            &shader_list.read().unwrap(),
-                                            &environment.into(),
-                                        );
-                                        ray_traversal_info.push(traversal_info);
+                                            let environment: &Environment =
+                                                &environment.read().unwrap();
+                                            let (_color, traversal_info) = path_trace::trace_ray(
+                                                &ray,
+                                                &path_trace_camera,
+                                                &scene.read().unwrap(),
+                                                trace_max_depth,
+                                                &shader_list.read().unwrap(),
+                                                &environment.into(),
+                                            );
+                                            ray_traversal_info.push(traversal_info);
+                                        }
                                     }
-                                }
 
-                                scene.write().unwrap().unapply_model_matrices();
-                            }
+                                    scene.write().unwrap().unapply_model_matrices();
+                                }
+                            });
                         });
                     })
                     .response;
