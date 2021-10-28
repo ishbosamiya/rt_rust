@@ -192,7 +192,7 @@ fn main() {
             path_trace::bsdfs::glossy::Glossy::new(glm::vec3(1.0, 1.0, 1.0)),
         )));
         shader_list.add_shader(Box::new(path_trace::shaders::Emissive::new(
-            path_trace::bsdfs::emissive::Emissive::new(glm::vec4(1.0, 0.4, 1.0, 1.0), 5.0),
+            path_trace::bsdfs::emissive::Emissive::new(glm::vec3(1.0, 0.4, 1.0), 5.0),
         )));
 
         shader_list

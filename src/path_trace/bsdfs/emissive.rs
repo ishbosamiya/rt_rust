@@ -9,18 +9,18 @@ use crate::{glm, ui};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Emissive {
-    color: glm::DVec4,
+    color: glm::DVec3,
     power: f64,
 }
 
 impl Default for Emissive {
     fn default() -> Self {
-        Self::new(glm::vec4(1.0, 1.0, 1.0, 1.0), 1.0)
+        Self::new(glm::vec3(1.0, 1.0, 1.0), 1.0)
     }
 }
 
 impl Emissive {
-    pub fn new(color: glm::DVec4, power: f64) -> Self {
+    pub fn new(color: glm::DVec3, power: f64) -> Self {
         Self { color, power }
     }
 }
@@ -48,7 +48,7 @@ impl BSDF for Emissive {
     }
 
     fn emission(&self, _intersect_info: &IntersectInfo) -> Option<glm::DVec3> {
-        Some(glm::vec4_to_vec3(&(self.power * self.color)))
+        Some(self.power * self.color)
     }
 
     fn get_bsdf_name(&self) -> &str {
@@ -56,7 +56,7 @@ impl BSDF for Emissive {
     }
 
     fn get_base_color(&self) -> glm::DVec3 {
-        glm::vec4_to_vec3(&self.color)
+        self.color
     }
 }
 
@@ -66,7 +66,7 @@ impl DrawUI for Emissive {
     }
 
     fn draw_ui_mut(&mut self, ui: &mut egui::Ui) {
-        ui::color_edit_button_dvec4(ui, "Base Color", &mut self.color);
+        ui::color_edit_button_dvec3(ui, "Base Color", &mut self.color);
         ui.add(egui::Slider::new(&mut self.power, 0.0..=10.0).text("Power"));
     }
 }
