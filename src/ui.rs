@@ -11,41 +11,28 @@ pub trait DrawUI {
 }
 
 fn color_edit_dvec4(ui: &mut egui::Ui, color: &mut glm::DVec4) {
-    let mut color_egui = egui::Color32::from_rgba_premultiplied(
-        (color[0] * 255.0) as _,
-        (color[1] * 255.0) as _,
-        (color[2] * 255.0) as _,
-        (color[3] * 255.0) as _,
-    );
-    egui::color_picker::color_edit_button_srgba(
-        ui,
-        &mut color_egui,
-        egui::color_picker::Alpha::BlendOrAdditive,
-    );
+    let mut color_egui = [
+        color[0] as f32,
+        color[1] as f32,
+        color[2] as f32,
+        color[3] as f32,
+    ];
+    ui.color_edit_button_rgba_premultiplied(&mut color_egui);
     *color = glm::vec4(
-        color_egui.r() as f64 / 255.0,
-        color_egui.g() as f64 / 255.0,
-        color_egui.b() as f64 / 255.0,
-        color_egui.a() as f64 / 255.0,
+        color_egui[0] as f64,
+        color_egui[1] as f64,
+        color_egui[2] as f64,
+        color_egui[3] as f64,
     );
 }
 
 fn color_edit_dvec3(ui: &mut egui::Ui, color: &mut glm::DVec3) {
-    let mut color_egui = egui::Color32::from_rgba_premultiplied(
-        (color[0] * 255.0) as _,
-        (color[1] * 255.0) as _,
-        (color[2] * 255.0) as _,
-        (255.0) as _,
-    );
-    egui::color_picker::color_edit_button_srgba(
-        ui,
-        &mut color_egui,
-        egui::color_picker::Alpha::BlendOrAdditive,
-    );
+    let mut color_egui = [color[0] as f32, color[1] as f32, color[2] as f32];
+    ui.color_edit_button_rgb(&mut color_egui);
     *color = glm::vec3(
-        color_egui.r() as f64 / 255.0,
-        color_egui.g() as f64 / 255.0,
-        color_egui.b() as f64 / 255.0,
+        color_egui[0] as f64,
+        color_egui[1] as f64,
+        color_egui[2] as f64,
     );
 }
 
