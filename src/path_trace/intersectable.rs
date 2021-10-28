@@ -51,6 +51,10 @@ impl IntersectInfo {
         &self.normal
     }
 
+    pub fn get_front_face(&self) -> bool {
+        self.front_face
+    }
+
     /// Sets the normal and whether or not the hit was on the front
     /// face based on the true normal given and the ray's direction
     pub fn set_normal(&mut self, ray: &Ray, outward_normal: &glm::DVec3) {
