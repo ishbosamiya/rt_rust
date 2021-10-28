@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use super::super::bsdf::{SampleData, SamplingTypes, BSDF};
 use super::super::intersectable::IntersectInfo;
+use crate::path_trace::medium::Medium;
 use crate::ui::DrawUI;
 use crate::{glm, ui};
 
@@ -29,6 +30,7 @@ impl BSDF for Emissive {
     fn sample(
         &self,
         _wo: &glm::DVec3,
+        _wo_medium: &Medium,
         _intersect_info: &IntersectInfo,
         _sampling_types: BitFlags<SamplingTypes>,
     ) -> Option<SampleData> {
@@ -39,6 +41,7 @@ impl BSDF for Emissive {
         &self,
         _wi: &glm::DVec3,
         _wo: &glm::DVec3,
+        _wo_medium: &Medium,
         _intersect_info: &IntersectInfo,
     ) -> glm::DVec3 {
         unreachable!("Emissive only material, so no eval is possible")

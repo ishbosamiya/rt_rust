@@ -8,6 +8,7 @@ use rt::path_trace::camera::Camera as PathTraceCamera;
 use rt::path_trace::camera::CameraDrawData as PathTraceCameraDrawData;
 use rt::path_trace::environment::Environment;
 use rt::path_trace::intersectable::Intersectable;
+use rt::path_trace::medium::Medium;
 use rt::path_trace::ray::Ray;
 use rt::path_trace::shader_list::{ShaderID, ShaderList};
 use rt::path_trace::traversal_info::{TraversalInfo, TraversalInfoDrawData};
@@ -710,6 +711,7 @@ fn main() {
                                                 trace_max_depth,
                                                 &shader_list.read().unwrap(),
                                                 &environment.into(),
+                                                &Medium::air(),
                                             );
                                             ray_traversal_info.push(traversal_info);
                                         }
@@ -888,6 +890,7 @@ fn main() {
                 1,
                 &shader_list.read().unwrap(),
                 &environment.into(),
+                &Medium::air(),
             );
 
             // generate the new ray from the path_trace_camera's
@@ -908,6 +911,7 @@ fn main() {
                 trace_max_depth,
                 &shader_list.read().unwrap(),
                 &environment.into(),
+                &Medium::air(),
             );
 
             scene.write().unwrap().unapply_model_matrices();

@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use super::super::bsdf::{SampleData, SamplingTypes, BSDF};
 use super::super::intersectable::IntersectInfo;
+use crate::path_trace::medium::Medium;
 use crate::ui::DrawUI;
 use crate::{glm, ui};
 
@@ -29,6 +30,7 @@ impl BSDF for Glossy {
     fn sample(
         &self,
         wo: &glm::DVec3,
+        _wo_medium: &Medium,
         intersect_info: &IntersectInfo,
         sampling_types: BitFlags<SamplingTypes>,
     ) -> Option<SampleData> {
@@ -48,6 +50,7 @@ impl BSDF for Glossy {
         &self,
         _wi: &glm::DVec3,
         _wo: &glm::DVec3,
+        _wo_medium: &Medium,
         _intersect_info: &IntersectInfo,
     ) -> glm::DVec3 {
         #[allow(clippy::let_and_return)]

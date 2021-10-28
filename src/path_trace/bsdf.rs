@@ -1,4 +1,4 @@
-use super::intersectable::IntersectInfo;
+use super::{intersectable::IntersectInfo, medium::Medium};
 use crate::{glm, ui::DrawUI};
 
 use enumflags2::{bitflags, BitFlags};
@@ -41,6 +41,7 @@ pub trait BSDF: DrawUI {
     ///
     /// `wo`: outgoing ray direction
     /// `wi`: incoming ray direction
+    /// `wo_medium`: medium of ray in `wo` direction
     /// `intersect_info`: information at the point of intersection
     /// `sampling_types`: the current sampling types that are possible
     ///
@@ -55,6 +56,7 @@ pub trait BSDF: DrawUI {
     fn sample(
         &self,
         wo: &glm::DVec3,
+        wo_medium: &Medium,
         intersect_info: &IntersectInfo,
         sampling_types: BitFlags<SamplingTypes>,
     ) -> Option<SampleData>;
@@ -63,13 +65,20 @@ pub trait BSDF: DrawUI {
     ///
     /// `wo`: outgoing ray direction
     /// `wi`: incoming ray direction
+    /// `wo_medium`: medium of ray in `wo` direction
     /// `intersect_info`: information at the point of intersection
     ///
     /// TODO: when different sampling type(s) are used, instead of
     /// just returning the colour/intensity of light, it will need to
     /// evaluate and update the value for each pass (diffuse, glossy,
     /// reflection).
-    fn eval(&self, wi: &glm::DVec3, wo: &glm::DVec3, intersect_info: &IntersectInfo) -> glm::DVec3;
+    fn eval(
+        &self,
+        wi: &glm::DVec3,
+        wo: &glm::DVec3,
+        wo_medium: &Medium,
+        intersect_info: &IntersectInfo,
+    ) -> glm::DVec3;
 
     /// Calculates the colour/intensity of light produced by the object the point of intersection
     fn emission(&self, _intersect_info: &IntersectInfo) -> Option<glm::DVec3> {
@@ -79,4 +88,8 @@ pub trait BSDF: DrawUI {
     fn get_bsdf_name(&self) -> &str;
 
     fn get_base_color(&self) -> glm::DVec3;
+
+    fn get_ior(&self) -> f64 {
+        1.0
+    }
 }
