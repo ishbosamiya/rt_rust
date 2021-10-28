@@ -82,6 +82,10 @@ impl TraversalInfo {
         // path can form a continuous path
         self.traversal.push(info);
     }
+
+    pub fn append_traversal(&mut self, mut other: TraversalInfo) {
+        self.traversal.append(&mut other.traversal);
+    }
 }
 
 impl Default for TraversalInfo {

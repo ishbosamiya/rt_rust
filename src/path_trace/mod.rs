@@ -272,65 +272,12 @@ pub fn ray_trace_main(
     }
 }
 
-pub enum ShadeHitData {
-    Both(ShadeHitDataBoth),
-    ScatterOnly(ShadeHitDataScatterOnly),
-    EmissionOnly(ShadeHitDataEmissionOnly),
-    None,
-}
+/// Data returned during [`shade_hit`]
+pub type ShadeHitData = (Option<ScatterHitData>, Option<EmissionHitData>);
 
-/// Data that is returned during the `shade_hit()` calculation when
-/// light is scattered and emission takes place
+/// Data returned during scattering of light in [`shade_hit`]
 #[derive(Debug, Clone, PartialEq)]
-pub struct ShadeHitDataBoth {
-    /// color information that should be propagated forward
-    color: glm::DVec3,
-    /// color of light produced with intensity of the light encoded
-    emission_color: glm::DVec3,
-    /// the next ray to continue the ray tracing, calculated from the
-    /// `BSDF`
-    next_ray: Ray,
-    /// type of sampling performed to generate the next ray by the
-    /// `BSDF`
-    sampling_type: SamplingTypes,
-}
-
-impl ShadeHitDataBoth {
-    pub fn new(
-        color: glm::DVec3,
-        emission_color: glm::DVec3,
-        next_ray: Ray,
-        sampling_type: SamplingTypes,
-    ) -> Self {
-        Self {
-            color,
-            emission_color,
-            next_ray,
-            sampling_type,
-        }
-    }
-
-    pub fn get_color(&self) -> &glm::DVec3 {
-        &self.color
-    }
-
-    pub fn get_emission_color(&self) -> &glm::DVec3 {
-        &self.emission_color
-    }
-
-    pub fn get_next_ray(&self) -> &Ray {
-        &self.next_ray
-    }
-
-    pub fn get_sampling_type(&self) -> SamplingTypes {
-        self.sampling_type
-    }
-}
-
-/// Data that is returned during the `shade_hit()` calculation when
-/// light is scattered only
-#[derive(Debug, Clone, PartialEq)]
-pub struct ShadeHitDataScatterOnly {
+pub struct ScatterHitData {
     /// color information that should be propagated forward
     color: glm::DVec3,
     /// the next ray to continue the ray tracing, calculated from the
@@ -341,7 +288,7 @@ pub struct ShadeHitDataScatterOnly {
     sampling_type: SamplingTypes,
 }
 
-impl ShadeHitDataScatterOnly {
+impl ScatterHitData {
     pub fn new(color: glm::DVec3, next_ray: Ray, sampling_type: SamplingTypes) -> Self {
         Self {
             color,
@@ -363,15 +310,14 @@ impl ShadeHitDataScatterOnly {
     }
 }
 
-/// Data that is returned during the `shade_hit()` calculation when
-/// emission takes place only
+/// Data returned during emission of light in [`shade_hit`]
 #[derive(Debug, Clone, PartialEq)]
-pub struct ShadeHitDataEmissionOnly {
+pub struct EmissionHitData {
     /// color of light produced with intensity of the light encoded
     emission_color: glm::DVec3,
 }
 
-impl ShadeHitDataEmissionOnly {
+impl EmissionHitData {
     pub fn new(emission_color: glm::DVec3) -> Self {
         Self { emission_color }
     }
@@ -429,44 +375,33 @@ fn shade_hit(ray: &Ray, intersect_info: &IntersectInfo, shader_list: &ShaderList
     // direction.
     let wo = -ray.get_direction();
 
-    // wi: incoming way direction
-    let op_sample_data = shader.sample(&wo, intersect_info, BitFlags::all());
+    let scattering_data = shader
+        .sample(&wo, intersect_info, BitFlags::all())
+        .map(|sample_data| {
+            // wi: incoming way direction
+            let wi = sample_data.get_wi().normalize();
+            let sampling_type = sample_data.get_sampling_type();
+            let color = shader.eval(&wi, &wo, intersect_info);
 
-    if let Some(sample_data) = op_sample_data {
-        let wi = sample_data.get_wi().normalize();
-        let sampling_type = sample_data.get_sampling_type();
+            // BSDF returns the incoming ray direction at the point of
+            // intersection but for the next ray that is shot in the opposite
+            // direction (into the scene), thus need to take the inverse of
+            // `wi`.
+            let next_ray_dir = -wi;
 
-        let color = shader.eval(&wi, &wo, intersect_info);
-
-        // BSDF returns the incoming ray direction at the point of
-        // intersection but for the next ray that is shot in the opposite
-        // direction (into the scene), thus need to take the inverse of
-        // `wi`.
-        let next_ray_dir = -wi;
-
-        let emission = shader.emission(intersect_info);
-        if let Some(emission) = emission {
-            ShadeHitData::Both(ShadeHitDataBoth::new(
-                color,
-                emission,
-                Ray::new(*intersect_info.get_point(), next_ray_dir),
-                sampling_type,
-            ))
-        } else {
-            ShadeHitData::ScatterOnly(ShadeHitDataScatterOnly::new(
+            ScatterHitData::new(
                 color,
                 Ray::new(*intersect_info.get_point(), next_ray_dir),
                 sampling_type,
-            ))
-        }
-    } else {
-        let emission = shader.emission(intersect_info);
-        if let Some(emission) = emission {
-            ShadeHitData::EmissionOnly(ShadeHitDataEmissionOnly::new(emission))
-        } else {
-            ShadeHitData::None
-        }
-    }
+            )
+        });
+
+    let emission_data = shader.emission(intersect_info).map(EmissionHitData::new);
+
+    // Scattering or emissive or both but not none
+    assert!(emission_data.is_some() || scattering_data.is_some());
+
+    (scattering_data, emission_data)
 }
 
 // x: current point
@@ -490,55 +425,55 @@ pub fn trace_ray(
     if depth == 0 {
         return (glm::zero(), TraversalInfo::new());
     }
+
+    let mut traversal_info = TraversalInfo::new();
+
     if let Some(info) = scene.hit(ray, 0.01, 1000.0) {
-        match shade_hit(ray, &info, shader_list) {
-            ShadeHitData::Both(ShadeHitDataBoth {
-                color,
-                emission_color,
-                next_ray,
-                sampling_type: _,
-            }) => {
-                let (traced_color, mut traversal_info) = trace_ray(&next_ray, camera, scene, depth - 1, shader_list, environment);
-                let val = emission_color
-                    + glm::vec3(
-                        color[0] * traced_color[0],
-                        color[1] * traced_color[1],
-                        color[2] * traced_color[2],
-                    );
-                let val = val / (1.0 + info.get_t() * info.get_t());
-                traversal_info.add_ray(SingleRayInfo::new(*ray, Some(*info.get_point()), val, Some(info.get_normal().unwrap())));
-                (val, traversal_info)
-            }
-            ShadeHitData::ScatterOnly(ShadeHitDataScatterOnly {
-                color,
-                next_ray,
-                sampling_type: _,
-            }) => {
-                let (traced_color, mut traversal_info) = trace_ray(&next_ray, camera, scene, depth - 1, shader_list, environment);
-                let val = glm::vec3(
-                    color[0] * traced_color[0],
-                    color[1] * traced_color[1],
-                    color[2] * traced_color[2],
-                );
-                let val = val / (1.0 + info.get_t() * info.get_t());
-                traversal_info.add_ray(SingleRayInfo::new(*ray, Some(*info.get_point()), val, Some(info.get_normal().unwrap())));
-                (val, traversal_info)
-            }
-            ShadeHitData::EmissionOnly(ShadeHitDataEmissionOnly { emission_color }) => {
-                let val = emission_color;
-                let val = val / (1.0 + info.get_t() * info.get_t());
-                let mut traversal_info = TraversalInfo::new();
-                traversal_info.add_ray(SingleRayInfo::new(*ray, Some(*info.get_point()), val, Some(info.get_normal().unwrap())));
-                (val, traversal_info)
-            }
-            ShadeHitData::None => unreachable!(
-                "No shade_hit() should return ShadeHitData::None, it must either scatter or emit or both"
-            ),
-        }
+        let (scattering_data, emission_data) = shade_hit(ray, &info, shader_list);
+
+        // compute scattering of light
+        let scattering_intensity = scattering_data.map_or(glm::zero(), |scattering_data| {
+            let (traced_color, scatter_traversal_info) = trace_ray(
+                &scattering_data.next_ray,
+                camera,
+                scene,
+                depth - 1,
+                shader_list,
+                environment,
+            );
+
+            traversal_info.append_traversal(scatter_traversal_info);
+
+            glm::vec3(
+                scattering_data.color[0] * traced_color[0],
+                scattering_data.color[1] * traced_color[1],
+                scattering_data.color[2] * traced_color[2],
+            )
+        });
+
+        // compute emission of light
+        let emission_intensity =
+            emission_data.map_or(glm::zero(), |emission_data| emission_data.emission_color);
+
+        // emission added to the scattered light
+        let resulting_intensity = emission_intensity + scattering_intensity;
+
+        // light fall off
+        let final_intensity = resulting_intensity / (1.0 + info.get_t() * info.get_t());
+
+        traversal_info.add_ray(SingleRayInfo::new(
+            *ray,
+            Some(*info.get_point()),
+            final_intensity,
+            Some(info.get_normal().unwrap()),
+        ));
+
+        (final_intensity, traversal_info)
     } else {
-        let mut traversal_info = TraversalInfo::new();
-        let color = shade_environment(ray, environment);
-        traversal_info.add_ray(SingleRayInfo::new(*ray, None, color, None));
-        (color, traversal_info)
+        let final_intensity = shade_environment(ray, environment);
+
+        traversal_info.add_ray(SingleRayInfo::new(*ray, None, final_intensity, None));
+
+        (final_intensity, traversal_info)
     }
 }
