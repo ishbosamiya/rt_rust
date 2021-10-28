@@ -482,17 +482,33 @@ pub fn trace_ray(
         // emission added to the scattered light
         let resulting_intensity = emission_intensity + scattering_intensity;
 
-        // light fall off
-        let final_intensity = resulting_intensity / (1.0 + info.get_t() * info.get_t());
+        // TODO: compute light fall off, it is not as simple as
+        // resulting_intensity / (1.0 + info.get_t() * info.get_t())
+        //
+        // consider I0 to be the intensity at distance 0 and I1 to be
+        // the intensity at distance 1. Now if we compute I1, I1 = I0
+        // / (1.0 + 1.0 * 1.0) = I0 / 2
+        //
+        // Now if we compute I2 using I0 as the starting point, I2 =
+        // I0 / (1.0 + 2.0 * 2.0) = I0 / 5.0
+        //
+        // If we consider I1 as the starting point, I2 = I1 / (1.0 +
+        // 1.0 * 1.0) = I1 / 2.0 = I0 / 4.0 which is not the same as
+        // the value that we calculated earlier
+        //
+        // So from what it looks like, the total distance to the
+        // source of light (emission shaders in this case) must be
+        // used to compute the color. This is easier said than done,
+        // so will tackle this later.
 
         traversal_info.add_ray(SingleRayInfo::new(
             *ray,
             Some(*info.get_point()),
-            final_intensity,
+            resulting_intensity,
             Some(info.get_normal().unwrap()),
         ));
 
-        (final_intensity, traversal_info)
+        (resulting_intensity, traversal_info)
     } else {
         let final_intensity = shade_environment(ray, environment);
 
