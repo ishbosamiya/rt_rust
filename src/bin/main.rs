@@ -556,15 +556,13 @@ fn main() {
                             ui.separator();
 
                             ui.add(
-                                egui::Slider::new(&mut image_width, 1..=1000)
-                                    .text("Image Width"),
+                                egui::Slider::new(&mut image_width, 1..=1000).text("Image Width"),
                             );
                             if image_width == 0 {
                                 image_width = 1;
                             }
                             ui.add(
-                                egui::Slider::new(&mut image_height, 1..=1000)
-                                    .text("Image Height"),
+                                egui::Slider::new(&mut image_height, 1..=1000).text("Image Height"),
                             );
                             if image_height == 0 {
                                 image_height = 1;
@@ -1022,6 +1020,7 @@ fn handle_window_event(
     window_last_cursor: &mut (f64, f64),
 ) {
     let window_cursor = window.get_cursor_pos();
+
     match event {
         glfw::WindowEvent::Key(Key::Up, _, Action::Press, _) => {
             *use_top_panel = !*use_top_panel;
@@ -1035,86 +1034,76 @@ fn handle_window_event(
         glfw::WindowEvent::Key(Key::Right, _, Action::Press, _) => {
             *use_right_panel = !*use_right_panel;
         }
-        glfw::WindowEvent::Key(
-            Key::Num1 | Key::Kp1,
-            _,
-            Action::Press,
-            glfw::Modifiers::Control,
-        ) => {
-            *camera = RasterizeCamera::new(
-                glm::vec3(0.0, 0.0, -camera.get_position().norm()),
-                *camera.get_world_up(),
-                90.0,
-                0.0,
-                camera.get_zoom(),
-            )
+        glfw::WindowEvent::Key(Key::Num1 | Key::Kp1, _, Action::Press, modifier) => {
+            if modifier.contains(glfw::Modifiers::Control | glfw::Modifiers::Alt) {
+                *camera = RasterizeCamera::new(
+                    glm::vec3(0.0, 0.0, -camera.get_position().norm()),
+                    *camera.get_world_up(),
+                    90.0,
+                    0.0,
+                    camera.get_zoom(),
+                )
+            } else if modifier.contains(glfw::Modifiers::Alt) {
+                *camera = RasterizeCamera::new(
+                    glm::vec3(0.0, 0.0, camera.get_position().norm()),
+                    *camera.get_world_up(),
+                    -90.0,
+                    0.0,
+                    camera.get_zoom(),
+                )
+            }
         }
-        glfw::WindowEvent::Key(Key::Num1 | Key::Kp1, _, Action::Press, _) => {
-            *camera = RasterizeCamera::new(
-                glm::vec3(0.0, 0.0, camera.get_position().norm()),
-                *camera.get_world_up(),
-                -90.0,
-                0.0,
-                camera.get_zoom(),
-            )
+        glfw::WindowEvent::Key(Key::Num3 | Key::Kp3, _, Action::Press, modifier) => {
+            if modifier.contains(glfw::Modifiers::Control | glfw::Modifiers::Alt) {
+                *camera = RasterizeCamera::new(
+                    glm::vec3(-camera.get_position().norm(), 0.0, 0.0),
+                    *camera.get_world_up(),
+                    0.0,
+                    0.0,
+                    camera.get_zoom(),
+                )
+            } else if modifier.contains(glfw::Modifiers::Alt) {
+                *camera = RasterizeCamera::new(
+                    glm::vec3(camera.get_position().norm(), 0.0, 0.0),
+                    *camera.get_world_up(),
+                    180.0,
+                    0.0,
+                    camera.get_zoom(),
+                )
+            }
         }
-        glfw::WindowEvent::Key(
-            Key::Num3 | Key::Kp3,
-            _,
-            Action::Press,
-            glfw::Modifiers::Control,
-        ) => {
-            *camera = RasterizeCamera::new(
-                glm::vec3(-camera.get_position().norm(), 0.0, 0.0),
-                *camera.get_world_up(),
-                0.0,
-                0.0,
-                camera.get_zoom(),
-            )
+        glfw::WindowEvent::Key(Key::Num7 | Key::Kp7, _, Action::Press, modifier) => {
+            if modifier.contains(glfw::Modifiers::Control | glfw::Modifiers::Alt) {
+                *camera = RasterizeCamera::new(
+                    glm::vec3(0.0, -camera.get_position().norm(), 0.0),
+                    *camera.get_world_up(),
+                    -90.0,
+                    90.0,
+                    camera.get_zoom(),
+                )
+            } else if modifier.contains(glfw::Modifiers::Alt) {
+                *camera = RasterizeCamera::new(
+                    glm::vec3(0.0, camera.get_position().norm(), 0.0),
+                    *camera.get_world_up(),
+                    -90.0,
+                    -90.0,
+                    camera.get_zoom(),
+                )
+            }
         }
-        glfw::WindowEvent::Key(Key::Num3 | Key::Kp3, _, Action::Press, _) => {
-            *camera = RasterizeCamera::new(
-                glm::vec3(camera.get_position().norm(), 0.0, 0.0),
-                *camera.get_world_up(),
-                180.0,
-                0.0,
-                camera.get_zoom(),
-            )
-        }
-        glfw::WindowEvent::Key(
-            Key::Num7 | Key::Kp7,
-            _,
-            Action::Press,
-            glfw::Modifiers::Control,
-        ) => {
-            *camera = RasterizeCamera::new(
-                glm::vec3(0.0, -camera.get_position().norm(), 0.0),
-                *camera.get_world_up(),
-                -90.0,
-                90.0,
-                camera.get_zoom(),
-            )
-        }
-        glfw::WindowEvent::Key(Key::Num7 | Key::Kp7, _, Action::Press, _) => {
-            *camera = RasterizeCamera::new(
-                glm::vec3(0.0, camera.get_position().norm(), 0.0),
-                *camera.get_world_up(),
-                -90.0,
-                -90.0,
-                camera.get_zoom(),
-            )
-        }
-        glfw::WindowEvent::Key(Key::Num0 | Key::Kp0, _, Action::Press, _) => {
-            let fov = path_trace_camera
-                .get_fov_hor()
-                .max(path_trace_camera.get_fov_ver());
-            *camera = RasterizeCamera::new(
-                *path_trace_camera.get_origin(),
-                *path_trace_camera.get_vertical(),
-                -90.0,
-                0.0,
-                fov.to_degrees(),
-            );
+        glfw::WindowEvent::Key(Key::Num0 | Key::Kp0, _, Action::Press, modifier) => {
+            if modifier.contains(glfw::Modifiers::Alt) {
+                let fov = path_trace_camera
+                    .get_fov_hor()
+                    .max(path_trace_camera.get_fov_ver());
+                *camera = RasterizeCamera::new(
+                    *path_trace_camera.get_origin(),
+                    *path_trace_camera.get_vertical(),
+                    -90.0,
+                    0.0,
+                    fov.to_degrees(),
+                );
+            }
         }
         glfw::WindowEvent::Key(Key::C, _, Action::Press, glfw::Modifiers::Shift) => {
             let angle = camera.get_front().xz().angle(&-camera.get_position().xz());
