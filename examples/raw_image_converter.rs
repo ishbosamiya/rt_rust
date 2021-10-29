@@ -13,8 +13,10 @@ fn main() {
         .arg(
             clap::Arg::with_name("input")
                 .short("i")
-                .help("input raw image location")
+                .help("input raw image locations")
+                .long_help("if multiple file locations given, combines them linearly before exporting the image")
                 .required(true)
+                .multiple(true)
                 .takes_value(true),
         )
         .arg(clap::Arg::with_name("linear_to_srgb").help("convert linear to srgb"))
@@ -27,15 +29,17 @@ fn main() {
         )
         .get_matches();
 
-    let input_file_location = matches.value_of("input").unwrap();
+    let input_file_location = matches.values_of("input").unwrap();
     let output_file_location = matches.value_of("output").unwrap();
     let linear_to_srgb = matches.value_of("linear_to_srgb").is_some();
 
-    println!("input file location: {}", input_file_location);
+    println!("input file location: {:?}", input_file_location);
     println!("output file location: {}", output_file_location);
     println!("linear_to_srgb: {}", linear_to_srgb);
 
-    let image = load_image(input_file_location);
+    let images = load_images(&input_file_location.collect::<Vec<_>>());
+
+    let image = combine_images(&images).unwrap();
 
     let image = image::ImageBuffer::from_fn(
         image.width().try_into().unwrap(),
@@ -73,10 +77,44 @@ fn main() {
     image.save(output_file_location).unwrap();
 }
 
-fn load_image<P>(path: P) -> Image
+fn load_images<P>(paths: &[P]) -> Vec<Image>
 where
     P: AsRef<std::path::Path>,
 {
-    let file = std::fs::read(path).unwrap();
-    serde_json::from_slice(&file).unwrap()
+    paths
+        .iter()
+        .map(|path| {
+            let file = std::fs::read(path).unwrap();
+            serde_json::from_slice(&file).unwrap()
+        })
+        .collect()
+}
+
+fn combine_images(images: &[Image]) -> Option<Image> {
+    if images.is_empty() {
+        None
+    } else {
+        let mut image = images.iter().try_fold(
+            Image::new(images[0].width(), images[0].height()),
+            |acc, image| {
+                if acc.width() != image.width() || acc.height() != image.height() {
+                    None
+                } else {
+                    Some(Image::from_pixels(
+                        image.width(),
+                        image.height(),
+                        acc.get_pixels()
+                            .iter()
+                            .zip(image.get_pixels().iter())
+                            .map(|(p1, p2)| p1 + p2)
+                            .collect(),
+                    ))
+                }
+            },
+        )?;
+        image.get_pixels_mut().iter_mut().for_each(|pixel| {
+            *pixel /= images.len() as f64;
+        });
+        Some(image)
+    }
 }
