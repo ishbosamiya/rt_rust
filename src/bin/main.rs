@@ -872,7 +872,7 @@ fn main() {
 
         // drawing the rendered image at some location
         draw_plane_with_image(
-            &glm::vec3(2.0, image_height as f64 / 1000.0, 0.0),
+            &glm::vec3(200.0, image_height as f64 / 1000.0, 0.0),
             &glm::vec3(image_width as f64 / 500.0, 2.0, image_height as f64 / 500.0),
             &glm::vec3(0.0, 0.0, 1.0),
             &mut rendered_texture.borrow_mut(),
