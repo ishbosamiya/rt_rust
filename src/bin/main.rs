@@ -781,7 +781,7 @@ fn main() {
                 }
 
                 Viewport::new(
-                    glm::vec2(viewport_width, viewport_height),
+                    glm::vec2(viewport_width.max(1), viewport_height.max(1)),
                     glm::vec2(viewport_top_left_x, viewport_top_left_y),
                 )
             };
