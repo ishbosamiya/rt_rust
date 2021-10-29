@@ -24,6 +24,10 @@ impl Image {
         let mut pixels: Vec<glm::DVec3> = Vec::with_capacity(width * height);
         pixels.resize(width * height, glm::vec3(0.0, 0.0, 0.0));
 
+        Self::from_pixels(width, height, pixels)
+    }
+
+    pub fn from_pixels(width: usize, height: usize, pixels: Vec<glm::DVec3>) -> Image {
         Image {
             id: rand::random(),
             pixels,
