@@ -5,6 +5,7 @@ use image::GenericImageView;
 use rfd::FileDialog;
 use serde::{Deserialize, Serialize};
 
+use crate::glm;
 use crate::{rasterize::texture::TextureRGBAFloat, ui::DrawUI};
 
 /// A unique identifier given to each `Texture` during its
@@ -120,7 +121,7 @@ impl DrawUI for TextureList {
                             .to_rgba16()
                             .pixels()
                             .map(|pixel| {
-                                (
+                                glm::vec4(
                                     pixel[0] as f32 / u16::MAX as f32,
                                     pixel[1] as f32 / u16::MAX as f32,
                                     pixel[2] as f32 / u16::MAX as f32,

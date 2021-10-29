@@ -42,7 +42,7 @@ impl Image {
             pixels: tex
                 .get_pixels()
                 .iter()
-                .map(|(r, g, b, _a)| glm::vec3(*r as f64, *g as f64, *b as f64))
+                .map(|pixel| glm::vec3(pixel[0].into(), pixel[1].into(), pixel[2].into()))
                 .collect(),
             width: tex.get_width(),
             height: tex.get_height(),
