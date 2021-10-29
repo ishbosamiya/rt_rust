@@ -32,6 +32,7 @@ use std::thread;
 use egui::{FontDefinitions, FontFamily, TextStyle};
 use egui_glfw::EguiBackend;
 use glfw::{Action, Context, Key};
+use rand::seq::IteratorRandom;
 use serde::{Deserialize, Serialize};
 
 use rt::fps::FPS;
@@ -733,6 +734,21 @@ fn main() {
                                     scene.write().unwrap().unapply_model_matrices();
                                 }
                             });
+
+                            if ui.button("Random assign shaders to objects").clicked() {
+                                let shader_list = shader_list.read().unwrap();
+                                let mut rng = rand::thread_rng();
+                                scene
+                                    .write()
+                                    .unwrap()
+                                    .get_objects_mut()
+                                    .iter_mut()
+                                    .for_each(|object| {
+                                        let shader =
+                                            shader_list.get_shaders().choose(&mut rng).unwrap();
+                                        object.set_path_trace_shader_id(shader.get_shader_id());
+                                    });
+                            }
                         });
                     })
                     .response;
