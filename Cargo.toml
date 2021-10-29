@@ -41,6 +41,11 @@ debug = true
 [profile.release]
 debug = true
 
+[workspace]
+members = [
+	"testing_framework",
+]
+
 [features]
 mesh_no_bvh = []
 scene_no_bvh = []
