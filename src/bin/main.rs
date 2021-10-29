@@ -601,12 +601,25 @@ fn main() {
                                 ui.text_edit_singleline(&mut save_image_location);
                             });
 
-                            if ui.button("Save Ray Traced Image").clicked() {
+                            if ui.button("Save Ray Traced Image PPM").clicked() {
                                 let image =
                                     Image::from_texture_rgba_float(&rendered_texture.borrow());
                                 PPM::new(&image)
                                     .write_to_file(&save_image_location)
                                     .unwrap();
+                            }
+
+                            if ui.button("Save Ray Traced Image All Data").clicked() {
+                                if let Some(path) = FileDialog::new()
+                                    .add_filter("image", &["image"])
+                                    .add_filter("Any", &["*"])
+                                    .set_directory(".")
+                                    .save_file()
+                                {
+                                    let image: &Image = &rendered_image.read().unwrap();
+                                    let file = serde_json::to_string(image).unwrap();
+                                    std::fs::write(path, file).unwrap();
+                                }
                             }
 
                             ui.separator();
