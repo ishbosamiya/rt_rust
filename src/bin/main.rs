@@ -11,6 +11,7 @@ use rt::path_trace::intersectable::Intersectable;
 use rt::path_trace::medium::Medium;
 use rt::path_trace::ray::Ray;
 use rt::path_trace::shader_list::{ShaderID, ShaderList};
+use rt::path_trace::texture_list::TextureList;
 use rt::path_trace::traversal_info::{TraversalInfo, TraversalInfoDrawData};
 use rt::path_trace::{self, RayTraceMessage, RayTraceParams};
 use rt::progress::Progress;
@@ -203,6 +204,7 @@ fn main() {
     scene.build_bvh(0.01);
     let scene = Arc::new(RwLock::new(scene));
     let shader_list = Arc::new(RwLock::new(shader_list));
+    let texture_list = Arc::new(RwLock::new(TextureList::new()));
     let path_trace_camera = Arc::new(RwLock::new(path_trace_camera));
 
     let infinite_grid = InfiniteGrid::default();
@@ -221,6 +223,7 @@ fn main() {
     let ray_trace_main_thread_handle = {
         let scene = scene.clone();
         let shader_list = shader_list.clone();
+        let texture_list = texture_list.clone();
         let camera = path_trace_camera.clone();
         let environment = environment.clone();
         let rendered_image = rendered_image.clone();
@@ -229,6 +232,7 @@ fn main() {
             path_trace::ray_trace_main(
                 scene,
                 shader_list,
+                texture_list,
                 camera,
                 environment,
                 rendered_image,
@@ -351,6 +355,13 @@ fn main() {
                                 selected_shader = *shader_list.get_selected_shader();
                             } else {
                                 ui.label("Shaders are currently in use, cannot edit the shaders");
+                            }
+
+                            texture_list.read().unwrap().draw_ui(ui);
+                            if let Ok(mut texture_list) = texture_list.try_write() {
+                                texture_list.draw_ui_mut(ui);
+                            } else {
+                                ui.label("Textures are currently in use, cannot edit the textures");
                             }
                         });
                     })

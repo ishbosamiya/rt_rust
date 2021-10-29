@@ -7,6 +7,7 @@ pub mod medium;
 pub mod ray;
 pub mod shader_list;
 pub mod shaders;
+pub mod texture_list;
 pub mod traversal_info;
 
 use std::sync::atomic::AtomicUsize;
@@ -38,6 +39,7 @@ use self::environment::EnvironmentShadingData;
 use self::medium::Medium;
 use self::shader_list::Shader;
 use self::shader_list::ShaderList;
+use self::texture_list::TextureList;
 use self::traversal_info::SingleRayInfo;
 use self::traversal_info::TraversalInfo;
 
@@ -94,6 +96,7 @@ fn ray_trace_scene(
     ray_trace_params: RayTraceParams,
     scene: Arc<RwLock<Scene>>,
     shader_list: Arc<RwLock<ShaderList>>,
+    texture_list: Arc<RwLock<TextureList>>,
     camera: Arc<RwLock<Camera>>,
     environment: Arc<RwLock<Environment>>,
     rendered_image: Arc<RwLock<Image>>,
@@ -224,9 +227,11 @@ fn ray_trace_stop_render(
     render_thread_handle
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn ray_trace_main(
     scene: Arc<RwLock<Scene>>,
     shader_list: Arc<RwLock<ShaderList>>,
+    texture_list: Arc<RwLock<TextureList>>,
     camera: Arc<RwLock<Camera>>,
     environment: Arc<RwLock<Environment>>,
     rendered_image: Arc<RwLock<Image>>,
@@ -245,6 +250,7 @@ pub fn ray_trace_main(
 
                 let scene = scene.clone();
                 let shader_list = shader_list.clone();
+                let texture_list = texture_list.clone();
                 let camera = camera.clone();
                 let environment = environment.clone();
                 let rendered_image = rendered_image.clone();
@@ -255,6 +261,7 @@ pub fn ray_trace_main(
                         params,
                         scene,
                         shader_list,
+                        texture_list,
                         camera,
                         environment,
                         rendered_image,

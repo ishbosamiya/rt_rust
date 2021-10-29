@@ -1,7 +1,10 @@
 use std::convert::TryInto;
 
+use serde::{Deserialize, Serialize};
+
 use crate::image::Image;
 
+#[derive(Debug, Serialize, Deserialize)]
 pub struct TextureRGBAFloat {
     /// id that matches Image id from which the texture is made from
     id: usize,
@@ -10,6 +13,8 @@ pub struct TextureRGBAFloat {
     height: usize,
     pixels: Vec<(f32, f32, f32, f32)>,
 
+    #[serde(skip_serializing)]
+    #[serde(skip_deserializing)]
     gl_tex: gl::types::GLuint,
 }
 
@@ -44,17 +49,13 @@ impl TextureRGBAFloat {
         res
     }
 
-    pub fn from_image(tex: &Image) -> Self {
+    pub fn from_pixels(width: usize, height: usize, pixels: Vec<(f32, f32, f32, f32)>) -> Self {
         let gl_tex = Self::gen_gl_texture();
         let res = Self {
-            id: tex.get_id(),
-            width: tex.width(),
-            height: tex.height(),
-            pixels: tex
-                .get_pixels()
-                .iter()
-                .map(|pixel| (pixel[0] as f32, pixel[1] as f32, pixel[2] as f32, 1.0))
-                .collect(),
+            id: rand::random(),
+            width,
+            height,
+            pixels,
             gl_tex,
         };
 
@@ -65,6 +66,17 @@ impl TextureRGBAFloat {
         res
     }
 
+    pub fn from_image(tex: &Image) -> Self {
+        Self::from_pixels(
+            tex.width(),
+            tex.height(),
+            tex.get_pixels()
+                .iter()
+                .map(|pixel| (pixel[0] as f32, pixel[1] as f32, pixel[2] as f32, 1.0))
+                .collect(),
+        )
+    }
+
     pub fn update_from_image(&mut self, tex: &Image) {
         // If the ids are the same, the pixels are also the same so
         // don't do anything
@@ -73,6 +85,20 @@ impl TextureRGBAFloat {
         }
 
         *self = Self::from_image(tex);
+    }
+
+    /// # Safety
+    ///
+    /// There is no way to generate [`TextureRGBAFloat`] without
+    /// automatically sending the texture to the GPU except during
+    /// deserialization so there is no need to call this function
+    /// except immediately after deserialization once.
+    pub unsafe fn send_to_gpu(&mut self) {
+        let gl_tex = Self::gen_gl_texture();
+        self.gl_tex = gl_tex;
+        assert_eq!(self.pixels.len(), self.width * self.height);
+
+        self.new_texture_to_gl();
     }
 
     pub fn activate(&mut self, texture_target: u8) {
