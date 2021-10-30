@@ -68,14 +68,16 @@ impl TextureRGBAFloat {
     }
 
     pub fn from_image(tex: &Image) -> Self {
-        Self::from_pixels(
+        let mut res = Self::from_pixels(
             tex.width(),
             tex.height(),
             tex.get_pixels()
                 .iter()
                 .map(|pixel| glm::vec4(pixel[0] as f32, pixel[1] as f32, pixel[2] as f32, 1.0))
                 .collect(),
-        )
+        );
+        res.id = tex.get_id();
+        res
     }
 
     pub fn update_from_image(&mut self, tex: &Image) {
