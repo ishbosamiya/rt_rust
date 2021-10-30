@@ -60,10 +60,7 @@ impl BSDF for Lambert {
         intersect_info: &IntersectInfo,
         texture_list: &TextureList,
     ) -> glm::DVec3 {
-        #[allow(clippy::let_and_return)]
-        self.color
-            .get_color(intersect_info.get_uv(), texture_list)
-            .unwrap_or_else(|| glm::vec3(1.0, 0.0, 1.0))
+        self.color.get_color(intersect_info.get_uv(), texture_list)
     }
 
     fn get_bsdf_name(&self) -> &str {
@@ -71,9 +68,7 @@ impl BSDF for Lambert {
     }
 
     fn get_base_color(&self, texture_list: &TextureList) -> glm::DVec3 {
-        self.color
-            .get_color(&glm::zero(), texture_list)
-            .unwrap_or_else(|| glm::vec3(1.0, 0.0, 1.0))
+        self.color.get_color(&glm::zero(), texture_list)
     }
 }
 

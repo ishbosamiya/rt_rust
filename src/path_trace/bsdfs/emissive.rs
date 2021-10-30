@@ -3,15 +3,16 @@ use serde::{Deserialize, Serialize};
 
 use super::super::bsdf::{SampleData, SamplingTypes, BSDF};
 use super::super::intersectable::IntersectInfo;
+use super::utils::{ColorPicker, ColorPickerUiData};
 use super::BSDFUiData;
+use crate::glm;
 use crate::path_trace::medium::Medium;
 use crate::path_trace::texture_list::TextureList;
 use crate::ui::DrawUI;
-use crate::{glm, ui};
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Emissive {
-    color: glm::DVec3,
+    color: ColorPicker,
     power: f64,
 }
 
@@ -23,7 +24,10 @@ impl Default for Emissive {
 
 impl Emissive {
     pub fn new(color: glm::DVec3, power: f64) -> Self {
-        Self { color, power }
+        Self {
+            color: ColorPicker::Color(color),
+            power,
+        }
     }
 }
 
@@ -50,16 +54,20 @@ impl BSDF for Emissive {
         unreachable!("Emissive only material, so no eval is possible")
     }
 
-    fn emission(&self, _intersect_info: &IntersectInfo) -> Option<glm::DVec3> {
-        Some(self.power * self.color)
+    fn emission(
+        &self,
+        intersect_info: &IntersectInfo,
+        texture_list: &TextureList,
+    ) -> Option<glm::DVec3> {
+        Some(self.power * self.color.get_color(intersect_info.get_uv(), texture_list))
     }
 
     fn get_bsdf_name(&self) -> &str {
         "Emissive"
     }
 
-    fn get_base_color(&self, _texture_list: &TextureList) -> glm::DVec3 {
-        self.color
+    fn get_base_color(&self, texture_list: &TextureList) -> glm::DVec3 {
+        self.color.get_color(&glm::zero(), texture_list)
     }
 }
 
@@ -70,8 +78,17 @@ impl DrawUI for Emissive {
         ui.label(format!("BSDF: {}", self.get_bsdf_name()));
     }
 
-    fn draw_ui_mut(&mut self, ui: &mut egui::Ui, _extra_data: &Self::ExtraData) {
-        ui::color_edit_button_dvec3(ui, "Base Color", &mut self.color);
+    fn draw_ui_mut(&mut self, ui: &mut egui::Ui, extra_data: &Self::ExtraData) {
+        ui.horizontal(|ui| {
+            ui.label("Base Color");
+            self.color.draw_ui_mut(
+                ui,
+                &ColorPickerUiData::new(
+                    extra_data.get_texture_list().clone(),
+                    extra_data.get_shader_egui_id().with("Base Color"),
+                ),
+            );
+        });
         ui.add(egui::Slider::new(&mut self.power, 0.0..=10.0).text("Power"));
     }
 }

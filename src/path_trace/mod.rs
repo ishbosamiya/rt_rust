@@ -427,7 +427,9 @@ fn shade_hit(
             )
         });
 
-    let emission_data = bsdf.emission(intersect_info).map(EmissionHitData::new);
+    let emission_data = bsdf
+        .emission(intersect_info, texture_list)
+        .map(EmissionHitData::new);
 
     // Scattering or emissive or both but not none
     assert!(emission_data.is_some() || scattering_data.is_some());
@@ -445,6 +447,7 @@ fn shade_hit(
 /// Traces the given ray into the scene and returns the
 /// colour/intensity of light propagated by the given along with the
 /// path traced till that point
+#[allow(clippy::too_many_arguments)]
 pub fn trace_ray(
     ray: &Ray,
     camera: &Camera,

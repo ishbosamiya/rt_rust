@@ -84,7 +84,11 @@ pub trait BSDF: DrawUI<ExtraData = BSDFUiData> {
     ) -> glm::DVec3;
 
     /// Calculates the colour/intensity of light produced by the object the point of intersection
-    fn emission(&self, _intersect_info: &IntersectInfo) -> Option<glm::DVec3> {
+    fn emission(
+        &self,
+        _intersect_info: &IntersectInfo,
+        _texture_list: &TextureList,
+    ) -> Option<glm::DVec3> {
         None
     }
 

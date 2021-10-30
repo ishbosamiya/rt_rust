@@ -29,7 +29,14 @@ impl Display for ColorPicker {
 }
 
 impl ColorPicker {
-    pub fn get_color(&self, uv: &glm::DVec2, texture_list: &TextureList) -> Option<glm::DVec3> {
+    /// Get color value from [`ColorPicker`], returns `None` if
+    /// texture id is None or texture is not available in the texture
+    /// list.
+    pub fn get_color_checked(
+        &self,
+        uv: &glm::DVec2,
+        texture_list: &TextureList,
+    ) -> Option<glm::DVec3> {
         match self {
             ColorPicker::Color(color) => Some(*color),
             ColorPicker::Texture(texture_id) => {
@@ -41,6 +48,19 @@ impl ColorPicker {
                 }
             }
         }
+    }
+
+    /// Get color value from [`ColorPicker`]. Return (1.0, 0.0, 1.0)
+    /// if unable to fetch the color.
+    ///
+    /// Ideally, using [`ColorPicker::get_color_checked()`] is the way
+    /// to go but in most instances the error is not propagated
+    /// forward, so the same `self.get_color_checked(uv,
+    /// texture_list).unwrap_or_else(|| glm::vec3(1.0, 0.0, 1.0))` is
+    /// done each time. This makes that a lot more convinent.
+    pub fn get_color(&self, uv: &glm::DVec2, texture_list: &TextureList) -> glm::DVec3 {
+        self.get_color_checked(uv, texture_list)
+            .unwrap_or_else(|| glm::vec3(1.0, 0.0, 1.0))
     }
 }
 
