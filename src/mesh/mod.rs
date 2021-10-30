@@ -329,6 +329,16 @@ impl Mesh {
             },
         )
     }
+
+    /// Get a reference to the mesh's vertices.
+    pub fn get_vertices(&self) -> &[Vertex] {
+        self.vertices.as_slice()
+    }
+
+    /// Get a reference to the mesh's faces.
+    pub fn get_faces(&self) -> &[Vec<usize>] {
+        self.faces.as_slice()
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
