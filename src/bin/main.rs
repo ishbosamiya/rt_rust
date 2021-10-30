@@ -15,7 +15,7 @@ use rt::path_trace::texture_list::TextureList;
 use rt::path_trace::traversal_info::{TraversalInfo, TraversalInfoDrawData};
 use rt::path_trace::{self, RayTraceMessage, RayTraceParams};
 use rt::progress::Progress;
-use rt::rasterize::gpu_utils::draw_plane_with_image;
+use rt::rasterize::gpu_utils::{self, draw_plane_with_image};
 use rt::rasterize::texture::TextureRGBAFloat;
 use rt::scene::{Scene, SceneDrawData};
 use rt::ui::DrawUI;
@@ -885,6 +885,36 @@ fn main() {
         // Disable blending, render only opaque objects
         unsafe {
             gl::Disable(gl::BLEND);
+        }
+
+        // Sky Box
+        {
+            let srgb_not_on;
+            unsafe {
+                gl::Disable(gl::DEPTH_TEST);
+                srgb_not_on = gl::IsEnabled(gl::FRAMEBUFFER_SRGB) == gl::FALSE;
+                gl::Enable(gl::FRAMEBUFFER_SRGB);
+            }
+
+            let environment_shader = shader::builtins::get_environment_shader().as_ref().unwrap();
+            environment_shader.use_shader();
+            environment_shader.set_int("environment_map\0", 30);
+            let environment = environment.read().unwrap();
+            environment_shader.set_mat4(
+                "model\0",
+                &glm::convert(environment.get_transform().get_matrix()),
+            );
+            environment_shader.set_float("strength\0", environment.get_strength() as _);
+            environment_texture.borrow_mut().activate(30);
+
+            gpu_utils::draw_screen_quad(&mut imm.borrow_mut(), environment_shader);
+
+            unsafe {
+                gl::Enable(gl::DEPTH_TEST);
+                if srgb_not_on {
+                    gl::Disable(gl::FRAMEBUFFER_SRGB);
+                }
+            }
         }
 
         // drawing the scene
