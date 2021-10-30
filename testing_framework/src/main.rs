@@ -1,23 +1,75 @@
 extern crate clap;
+extern crate serde_json;
 
 use clap::{App, Arg};
 use is_executable::IsExecutable;
+use serde_json::Value;
+use std::fs::File;
 
 use std::path::Path;
 
-// struct ExecTest {
-//     name: String,
-// }
+// Stores values in JSON
+struct Test {
+    id: String,
+    threads: usize,
+    width: i32,
+    height: i32,
+    trace_depth: usize,
+    samples: usize,
+    env_map: bool,
+    rt_files: String,
+}
 
-// impl ExecTest {
-//     // fn new() -> Self {
-//     //     let app = App::new("test-executable")
-//     //         .version("1.0")
-//     //         .about("Tests Command Line Arguements")
-//     //         .author("Nobody");
-//     //     let name = matches.value_of("name").expect("Was Required");
-//     // }
-// }
+impl Test {
+    fn new(
+        id: String,
+        threads: usize,
+        width: i32,
+        height: i32,
+        trace_depth: usize,
+        samples: usize,
+        env_map: bool,
+        rt_files: String,
+    ) -> Self {
+        Self {
+            id,
+            threads,
+            width,
+            height,
+            trace_depth,
+            samples,
+            env_map,
+            rt_files,
+        }
+    }
+}
+
+pub fn read_config(config_path: &Path) -> std::io::Result<()> {
+    // Assume configs are stored in one folder only
+
+    let conf = File::open(config_path)?;
+
+    let json: Value = serde_json::from_reader(&conf)?;
+    // TODO: Call each test function
+    let mut tests: Vec<Test> = Vec::new();
+    for value in json.as_object().unwrap().values() {
+        let test: Test = Test::new(
+            value["id"].to_string(),
+            value["threads"].to_string().parse::<usize>().unwrap(),
+            value["width"].to_string().parse::<i32>().unwrap(),
+            value["height"].to_string().parse::<i32>().unwrap(),
+            value["trace_depth"].to_string().parse::<usize>().unwrap(),
+            value["samples"].to_string().parse::<usize>().unwrap(),
+            value["env_map"].to_string().parse::<bool>().unwrap(),
+            value["rt_file_path"].to_string(),
+        );
+        // Alternatively run each test one by one
+        // Does not require tests array
+        tests.push(test);
+    }
+
+    Ok(())
+}
 
 fn main() -> std::io::Result<()> {
     //println!("Main");
