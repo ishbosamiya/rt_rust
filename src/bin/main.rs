@@ -142,6 +142,7 @@ fn main() {
     let mut use_right_panel = true;
 
     let mut open_rendered_image_window = false;
+    let mut use_environment_map_as_background = false;
     let mut background_color = glm::vec4(0.051, 0.051, 0.051, 1.0);
     let mut should_cast_scene_ray = false;
     let mut image_width = 200;
@@ -505,6 +506,11 @@ fn main() {
                                     }
                                 }
                             }
+
+                            ui.checkbox(
+                                &mut use_environment_map_as_background,
+                                "Use Environment Map as Background",
+                            );
 
                             ui::color_edit_button_dvec4(
                                 ui,
@@ -888,7 +894,7 @@ fn main() {
         }
 
         // Sky Box
-        {
+        if use_environment_map_as_background {
             let srgb_not_on;
             unsafe {
                 gl::Disable(gl::DEPTH_TEST);
