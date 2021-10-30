@@ -1,9 +1,9 @@
 extern crate clap;
 
-use clap::{value_t, App, Arg};
+use clap::{App, Arg};
 use std::fs::File;
+use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
-use std::{env, fs};
 
 pub fn is_exec_in_path(path: &Path) -> bool {
     path.exists()
@@ -23,7 +23,7 @@ pub fn is_exec_in_path(path: &Path) -> bool {
 //     // }
 // }
 
-fn main() {
+fn main() -> std::io::Result<()> {
     //println!("Main");
     let app = App::new("test-exec")
         .version("1.0")
@@ -54,14 +54,18 @@ fn main() {
         )
         .get_matches();
 
-    // Checking for executable file
-    // Unsure of how file is sent
-    // let permissions = file.metadata()?.permissions();
-    // let is_exec = permissions.mode() & 0o111 != 0;
-    let config = app.value_of("config").unwrap();
+    // let config = app.value_of("config").unwrap();
+    // Checking if path and file are correct
     let file_name = app.value_of("exec").unwrap();
     let dir_name = app.value_of("pwd").unwrap();
     let mut path = PathBuf::from(dir_name);
     path.push(file_name);
     assert!(is_exec_in_path(path.as_path()));
+    // Checking for executable file
+    let file = File::open(path)?;
+    let permissions = file.metadata()?.permissions();
+    let is_exec = permissions.mode() & 0o111 != 0;
+    assert!(is_exec);
+
+    Ok(())
 }
