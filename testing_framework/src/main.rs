@@ -1,33 +1,44 @@
 extern crate clap;
+extern crate serde;
 extern crate serde_json;
 
 use clap::{App, Arg};
 use is_executable::IsExecutable;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
 use std::fs::File;
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 // Stores values in JSON
-struct Test {
-    threads: usize,
-    width: i32,
-    height: i32,
-    trace_depth: usize,
-    samples: usize,
-    env_map: bool,
-    rt_files: String,
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct Config {
+    rt_files: Vec<RT_Info>,
 }
 
-impl Test {
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct RT_Info {
+    threads: usize,
+    width: usize,
+    height: usize,
+    trace_depth: usize,
+    samples: usize,
+    env_map: Option<PathBuf>,
+    rt_path: PathBuf,
+}
+
+impl RT_Info {
     fn new(
         threads: usize,
-        width: i32,
-        height: i32,
+        width: usize,
+        height: usize,
         trace_depth: usize,
         samples: usize,
-        env_map: bool,
-        rt_files: String,
+        env_map: Option<PathBuf>,
+        rt_path: PathBuf,
     ) -> Self {
         Self {
             threads,
@@ -36,42 +47,26 @@ impl Test {
             trace_depth,
             samples,
             env_map,
-            rt_files,
+            rt_path,
         }
     }
 }
 
-pub fn read_config(config_path: &Path) -> std::io::Result<()> {
+pub fn read_config(config_path: &Path) -> Config {
     // Assume configs are stored in one folder only
 
-    let conf = File::open(config_path)?;
+    let conf = std::fs::read_to_string(config_path).unwrap();
 
-    let json: Value = serde_json::from_reader(&conf)?;
-    // TODO: Call each test function
-    let mut tests: Vec<Test> = Vec::new();
-    for value in json.as_object().unwrap().values() {
-        let test: Test = Test::new(
-            value["threads"].to_string().parse::<usize>().unwrap(),
-            value["width"].to_string().parse::<i32>().unwrap(),
-            value["height"].to_string().parse::<i32>().unwrap(),
-            value["trace_depth"].to_string().parse::<usize>().unwrap(),
-            value["samples"].to_string().parse::<usize>().unwrap(),
-            value["env_map"].to_string().parse::<bool>().unwrap(),
-            value["rt_file_path"].to_string(),
-        );
-        // Alternatively run each test one by one
-        // Does not require tests array
-        tests.push(test);
-    }
+    let info: Config = serde_json::from_str(&conf).unwrap();
 
-    Ok(())
+    info
 }
 
 fn main() -> std::io::Result<()> {
     //println!("Main");
-    let app = App::new("test-exec")
+    let app = App::new("Config-exec")
         .version("1.0")
-        .about("Tests Command Line Arguements")
+        .about("Configs Command Line Arguements")
         .author("Nobody")
         .arg(
             Arg::with_name("config")
