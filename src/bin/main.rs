@@ -1080,16 +1080,16 @@ fn handle_window_event(
     let window_cursor = window.get_cursor_pos();
 
     match event {
-        glfw::WindowEvent::Key(Key::Up, _, Action::Press, _) => {
+        glfw::WindowEvent::Key(Key::Up, _, Action::Press, glfw::Modifiers::Alt) => {
             *use_top_panel = !*use_top_panel;
         }
-        glfw::WindowEvent::Key(Key::Down, _, Action::Press, _) => {
+        glfw::WindowEvent::Key(Key::Down, _, Action::Press, glfw::Modifiers::Alt) => {
             *use_bottom_panel = !*use_bottom_panel;
         }
-        glfw::WindowEvent::Key(Key::Left, _, Action::Press, _) => {
+        glfw::WindowEvent::Key(Key::Left, _, Action::Press, glfw::Modifiers::Alt) => {
             *use_left_panel = !*use_left_panel;
         }
-        glfw::WindowEvent::Key(Key::Right, _, Action::Press, _) => {
+        glfw::WindowEvent::Key(Key::Right, _, Action::Press, glfw::Modifiers::Alt) => {
             *use_right_panel = !*use_right_panel;
         }
         glfw::WindowEvent::Key(Key::Num1 | Key::Kp1, _, Action::Press, modifier) => {
