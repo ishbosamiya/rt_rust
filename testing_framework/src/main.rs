@@ -10,7 +10,6 @@ use std::path::Path;
 
 // Stores values in JSON
 struct Test {
-    id: String,
     threads: usize,
     width: i32,
     height: i32,
@@ -22,7 +21,6 @@ struct Test {
 
 impl Test {
     fn new(
-        id: String,
         threads: usize,
         width: i32,
         height: i32,
@@ -32,7 +30,6 @@ impl Test {
         rt_files: String,
     ) -> Self {
         Self {
-            id,
             threads,
             width,
             height,
@@ -54,7 +51,6 @@ pub fn read_config(config_path: &Path) -> std::io::Result<()> {
     let mut tests: Vec<Test> = Vec::new();
     for value in json.as_object().unwrap().values() {
         let test: Test = Test::new(
-            value["id"].to_string(),
             value["threads"].to_string().parse::<usize>().unwrap(),
             value["width"].to_string().parse::<i32>().unwrap(),
             value["height"].to_string().parse::<i32>().unwrap(),
