@@ -58,7 +58,7 @@ macro_rules! ShaderFromBSDF {
                         bsdf,
                         shader_id: None,
                         name: SHADER_NAME_GEN.lock().unwrap().next().unwrap(),
-                        viewport_color: bsdf.get_base_color(),
+                        viewport_color: glm::vec3(1.0, 1.0, 1.0),
                     }
                 }
             }

@@ -1,5 +1,5 @@
-use crate::glm;
 use crate::ui::DrawUI;
+use crate::{glm, UiData};
 
 use serde::{Deserialize, Serialize};
 
@@ -24,9 +24,11 @@ impl Default for Transform {
 }
 
 impl DrawUI for Transform {
-    fn draw_ui(&self, _ui: &mut egui::Ui) {}
+    type ExtraData = UiData;
 
-    fn draw_ui_mut(&mut self, ui: &mut egui::Ui) {
+    fn draw_ui(&self, _ui: &mut egui::Ui, _extra_data: &Self::ExtraData) {}
+
+    fn draw_ui_mut(&mut self, ui: &mut egui::Ui, _extra_data: &Self::ExtraData) {
         // For Location
         ui.collapsing("Location", |ui| {
             ui.add(egui::Slider::new(&mut self.location[0], -10.0..=10.0).text("X"));

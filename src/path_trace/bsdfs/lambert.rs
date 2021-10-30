@@ -3,14 +3,17 @@ use serde::{Deserialize, Serialize};
 
 use super::super::bsdf::{SampleData, SamplingTypes, BSDF};
 use super::super::intersectable::IntersectInfo;
+use super::utils::{ColorPicker, ColorPickerUiData};
+use super::BSDFUiData;
+use crate::glm;
 use crate::math;
 use crate::path_trace::medium::Medium;
+use crate::path_trace::texture_list::TextureList;
 use crate::ui::DrawUI;
-use crate::{glm, ui};
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Lambert {
-    color: glm::DVec3,
+    color: ColorPicker,
 }
 
 impl Default for Lambert {
@@ -21,7 +24,9 @@ impl Default for Lambert {
 
 impl Lambert {
     pub fn new(color: glm::DVec3) -> Self {
-        Self { color }
+        Self {
+            color: ColorPicker::Color(color),
+        }
     }
 }
 
@@ -52,27 +57,43 @@ impl BSDF for Lambert {
         _wi: &glm::DVec3,
         _wo: &glm::DVec3,
         _wo_medium: &Medium,
-        _intersect_info: &IntersectInfo,
+        intersect_info: &IntersectInfo,
+        texture_list: &TextureList,
     ) -> glm::DVec3 {
         #[allow(clippy::let_and_return)]
         self.color
+            .get_color(intersect_info.get_uv(), texture_list)
+            .unwrap_or_else(|| glm::vec3(1.0, 0.0, 1.0))
     }
 
     fn get_bsdf_name(&self) -> &str {
         "Lambert"
     }
 
-    fn get_base_color(&self) -> glm::DVec3 {
+    fn get_base_color(&self, texture_list: &TextureList) -> glm::DVec3 {
         self.color
+            .get_color(&glm::zero(), texture_list)
+            .unwrap_or_else(|| glm::vec3(1.0, 0.0, 1.0))
     }
 }
 
 impl DrawUI for Lambert {
-    fn draw_ui(&self, ui: &mut egui::Ui) {
+    type ExtraData = BSDFUiData;
+
+    fn draw_ui(&self, ui: &mut egui::Ui, _extra_data: &Self::ExtraData) {
         ui.label(format!("BSDF: {}", self.get_bsdf_name()));
     }
 
-    fn draw_ui_mut(&mut self, ui: &mut egui::Ui) {
-        ui::color_edit_button_dvec3(ui, "Base Color", &mut self.color);
+    fn draw_ui_mut(&mut self, ui: &mut egui::Ui, extra_data: &Self::ExtraData) {
+        ui.horizontal(|ui| {
+            ui.label("Base Color");
+            self.color.draw_ui_mut(
+                ui,
+                &ColorPickerUiData::new(
+                    extra_data.get_texture_list().clone(),
+                    extra_data.get_shader_egui_id().with("Base Color"),
+                ),
+            );
+        });
     }
 }

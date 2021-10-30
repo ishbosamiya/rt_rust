@@ -5,7 +5,7 @@ use image::GenericImageView;
 use rfd::FileDialog;
 use serde::{Deserialize, Serialize};
 
-use crate::glm;
+use crate::{glm, UiData};
 use crate::{rasterize::texture::TextureRGBAFloat, ui::DrawUI};
 
 /// A unique identifier given to each `Texture` during its
@@ -29,8 +29,8 @@ impl TextureList {
         }
     }
 
-    pub fn get_textures(&self) -> hash_map::Values<'_, TextureID, TextureRGBAFloat> {
-        self.textures.values()
+    pub fn get_textures(&self) -> hash_map::Iter<'_, TextureID, TextureRGBAFloat> {
+        self.textures.iter()
     }
 
     pub fn get_texture(&self, texture_id: TextureID) -> Option<&TextureRGBAFloat> {
@@ -65,9 +65,11 @@ impl Default for TextureList {
 }
 
 impl DrawUI for TextureList {
-    fn draw_ui(&self, _ui: &mut egui::Ui) {}
+    type ExtraData = UiData;
 
-    fn draw_ui_mut(&mut self, ui: &mut egui::Ui) {
+    fn draw_ui(&self, _ui: &mut egui::Ui, _extra_data: &Self::ExtraData) {}
+
+    fn draw_ui_mut(&mut self, ui: &mut egui::Ui, _extra_data: &Self::ExtraData) {
         assert_eq!(self.texture_ids.len(), self.textures.len());
 
         ui.collapsing("Texture List", |ui| {

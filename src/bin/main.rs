@@ -20,7 +20,7 @@ use rt::rasterize::texture::TextureRGBAFloat;
 use rt::scene::{Scene, SceneDrawData};
 use rt::ui::DrawUI;
 use rt::viewport::Viewport;
-use rt::{glm, ui};
+use rt::{glm, ui, UiData};
 
 extern crate lazy_static;
 
@@ -303,6 +303,14 @@ fn main() {
         {
             egui.begin_frame(&window, &mut glfw);
 
+            let ui_data = UiData::new(
+                scene.clone(),
+                shader_list.clone(),
+                texture_list.clone(),
+                path_trace_camera.clone(),
+                environment.clone(),
+            );
+
             // Draw top, right, bottom and left panels, the order
             // matters since it goes from outermost to innermost.
 
@@ -322,9 +330,9 @@ fn main() {
                     .resizable(true)
                     .show(egui.get_egui_ctx(), |ui| {
                         egui::ScrollArea::auto_sized().show(ui, |ui| {
-                            environment.read().unwrap().draw_ui(ui);
+                            environment.read().unwrap().draw_ui(ui, &ui_data);
                             if let Ok(mut environment) = environment.try_write() {
-                                environment.draw_ui_mut(ui);
+                                environment.draw_ui_mut(ui, &ui_data);
                             } else {
                                 ui.label("Environment currently in use, cannot edit environment");
                             }
@@ -349,17 +357,17 @@ fn main() {
 
                             ui.separator();
 
-                            shader_list.read().unwrap().draw_ui(ui);
+                            shader_list.read().unwrap().draw_ui(ui, &ui_data);
                             if let Ok(mut shader_list) = shader_list.try_write() {
-                                shader_list.draw_ui_mut(ui);
+                                shader_list.draw_ui_mut(ui, &ui_data);
                                 selected_shader = *shader_list.get_selected_shader();
                             } else {
                                 ui.label("Shaders are currently in use, cannot edit the shaders");
                             }
 
-                            texture_list.read().unwrap().draw_ui(ui);
+                            texture_list.read().unwrap().draw_ui(ui, &ui_data);
                             if let Ok(mut texture_list) = texture_list.try_write() {
-                                texture_list.draw_ui_mut(ui);
+                                texture_list.draw_ui_mut(ui, &ui_data);
                             } else {
                                 ui.label("Textures are currently in use, cannot edit the textures");
                             }
@@ -735,6 +743,7 @@ fn main() {
                                                 &scene.read().unwrap(),
                                                 trace_max_depth,
                                                 &shader_list.read().unwrap(),
+                                                &texture_list.read().unwrap(),
                                                 &environment.into(),
                                                 &Medium::air(),
                                             );
@@ -929,6 +938,7 @@ fn main() {
                 &scene.read().unwrap(),
                 1,
                 &shader_list.read().unwrap(),
+                &texture_list.read().unwrap(),
                 &environment.into(),
                 &Medium::air(),
             );
@@ -950,6 +960,7 @@ fn main() {
                 &scene.read().unwrap(),
                 trace_max_depth,
                 &shader_list.read().unwrap(),
+                &texture_list.read().unwrap(),
                 &environment.into(),
                 &Medium::air(),
             );

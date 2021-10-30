@@ -3,7 +3,9 @@ use serde::{Deserialize, Serialize};
 
 use super::super::bsdf::{SampleData, SamplingTypes, BSDF};
 use super::super::intersectable::IntersectInfo;
+use super::BSDFUiData;
 use crate::path_trace::medium::Medium;
+use crate::path_trace::texture_list::TextureList;
 use crate::ui::DrawUI;
 use crate::{glm, ui};
 
@@ -59,6 +61,7 @@ impl BSDF for Refraction {
         _wo: &glm::DVec3,
         _wo_medium: &Medium,
         _intersect_info: &IntersectInfo,
+        _texture_list: &TextureList,
     ) -> glm::DVec3 {
         self.color
     }
@@ -67,7 +70,7 @@ impl BSDF for Refraction {
         "Refraction"
     }
 
-    fn get_base_color(&self) -> glm::DVec3 {
+    fn get_base_color(&self, _texture_list: &TextureList) -> glm::DVec3 {
         self.color
     }
 
@@ -77,11 +80,13 @@ impl BSDF for Refraction {
 }
 
 impl DrawUI for Refraction {
-    fn draw_ui(&self, ui: &mut egui::Ui) {
+    type ExtraData = BSDFUiData;
+
+    fn draw_ui(&self, ui: &mut egui::Ui, _extra_data: &Self::ExtraData) {
         ui.label(format!("BSDF: {}", self.get_bsdf_name()));
     }
 
-    fn draw_ui_mut(&mut self, ui: &mut egui::Ui) {
+    fn draw_ui_mut(&mut self, ui: &mut egui::Ui, _extra_data: &Self::ExtraData) {
         ui::color_edit_button_dvec3(ui, "Base Color", &mut self.color);
         ui.add(egui::Slider::new(&mut self.ior, 1.0..=2.0).text("ior"));
     }
