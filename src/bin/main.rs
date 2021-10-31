@@ -125,6 +125,8 @@ fn main() {
         shader_list
     }));
 
+    let texture_list = Arc::new(RwLock::new(TextureList::new()));
+
     let rendered_image = Arc::new(RwLock::new(Image::new(100, 100)));
 
     let environment = Arc::new(RwLock::new(Environment::default()));
@@ -134,6 +136,7 @@ fn main() {
     let ray_trace_main_thread_handle = {
         let scene = scene.clone();
         let shader_list = shader_list.clone();
+        let texture_list = texture_list.clone();
         let camera = path_trace_camera.clone();
         let environment = environment.clone();
         let rendered_image = rendered_image.clone();
@@ -142,6 +145,7 @@ fn main() {
             path_trace::ray_trace_main(
                 scene,
                 shader_list,
+                texture_list,
                 camera,
                 environment,
                 rendered_image,
@@ -163,6 +167,7 @@ fn main() {
         main_gui(
             scene,
             shader_list,
+            texture_list,
             path_trace_camera,
             environment,
             rendered_image,
@@ -209,6 +214,7 @@ fn main_headless(
 fn main_gui(
     scene: Arc<RwLock<Scene>>,
     shader_list: Arc<RwLock<ShaderList>>,
+    texture_list: Arc<RwLock<TextureList>>,
     path_trace_camera: Arc<RwLock<PathTraceCamera>>,
     environment: Arc<RwLock<Environment>>,
     rendered_image: Arc<RwLock<Image>>,
