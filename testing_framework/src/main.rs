@@ -5,8 +5,7 @@ extern crate serde_json;
 use clap::{App, Arg};
 use is_executable::IsExecutable;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use serde_json::Value;
-use std::fs::File;
+use std::process::Command;
 
 use std::path::{Path, PathBuf};
 
@@ -15,12 +14,12 @@ use std::path::{Path, PathBuf};
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct Config {
-    rt_files: Vec<RT_Info>,
+    rt_files: Vec<RustFileInfo>,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "PascalCase")]
-pub struct RT_Info {
+pub struct RustFileInfo {
     threads: usize,
     width: usize,
     height: usize,
@@ -30,7 +29,7 @@ pub struct RT_Info {
     rt_path: PathBuf,
 }
 
-impl RT_Info {
+impl RustFileInfo {
     fn new(
         threads: usize,
         width: usize,
@@ -57,9 +56,9 @@ pub fn read_config(config_path: &Path) -> Config {
 
     let conf = std::fs::read_to_string(config_path).unwrap();
 
-    let info: Config = serde_json::from_str(&conf).unwrap();
+    let rt_files: Vec<RustFileInfo> = serde_json::from_str(&conf).unwrap();
 
-    info
+    Config { rt_files }
 }
 
 fn main() -> std::io::Result<()> {
@@ -124,6 +123,14 @@ fn main() -> std::io::Result<()> {
         "working_directory_path: {}",
         working_directory_path.to_str().unwrap()
     );
+
+    // Calling the config
+    let config_data = read_config(config_path);
+
+    // Spawning a Process for every iteration of data
+    config_data.rt_files.iter().for_each(|f| {
+        // TODO: Enter a command using std::command to call executable
+    });
 
     Ok(())
 }
