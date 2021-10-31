@@ -283,10 +283,11 @@ pub fn ray_trace_main(
     }
 }
 
-/// Data returned during [`shade_hit`]
+/// Data returned during shading of the hitpoint
 pub type ShadeHitData = (Option<ScatterHitData>, Option<EmissionHitData>);
 
-/// Data returned during scattering of light in [`shade_hit`]
+/// Data returned during scattering of light while shading of the
+/// hitpoint
 #[derive(Debug, Clone, PartialEq)]
 pub struct ScatterHitData {
     /// color information that should be propagated forward
@@ -334,7 +335,8 @@ impl ScatterHitData {
     }
 }
 
-/// Data returned during emission of light in [`shade_hit`]
+/// Data returned during emission of light while shading of the
+/// hitpoint
 #[derive(Debug, Clone, PartialEq)]
 pub struct EmissionHitData {
     /// color of light produced with intensity of the light encoded

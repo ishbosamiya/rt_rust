@@ -13,9 +13,9 @@ use crate::{
 /// magic
 ///
 /// See
-/// https://github.com/martin-pr/possumwood/wiki/Infinite-ground-plane-using-GLSL-shaders
+/// <https://github.com/martin-pr/possumwood/wiki/Infinite-ground-plane-using-GLSL-shaders>
 /// and
-/// https://asliceofrendering.com/scene%20helper/2020/01/05/InfiniteGrid/
+/// <https://asliceofrendering.com/scene%20helper/2020/01/05/InfiniteGrid/>
 /// for more details about this approach
 ///
 /// Drawing the grid requires blending, so it turns it on using
