@@ -3,6 +3,7 @@ name = "rt"
 version = "0.1.0"
 authors = ["ishbosamiya <ishbosamiya@gmail.com>"]
 edition = "2018"
+default-run = "main"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -44,6 +45,12 @@ debug = true
 [features]
 mesh_no_bvh = []
 scene_no_bvh = []
+
+[[bin]]
+name = "main"
+
+[[bin]]
+name = "blank_3d"
 
 [patch.crates-io]
 generational-arena = { git = "ssh://git@github.com/JOE1994/generational-arena.git", branch = 'fix_bug' }
