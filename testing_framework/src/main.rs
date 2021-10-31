@@ -27,28 +27,31 @@ pub struct RustFileInfo {
     samples: usize,
     env_map: Option<PathBuf>,
     rt_path: PathBuf,
+    output_path: PathBuf,
 }
 
 impl RustFileInfo {
-    fn new(
-        threads: usize,
-        width: usize,
-        height: usize,
-        trace_depth: usize,
-        samples: usize,
-        env_map: Option<PathBuf>,
-        rt_path: PathBuf,
-    ) -> Self {
-        Self {
-            threads,
-            width,
-            height,
-            trace_depth,
-            samples,
-            env_map,
-            rt_path,
-        }
-    }
+    // fn new(
+    //     threads: usize,
+    //     width: usize,
+    //     height: usize,
+    //     trace_depth: usize,
+    //     samples: usize,
+    //     env_map: Option<PathBuf>,
+    //     rt_path: PathBuf,
+    //     output_path: PathBuf,
+    // ) -> Self {
+    //     Self {
+    //         threads,
+    //         width,
+    //         height,
+    //         trace_depth,
+    //         samples,
+    //         env_map,
+    //         rt_path,
+    //         output_path,
+    //     }
+    // }
 }
 
 pub fn read_config(config_path: &Path) -> Config {
@@ -130,6 +133,23 @@ fn main() -> std::io::Result<()> {
     // Spawning a Process for every iteration of data
     config_data.rt_files.iter().for_each(|f| {
         // TODO: Enter a command using std::command to call executable
+        let output = Command::new(exec_path)
+            .arg("-t")
+            .arg(f.threads.to_string())
+            .arg("-w")
+            .arg(f.width.to_string())
+            .arg("-h")
+            .arg(f.height.to_string())
+            .arg("-S")
+            .arg(f.samples.to_string())
+            .arg("-E")
+            .arg(f.env_map.as_ref().unwrap().as_path())
+            .arg("-r")
+            .arg(f.rt_path.as_path())
+            .arg("-o")
+            .arg(f.output_path.as_path())
+            .output()
+            .expect("Error in Sending");
     });
 
     Ok(())
