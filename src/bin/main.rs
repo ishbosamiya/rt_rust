@@ -75,6 +75,149 @@ impl File {
 }
 
 fn main() {
+    let matches = clap::App::new("RT Rust")
+        .arg(clap::Arg::with_name("headless"))
+        .get_matches();
+
+    let run_headless = matches.value_of("headless").is_some();
+
+    let image_width = 200;
+    let image_height = 200;
+
+    let path_trace_camera = Arc::new(RwLock::new({
+        let camera_focal_length = 12.0;
+        let camera_sensor_width = 2.0;
+        let camera_position = glm::vec3(0.0, 0.0, 10.0);
+        let aspect_ratio = image_width as f64 / image_height as f64;
+        let camera_sensor_height = camera_sensor_width / aspect_ratio;
+        PathTraceCamera::new(
+            camera_sensor_height,
+            aspect_ratio,
+            camera_focal_length,
+            camera_position,
+        )
+    }));
+
+    let path_trace_progress = Arc::new(RwLock::new(Progress::new()));
+
+    let scene = Arc::new(RwLock::new({
+        let mut scene = Scene::new();
+        scene.build_bvh(0.01);
+        scene
+    }));
+
+    let shader_list = Arc::new(RwLock::new({
+        let mut shader_list = ShaderList::new();
+
+        shader_list.add_shader(Box::new(path_trace::shaders::Lambert::new(
+            path_trace::bsdfs::lambert::Lambert::new(glm::vec3(1.0, 1.0, 1.0)),
+        )));
+        shader_list.add_shader(Box::new(path_trace::shaders::Lambert::new(
+            path_trace::bsdfs::lambert::Lambert::new(glm::vec3(1.0, 0.0, 0.0)),
+        )));
+        shader_list.add_shader(Box::new(path_trace::shaders::Glossy::new(
+            path_trace::bsdfs::glossy::Glossy::new(glm::vec3(1.0, 1.0, 1.0)),
+        )));
+        shader_list.add_shader(Box::new(path_trace::shaders::Emissive::new(
+            path_trace::bsdfs::emissive::Emissive::new(glm::vec3(1.0, 0.4, 1.0), 5.0),
+        )));
+
+        shader_list
+    }));
+
+    let rendered_image = Arc::new(RwLock::new(Image::new(100, 100)));
+
+    let environment = Arc::new(RwLock::new(Environment::default()));
+
+    // Spawn the main ray tracing thread
+    let (ray_trace_thread_sender, ray_trace_thread_receiver) = mpsc::channel();
+    let ray_trace_main_thread_handle = {
+        let scene = scene.clone();
+        let shader_list = shader_list.clone();
+        let camera = path_trace_camera.clone();
+        let environment = environment.clone();
+        let rendered_image = rendered_image.clone();
+        let path_trace_progress = path_trace_progress.clone();
+        thread::spawn(move || {
+            path_trace::ray_trace_main(
+                scene,
+                shader_list,
+                camera,
+                environment,
+                rendered_image,
+                path_trace_progress,
+                ray_trace_thread_receiver,
+            );
+        })
+    };
+
+    if run_headless {
+        main_headless(
+            ray_trace_main_thread_handle,
+            ray_trace_thread_sender,
+            rendered_image,
+            image_width,
+            image_height,
+        );
+    } else {
+        main_gui(
+            scene,
+            shader_list,
+            path_trace_camera,
+            environment,
+            rendered_image,
+            path_trace_progress,
+            ray_trace_main_thread_handle,
+            ray_trace_thread_sender,
+            image_width,
+            image_height,
+        );
+    }
+}
+
+fn main_headless(
+    ray_trace_main_thread_handle: thread::JoinHandle<()>,
+    ray_trace_thread_sender: mpsc::Sender<RayTraceMessage>,
+    rendered_image: Arc<RwLock<Image>>,
+    image_width: usize,
+    image_height: usize,
+) {
+    let trace_max_depth = 5;
+    let samples_per_pixel = 5;
+
+    ray_trace_thread_sender
+        .send(RayTraceMessage::StartRender(RayTraceParams::new(
+            image_width,
+            image_height,
+            trace_max_depth,
+            samples_per_pixel,
+        )))
+        .unwrap();
+
+    ray_trace_thread_sender
+        .send(RayTraceMessage::KillThread)
+        .unwrap();
+
+    ray_trace_main_thread_handle.join().unwrap();
+
+    let image: &Image = &rendered_image.read().unwrap();
+    let file = serde_json::to_string(image).unwrap();
+    std::fs::write("output.image", file).unwrap();
+}
+
+#[allow(clippy::too_many_arguments)]
+fn main_gui(
+    scene: Arc<RwLock<Scene>>,
+    shader_list: Arc<RwLock<ShaderList>>,
+    path_trace_camera: Arc<RwLock<PathTraceCamera>>,
+    environment: Arc<RwLock<Environment>>,
+    rendered_image: Arc<RwLock<Image>>,
+    path_trace_progress: Arc<RwLock<Progress>>,
+    ray_trace_main_thread_handle: thread::JoinHandle<()>,
+    ray_trace_thread_sender: mpsc::Sender<RayTraceMessage>,
+    mut image_width: usize,
+    mut image_height: usize,
+) {
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
 
     glfw.window_hint(glfw::WindowHint::ContextVersion(3, 3));
@@ -136,6 +279,15 @@ fn main() {
 
     let mut fps = FPS::default();
 
+    let infinite_grid = InfiniteGrid::default();
+
+    let rendered_texture = Rc::new(RefCell::new(TextureRGBAFloat::from_image(
+        &rendered_image.read().unwrap(),
+    )));
+    let environment_texture = Rc::new(RefCell::new(TextureRGBAFloat::from_image(
+        environment.read().unwrap().get_hdr(),
+    )));
+
     let mut use_top_panel = false;
     let mut use_bottom_panel = false;
     let mut use_left_panel = true;
@@ -145,8 +297,6 @@ fn main() {
     let mut use_environment_map_as_background = false;
     let mut background_color = glm::vec4(0.051, 0.051, 0.051, 1.0);
     let mut should_cast_scene_ray = false;
-    let mut image_width = 200;
-    let mut image_height = 200;
     let mut trace_max_depth = 5;
     let mut samples_per_pixel = 5;
     let mut save_image_location = "test.ppm".to_string();
@@ -165,86 +315,6 @@ fn main() {
     let mut selected_shader: Option<ShaderID> = None;
     let mut end_ray_depth: usize = trace_max_depth;
     let mut start_ray_depth: usize = 1;
-
-    let path_trace_camera = {
-        let camera_focal_length = 12.0;
-        let camera_sensor_width = 2.0;
-        let camera_position = glm::vec3(0.0, 0.0, 10.0);
-        let aspect_ratio = image_width as f64 / image_height as f64;
-        let camera_sensor_height = camera_sensor_width / aspect_ratio;
-        PathTraceCamera::new(
-            camera_sensor_height,
-            aspect_ratio,
-            camera_focal_length,
-            camera_position,
-        )
-    };
-
-    let path_trace_progress = Arc::new(RwLock::new(Progress::new()));
-
-    let shader_list = {
-        let mut shader_list = ShaderList::new();
-
-        shader_list.add_shader(Box::new(path_trace::shaders::Lambert::new(
-            path_trace::bsdfs::lambert::Lambert::new(glm::vec3(1.0, 1.0, 1.0)),
-        )));
-        shader_list.add_shader(Box::new(path_trace::shaders::Glossy::new(
-            path_trace::bsdfs::glossy::Glossy::new(glm::vec3(1.0, 1.0, 1.0)),
-        )));
-        shader_list.add_shader(Box::new(path_trace::shaders::Emissive::new(
-            path_trace::bsdfs::emissive::Emissive::new(glm::vec3(1.0, 1.0, 1.0), 1.0),
-        )));
-        shader_list.add_shader(Box::new(path_trace::shaders::Blinnphong::new(
-            path_trace::bsdfs::blinnphong::Blinnphong::new(glm::vec3(1.0, 1.0, 1.0), 20.0, false),
-        )));
-        shader_list.add_shader(Box::new(path_trace::shaders::Refraction::new(
-            path_trace::bsdfs::refraction::Refraction::new(glm::vec3(1.0, 1.0, 1.0), 1.5),
-        )));
-
-        shader_list
-    };
-
-    let mut scene = Scene::new();
-    scene.build_bvh(0.01);
-    let scene = Arc::new(RwLock::new(scene));
-    let shader_list = Arc::new(RwLock::new(shader_list));
-    let texture_list = Arc::new(RwLock::new(TextureList::new()));
-    let path_trace_camera = Arc::new(RwLock::new(path_trace_camera));
-
-    let infinite_grid = InfiniteGrid::default();
-
-    let rendered_image = Arc::new(RwLock::new(Image::new(100, 100)));
-    let rendered_texture = Rc::new(RefCell::new(TextureRGBAFloat::from_image(
-        &rendered_image.read().unwrap(),
-    )));
-    let environment = Arc::new(RwLock::new(Environment::default()));
-    let environment_texture = Rc::new(RefCell::new(TextureRGBAFloat::from_image(
-        environment.read().unwrap().get_hdr(),
-    )));
-
-    // Spawn the main ray tracing thread
-    let (ray_trace_thread_sender, ray_trace_thread_receiver) = mpsc::channel();
-    let ray_trace_main_thread_handle = {
-        let scene = scene.clone();
-        let shader_list = shader_list.clone();
-        let texture_list = texture_list.clone();
-        let camera = path_trace_camera.clone();
-        let environment = environment.clone();
-        let rendered_image = rendered_image.clone();
-        let path_trace_progress = path_trace_progress.clone();
-        thread::spawn(move || {
-            path_trace::ray_trace_main(
-                scene,
-                shader_list,
-                texture_list,
-                camera,
-                environment,
-                rendered_image,
-                path_trace_progress,
-                ray_trace_thread_receiver,
-            );
-        })
-    };
 
     while !window.should_close() {
         glfw.poll_events();
