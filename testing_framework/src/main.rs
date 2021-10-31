@@ -133,7 +133,7 @@ fn main() -> std::io::Result<()> {
     // Spawning a Process for every iteration of data
     config_data.rt_files.iter().for_each(|f| {
         if let Some(path) = &f.env_map {
-            let mut command = &Command::new(exec_path)
+            let _command = Command::new(exec_path)
                 .arg("-t")
                 .arg(f.threads.to_string())
                 .arg("-w")
