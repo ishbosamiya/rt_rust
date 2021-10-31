@@ -3,8 +3,8 @@ use std::{
     fmt::Debug,
 };
 
-use crate::ui::DrawUI;
-use crate::{glm, ui};
+use crate::{glm, path_trace::bsdfs::BSDFUiData, ui};
+use crate::{ui::DrawUI, UiData};
 
 use super::bsdf::BSDF;
 use super::shaders::ShaderType;
@@ -114,9 +114,11 @@ impl Default for ShaderList {
 }
 
 impl DrawUI for ShaderList {
-    fn draw_ui(&self, _ui: &mut egui::Ui) {}
+    type ExtraData = UiData;
 
-    fn draw_ui_mut(&mut self, ui: &mut egui::Ui) {
+    fn draw_ui(&self, _ui: &mut egui::Ui, _extra_data: &Self::ExtraData) {}
+
+    fn draw_ui_mut(&mut self, ui: &mut egui::Ui, extra_data: &Self::ExtraData) {
         assert_eq!(self.shader_ids.len(), self.shaders.len());
 
         if let Some(selected_shader) = self.selected_shader {
@@ -160,8 +162,10 @@ impl DrawUI for ShaderList {
 
                 ui.text_edit_singleline(shader.get_shader_name_mut());
 
-                shader.get_bsdf().draw_ui(ui);
-                shader.get_bsdf_mut().draw_ui_mut(ui);
+                let bsdf_ui_data =
+                    BSDFUiData::new(extra_data.texture_list.clone(), egui::Id::new(shader_id));
+                shader.get_bsdf().draw_ui(ui, &bsdf_ui_data);
+                shader.get_bsdf_mut().draw_ui_mut(ui, &bsdf_ui_data);
 
                 ui.horizontal_wrapped(|ui| {
                     ui::color_edit_button_dvec3(
@@ -171,7 +175,9 @@ impl DrawUI for ShaderList {
                     );
 
                     if ui.button("From BSDF").clicked() {
-                        *shader.get_viewport_color_mut() = shader.get_bsdf().get_base_color();
+                        *shader.get_viewport_color_mut() = shader
+                            .get_bsdf()
+                            .get_base_color(&extra_data.get_texture_list().read().unwrap());
                     }
                 });
 

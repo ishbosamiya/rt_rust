@@ -1,12 +1,12 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::glm;
 use crate::path_trace::intersectable::{IntersectInfo, Intersectable};
 use crate::path_trace::ray::Ray;
 use crate::rasterize::gpu_utils::draw_smooth_sphere_at;
 use crate::rasterize::{drawable::Drawable, gpu_immediate::GPUImmediate};
 use crate::util::vec3_apply_model_matrix;
+use crate::{glm, path_trace};
 
 use serde::{Deserialize, Serialize};
 
@@ -57,7 +57,11 @@ impl Intersectable for Sphere {
         let t = root;
         let intersect_point = ray.at(t);
         let outward_normal = (intersect_point - self.get_center()) / self.get_radius();
-        let mut info = IntersectInfo::new(t, intersect_point);
+        let mut info = IntersectInfo::new(
+            t,
+            intersect_point,
+            path_trace::direction_to_equirectangular(&(intersect_point - self.get_center())),
+        );
         info.set_normal(ray, &outward_normal);
 
         Some(info)

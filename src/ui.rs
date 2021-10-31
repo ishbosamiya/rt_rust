@@ -3,11 +3,13 @@ use egui;
 use crate::glm;
 
 pub trait DrawUI {
+    type ExtraData;
+
     /// Draw UI for elements that do not change self
-    fn draw_ui(&self, ui: &mut egui::Ui);
+    fn draw_ui(&self, ui: &mut egui::Ui, extra_data: &Self::ExtraData);
 
     /// Draw UI for elements that change self
-    fn draw_ui_mut(&mut self, ui: &mut egui::Ui);
+    fn draw_ui_mut(&mut self, ui: &mut egui::Ui, extra_data: &Self::ExtraData);
 }
 
 fn color_edit_dvec4(ui: &mut egui::Ui, color: &mut glm::DVec4) {

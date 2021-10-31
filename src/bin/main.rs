@@ -11,15 +11,16 @@ use rt::path_trace::intersectable::Intersectable;
 use rt::path_trace::medium::Medium;
 use rt::path_trace::ray::Ray;
 use rt::path_trace::shader_list::{ShaderID, ShaderList};
+use rt::path_trace::texture_list::TextureList;
 use rt::path_trace::traversal_info::{TraversalInfo, TraversalInfoDrawData};
 use rt::path_trace::{self, RayTraceMessage, RayTraceParams};
 use rt::progress::Progress;
-use rt::rasterize::gpu_utils::draw_plane_with_image;
+use rt::rasterize::gpu_utils::{self, draw_plane_with_image};
 use rt::rasterize::texture::TextureRGBAFloat;
 use rt::scene::{Scene, SceneDrawData};
 use rt::ui::DrawUI;
 use rt::viewport::Viewport;
-use rt::{glm, ui};
+use rt::{glm, ui, UiData};
 
 extern crate lazy_static;
 
@@ -293,6 +294,7 @@ fn main_gui(
     let mut use_right_panel = true;
 
     let mut open_rendered_image_window = false;
+    let mut use_environment_map_as_background = false;
     let mut background_color = glm::vec4(0.051, 0.051, 0.051, 1.0);
     let mut should_cast_scene_ray = false;
     let mut trace_max_depth = 5;
@@ -375,6 +377,14 @@ fn main_gui(
         {
             egui.begin_frame(&window, &mut glfw);
 
+            let ui_data = UiData::new(
+                scene.clone(),
+                shader_list.clone(),
+                texture_list.clone(),
+                path_trace_camera.clone(),
+                environment.clone(),
+            );
+
             // Draw top, right, bottom and left panels, the order
             // matters since it goes from outermost to innermost.
 
@@ -394,9 +404,9 @@ fn main_gui(
                     .resizable(true)
                     .show(egui.get_egui_ctx(), |ui| {
                         egui::ScrollArea::auto_sized().show(ui, |ui| {
-                            environment.read().unwrap().draw_ui(ui);
+                            environment.read().unwrap().draw_ui(ui, &ui_data);
                             if let Ok(mut environment) = environment.try_write() {
-                                environment.draw_ui_mut(ui);
+                                environment.draw_ui_mut(ui, &ui_data);
                             } else {
                                 ui.label("Environment currently in use, cannot edit environment");
                             }
@@ -421,12 +431,19 @@ fn main_gui(
 
                             ui.separator();
 
-                            shader_list.read().unwrap().draw_ui(ui);
+                            shader_list.read().unwrap().draw_ui(ui, &ui_data);
                             if let Ok(mut shader_list) = shader_list.try_write() {
-                                shader_list.draw_ui_mut(ui);
+                                shader_list.draw_ui_mut(ui, &ui_data);
                                 selected_shader = *shader_list.get_selected_shader();
                             } else {
                                 ui.label("Shaders are currently in use, cannot edit the shaders");
+                            }
+
+                            texture_list.read().unwrap().draw_ui(ui, &ui_data);
+                            if let Ok(mut texture_list) = texture_list.try_write() {
+                                texture_list.draw_ui_mut(ui, &ui_data);
+                            } else {
+                                ui.label("Textures are currently in use, cannot edit the textures");
                             }
                         });
                     })
@@ -559,6 +576,11 @@ fn main_gui(
                                     }
                                 }
                             }
+
+                            ui.checkbox(
+                                &mut use_environment_map_as_background,
+                                "Use Environment Map as Background",
+                            );
 
                             ui::color_edit_button_dvec4(
                                 ui,
@@ -800,6 +822,7 @@ fn main_gui(
                                                 &scene.read().unwrap(),
                                                 trace_max_depth,
                                                 &shader_list.read().unwrap(),
+                                                &texture_list.read().unwrap(),
                                                 &environment.into(),
                                                 &Medium::air(),
                                             );
@@ -857,7 +880,7 @@ fn main_gui(
                 }
 
                 Viewport::new(
-                    glm::vec2(viewport_width, viewport_height),
+                    glm::vec2(viewport_width.max(1), viewport_height.max(1)),
                     glm::vec2(viewport_top_left_x, viewport_top_left_y),
                 )
             };
@@ -940,6 +963,36 @@ fn main_gui(
             gl::Disable(gl::BLEND);
         }
 
+        // Sky Box
+        if use_environment_map_as_background {
+            let srgb_not_on;
+            unsafe {
+                gl::Disable(gl::DEPTH_TEST);
+                srgb_not_on = gl::IsEnabled(gl::FRAMEBUFFER_SRGB) == gl::FALSE;
+                gl::Enable(gl::FRAMEBUFFER_SRGB);
+            }
+
+            let environment_shader = shader::builtins::get_environment_shader().as_ref().unwrap();
+            environment_shader.use_shader();
+            environment_shader.set_int("environment_map\0", 30);
+            let environment = environment.read().unwrap();
+            environment_shader.set_mat4(
+                "model\0",
+                &glm::convert(environment.get_transform().get_matrix()),
+            );
+            environment_shader.set_float("strength\0", environment.get_strength() as _);
+            environment_texture.borrow_mut().activate(30);
+
+            gpu_utils::draw_screen_quad(&mut imm.borrow_mut(), environment_shader);
+
+            unsafe {
+                gl::Enable(gl::DEPTH_TEST);
+                if srgb_not_on {
+                    gl::Disable(gl::FRAMEBUFFER_SRGB);
+                }
+            }
+        }
+
         // drawing the scene
         scene
             .read()
@@ -994,6 +1047,7 @@ fn main_gui(
                 &scene.read().unwrap(),
                 1,
                 &shader_list.read().unwrap(),
+                &texture_list.read().unwrap(),
                 &environment.into(),
                 &Medium::air(),
             );
@@ -1015,6 +1069,7 @@ fn main_gui(
                 &scene.read().unwrap(),
                 trace_max_depth,
                 &shader_list.read().unwrap(),
+                &texture_list.read().unwrap(),
                 &environment.into(),
                 &Medium::air(),
             );
@@ -1131,16 +1186,16 @@ fn handle_window_event(
     let window_cursor = window.get_cursor_pos();
 
     match event {
-        glfw::WindowEvent::Key(Key::Up, _, Action::Press, _) => {
+        glfw::WindowEvent::Key(Key::Up, _, Action::Press, glfw::Modifiers::Alt) => {
             *use_top_panel = !*use_top_panel;
         }
-        glfw::WindowEvent::Key(Key::Down, _, Action::Press, _) => {
+        glfw::WindowEvent::Key(Key::Down, _, Action::Press, glfw::Modifiers::Alt) => {
             *use_bottom_panel = !*use_bottom_panel;
         }
-        glfw::WindowEvent::Key(Key::Left, _, Action::Press, _) => {
+        glfw::WindowEvent::Key(Key::Left, _, Action::Press, glfw::Modifiers::Alt) => {
             *use_left_panel = !*use_left_panel;
         }
-        glfw::WindowEvent::Key(Key::Right, _, Action::Press, _) => {
+        glfw::WindowEvent::Key(Key::Right, _, Action::Press, glfw::Modifiers::Alt) => {
             *use_right_panel = !*use_right_panel;
         }
         glfw::WindowEvent::Key(Key::Num1 | Key::Kp1, _, Action::Press, modifier) => {

@@ -7,6 +7,7 @@ pub mod medium;
 pub mod ray;
 pub mod shader_list;
 pub mod shaders;
+pub mod texture_list;
 pub mod traversal_info;
 
 use std::sync::atomic::AtomicUsize;
@@ -38,6 +39,7 @@ use self::environment::EnvironmentShadingData;
 use self::medium::Medium;
 use self::shader_list::Shader;
 use self::shader_list::ShaderList;
+use self::texture_list::TextureList;
 use self::traversal_info::SingleRayInfo;
 use self::traversal_info::TraversalInfo;
 
@@ -94,6 +96,7 @@ fn ray_trace_scene(
     ray_trace_params: RayTraceParams,
     scene: Arc<RwLock<Scene>>,
     shader_list: Arc<RwLock<ShaderList>>,
+    texture_list: Arc<RwLock<TextureList>>,
     camera: Arc<RwLock<Camera>>,
     environment: Arc<RwLock<Environment>>,
     rendered_image: Arc<RwLock<Image>>,
@@ -123,6 +126,7 @@ fn ray_trace_scene(
 
         let scene = scene.read().unwrap();
         let shader_list = shader_list.read().unwrap();
+        let texture_list = texture_list.read().unwrap();
         let environment: &Environment = &environment.read().unwrap();
         let environment = environment.into();
         let image_width = image.width();
@@ -175,6 +179,7 @@ fn ray_trace_scene(
                         &scene,
                         ray_trace_params.get_trace_max_depth(),
                         &shader_list,
+                        &texture_list,
                         &environment,
                         &Medium::air(),
                     );
@@ -224,9 +229,11 @@ fn ray_trace_stop_render(
     render_thread_handle
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn ray_trace_main(
     scene: Arc<RwLock<Scene>>,
     shader_list: Arc<RwLock<ShaderList>>,
+    texture_list: Arc<RwLock<TextureList>>,
     camera: Arc<RwLock<Camera>>,
     environment: Arc<RwLock<Environment>>,
     rendered_image: Arc<RwLock<Image>>,
@@ -245,6 +252,7 @@ pub fn ray_trace_main(
 
                 let scene = scene.clone();
                 let shader_list = shader_list.clone();
+                let texture_list = texture_list.clone();
                 let camera = camera.clone();
                 let environment = environment.clone();
                 let rendered_image = rendered_image.clone();
@@ -255,6 +263,7 @@ pub fn ray_trace_main(
                         params,
                         scene,
                         shader_list,
+                        texture_list,
                         camera,
                         environment,
                         rendered_image,
@@ -376,6 +385,7 @@ fn shade_hit(
     ray: &Ray,
     intersect_info: &IntersectInfo,
     shader_list: &ShaderList,
+    texture_list: &TextureList,
     current_medium: &Medium,
 ) -> ShadeHitData {
     // TODO: currently using a default shader only if the shader has
@@ -401,7 +411,7 @@ fn shade_hit(
             // wi: incoming way direction
             let wi = sample_data.get_wi().normalize();
             let sampling_type = sample_data.get_sampling_type();
-            let color = bsdf.eval(&wi, &wo, current_medium, intersect_info);
+            let color = bsdf.eval(&wi, &wo, current_medium, intersect_info, texture_list);
 
             // BSDF returns the incoming ray direction at the point of
             // intersection but for the next ray that is shot in the opposite
@@ -417,7 +427,9 @@ fn shade_hit(
             )
         });
 
-    let emission_data = bsdf.emission(intersect_info).map(EmissionHitData::new);
+    let emission_data = bsdf
+        .emission(intersect_info, texture_list)
+        .map(EmissionHitData::new);
 
     // Scattering or emissive or both but not none
     assert!(emission_data.is_some() || scattering_data.is_some());
@@ -435,12 +447,14 @@ fn shade_hit(
 /// Traces the given ray into the scene and returns the
 /// colour/intensity of light propagated by the given along with the
 /// path traced till that point
+#[allow(clippy::too_many_arguments)]
 pub fn trace_ray(
     ray: &Ray,
     camera: &Camera,
     scene: &Scene,
     depth: usize,
     shader_list: &ShaderList,
+    texture_list: &TextureList,
     environment: &EnvironmentShadingData,
     current_medium: &Medium,
 ) -> (glm::DVec3, TraversalInfo) {
@@ -451,7 +465,8 @@ pub fn trace_ray(
     let mut traversal_info = TraversalInfo::new();
 
     if let Some(info) = scene.hit(ray, 0.01, 1000.0) {
-        let (scattering_data, emission_data) = shade_hit(ray, &info, shader_list, current_medium);
+        let (scattering_data, emission_data) =
+            shade_hit(ray, &info, shader_list, texture_list, current_medium);
 
         // compute scattering of light
         let scattering_intensity = scattering_data.map_or(glm::zero(), |scattering_data| {
@@ -461,6 +476,7 @@ pub fn trace_ray(
                 scene,
                 depth - 1,
                 shader_list,
+                texture_list,
                 environment,
                 scattering_data.get_next_medium(),
             );

@@ -5,6 +5,7 @@ use crate::{glm, object::ObjectID};
 pub struct IntersectInfo {
     t: f64,
     point: glm::DVec3,
+    uv: glm::DVec2,
     object_id: Option<ObjectID>,
     shader_id: Option<ShaderID>,
     normal: Option<glm::DVec3>,
@@ -12,10 +13,11 @@ pub struct IntersectInfo {
 }
 
 impl IntersectInfo {
-    pub fn new(t: f64, point: glm::DVec3) -> Self {
+    pub fn new(t: f64, point: glm::DVec3, uv: glm::DVec2) -> Self {
         Self {
             t,
             point,
+            uv,
             object_id: None,
             shader_id: None,
             normal: None,
@@ -29,6 +31,11 @@ impl IntersectInfo {
 
     pub fn get_point(&self) -> &glm::DVec3 {
         &self.point
+    }
+
+    /// Get a reference uv.
+    pub fn get_uv(&self) -> &glm::DVec2 {
+        &self.uv
     }
 
     pub fn set_object_id(&mut self, object_id: ObjectID) {

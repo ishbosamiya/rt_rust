@@ -1,7 +1,7 @@
 use rfd::FileDialog;
 use serde::{Deserialize, Serialize};
 
-use crate::{image::Image, transform::Transform, ui::DrawUI};
+use crate::{image::Image, transform::Transform, ui::DrawUI, UiData};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Environment {
@@ -63,9 +63,11 @@ impl Environment {
 }
 
 impl DrawUI for Environment {
-    fn draw_ui(&self, _ui: &mut egui::Ui) {}
+    type ExtraData = UiData;
 
-    fn draw_ui_mut(&mut self, ui: &mut egui::Ui) {
+    fn draw_ui(&self, _ui: &mut egui::Ui, _extra_data: &Self::ExtraData) {}
+
+    fn draw_ui_mut(&mut self, ui: &mut egui::Ui, extra_data: &Self::ExtraData) {
         ui.add(egui::Slider::new(&mut self.strength, 0.0..=5.0).text("Environment Strength"));
 
         if ui.button("Load Environment Image").clicked() {
@@ -86,8 +88,8 @@ impl DrawUI for Environment {
         }
 
         ui.collapsing("Environment Transform", |ui| {
-            self.transform.draw_ui(ui);
-            self.transform.draw_ui_mut(ui);
+            self.transform.draw_ui(ui, extra_data);
+            self.transform.draw_ui_mut(ui, extra_data);
         });
     }
 }

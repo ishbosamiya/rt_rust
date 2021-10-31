@@ -1,4 +1,6 @@
-use super::{intersectable::IntersectInfo, medium::Medium};
+use super::{
+    bsdfs::BSDFUiData, intersectable::IntersectInfo, medium::Medium, texture_list::TextureList,
+};
 use crate::{glm, ui::DrawUI};
 
 use enumflags2::{bitflags, BitFlags};
@@ -35,7 +37,7 @@ impl SampleData {
 }
 
 #[typetag::serde(tag = "type")]
-pub trait BSDF: DrawUI {
+pub trait BSDF: DrawUI<ExtraData = BSDFUiData> {
     /// Calculates `wi` given `wo` and specifies the type of sampling
     /// used.
     ///
@@ -78,16 +80,21 @@ pub trait BSDF: DrawUI {
         wo: &glm::DVec3,
         wo_medium: &Medium,
         intersect_info: &IntersectInfo,
+        texture_list: &TextureList,
     ) -> glm::DVec3;
 
     /// Calculates the colour/intensity of light produced by the object the point of intersection
-    fn emission(&self, _intersect_info: &IntersectInfo) -> Option<glm::DVec3> {
+    fn emission(
+        &self,
+        _intersect_info: &IntersectInfo,
+        _texture_list: &TextureList,
+    ) -> Option<glm::DVec3> {
         None
     }
 
     fn get_bsdf_name(&self) -> &str;
 
-    fn get_base_color(&self) -> glm::DVec3;
+    fn get_base_color(&self, texture_list: &TextureList) -> glm::DVec3;
 
     fn get_ior(&self) -> f64 {
         1.0

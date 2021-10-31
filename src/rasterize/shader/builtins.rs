@@ -69,6 +69,12 @@ load_builtin_shader_easy!(
     "../../../shaders/infinite_grid.frag"
 );
 
+load_builtin_shader_easy!(
+    environment;
+    "../../../shaders/environment_shader.vert";
+    "../../../shaders/environment_shader.frag"
+);
+
 pub fn display_uniform_and_attribute_info() {
     {
         let directional_light_shader = get_directional_light_shader().as_ref().unwrap();
@@ -124,9 +130,19 @@ pub fn display_uniform_and_attribute_info() {
         let infinite_grid_shader = get_infinite_grid_shader().as_ref().unwrap();
 
         println!(
-            "smooth_sphere: uniforms: {:?} attributes: {:?}",
+            "infinite_grid: uniforms: {:?} attributes: {:?}",
             infinite_grid_shader.get_uniforms(),
             infinite_grid_shader.get_attributes(),
+        );
+    }
+
+    {
+        let environment_shader = get_environment_shader().as_ref().unwrap();
+
+        println!(
+            "environment_shader: uniforms: {:?} attributes: {:?}",
+            environment_shader.get_uniforms(),
+            environment_shader.get_attributes(),
         );
     }
 }
@@ -196,5 +212,14 @@ pub fn setup_shaders(camera: &Camera, window_width: usize, window_height: usize)
         infinite_grid_shader.use_shader();
         infinite_grid_shader.set_mat4("projection\0", projection_matrix);
         infinite_grid_shader.set_mat4("view\0", view_matrix);
+    }
+
+    {
+        let environment_shader = get_environment_shader().as_ref().unwrap();
+
+        environment_shader.use_shader();
+        environment_shader.set_mat4("projection\0", projection_matrix);
+        environment_shader.set_mat4("view\0", view_matrix);
+        environment_shader.set_mat4("model\0", &glm::identity());
     }
 }

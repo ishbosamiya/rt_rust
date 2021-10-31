@@ -1,15 +1,21 @@
 use std::convert::TryInto;
 
+use serde::{Deserialize, Serialize};
+
+use crate::glm;
 use crate::image::Image;
 
+#[derive(Debug, Serialize, Deserialize)]
 pub struct TextureRGBAFloat {
     /// id that matches Image id from which the texture is made from
     id: usize,
 
     width: usize,
     height: usize,
-    pixels: Vec<(f32, f32, f32, f32)>,
+    pixels: Vec<glm::Vec4>,
 
+    #[serde(skip_serializing)]
+    #[serde(skip_deserializing)]
     gl_tex: gl::types::GLuint,
 }
 
@@ -44,17 +50,13 @@ impl TextureRGBAFloat {
         res
     }
 
-    pub fn from_image(tex: &Image) -> Self {
+    pub fn from_pixels(width: usize, height: usize, pixels: Vec<glm::Vec4>) -> Self {
         let gl_tex = Self::gen_gl_texture();
         let res = Self {
-            id: tex.get_id(),
-            width: tex.width(),
-            height: tex.height(),
-            pixels: tex
-                .get_pixels()
-                .iter()
-                .map(|pixel| (pixel[0] as f32, pixel[1] as f32, pixel[2] as f32, 1.0))
-                .collect(),
+            id: rand::random(),
+            width,
+            height,
+            pixels,
             gl_tex,
         };
 
@@ -62,6 +64,19 @@ impl TextureRGBAFloat {
 
         res.new_texture_to_gl();
 
+        res
+    }
+
+    pub fn from_image(tex: &Image) -> Self {
+        let mut res = Self::from_pixels(
+            tex.width(),
+            tex.height(),
+            tex.get_pixels()
+                .iter()
+                .map(|pixel| glm::vec4(pixel[0] as f32, pixel[1] as f32, pixel[2] as f32, 1.0))
+                .collect(),
+        );
+        res.id = tex.get_id();
         res
     }
 
@@ -73,6 +88,20 @@ impl TextureRGBAFloat {
         }
 
         *self = Self::from_image(tex);
+    }
+
+    /// # Safety
+    ///
+    /// There is no way to generate [`TextureRGBAFloat`] without
+    /// automatically sending the texture to the GPU except during
+    /// deserialization so there is no need to call this function
+    /// except immediately after deserialization once.
+    pub unsafe fn send_to_gpu(&mut self) {
+        let gl_tex = Self::gen_gl_texture();
+        self.gl_tex = gl_tex;
+        assert_eq!(self.pixels.len(), self.width * self.height);
+
+        self.new_texture_to_gl();
     }
 
     pub fn activate(&mut self, texture_target: u8) {
@@ -185,8 +214,33 @@ impl TextureRGBAFloat {
         self.height
     }
 
-    pub fn get_pixels(&self) -> &Vec<(f32, f32, f32, f32)> {
+    pub fn get_pixels(&self) -> &Vec<glm::Vec4> {
         &self.pixels
+    }
+
+    pub fn set_pixel(&mut self, i: usize, j: usize, data: glm::Vec4) {
+        self.id = rand::random();
+        self.pixels[j * self.width + i] = data;
+    }
+
+    pub fn get_pixel(&self, i: usize, j: usize) -> &glm::Vec4 {
+        &self.pixels[j * self.width + i]
+    }
+
+    /// Get the pixel from the specified UV coordinates
+    ///
+    /// Wrapping mode is set to repeat. TODO: need to make wrapping
+    /// mode user definable
+    ///
+    /// UV bottom left is (0.0, 0.0) and top right is (1.0, 1.0), same
+    /// as OpenGL
+    pub fn get_pixel_uv(&self, uv: &glm::DVec2) -> &glm::Vec4 {
+        let uv = glm::vec2(uv[0] % 1.0, uv[1] % 1.0);
+
+        self.get_pixel(
+            (uv[0] * self.width as f64) as _,
+            self.height - (uv[1] * self.height as f64) as usize - 1,
+        )
     }
 }
 

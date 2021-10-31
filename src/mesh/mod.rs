@@ -329,6 +329,16 @@ impl Mesh {
             },
         )
     }
+
+    /// Get a reference to the mesh's vertices.
+    pub fn get_vertices(&self) -> &[Vertex] {
+        self.vertices.as_slice()
+    }
+
+    /// Get a reference to the mesh's faces.
+    pub fn get_faces(&self) -> &[Vec<usize>] {
+        self.faces.as_slice()
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -501,6 +511,11 @@ impl Intersectable for Mesh {
 
         #[cfg(not(feature = "mesh_no_bvh"))]
         {
+            #[derive(Debug, Clone, Copy)]
+            struct MeshRayCastData {
+                uv: glm::DVec2,
+            }
+
             let mesh_ray_cast_callback =
                 |(co, dir): (&glm::DVec3, &glm::DVec3), face_index: usize| {
                     debug_assert_eq!(ray.get_origin(), co);
@@ -519,6 +534,9 @@ impl Intersectable for Mesh {
                             f64::EPSILON,
                         ) {
                             if dist > t_min && dist < t_max {
+                                let uv1 = v1.get_uv().as_ref().unwrap();
+                                let uv2 = v2.get_uv().as_ref().unwrap();
+                                let uv3 = v3.get_uv().as_ref().unwrap();
                                 let n1 = v1.get_normal().as_ref().unwrap();
                                 let n2 = v2.get_normal().as_ref().unwrap();
                                 let n3 = v3.get_normal().as_ref().unwrap();
@@ -527,6 +545,9 @@ impl Intersectable for Mesh {
                                     Some(vec3_apply_bary_coord(n1, n2, n3, &bary_coords));
                                 hit_data
                                     .set_data(RayHitOptionalData::new(face_index, ray.at(dist)));
+                                hit_data.set_extra_data(MeshRayCastData {
+                                    uv: vec2_apply_bary_coord(uv1, uv2, uv3, &bary_coords),
+                                });
                                 return Some(hit_data);
                             }
                         }
@@ -542,9 +563,12 @@ impl Intersectable for Mesh {
                     *ray.get_direction(),
                     Some(&mesh_ray_cast_callback),
                 )
-                .map(|hit_data: RayHitData<usize, ()>| {
-                    let mut intersect_info =
-                        IntersectInfo::new(hit_data.dist, hit_data.data.unwrap().co);
+                .map(|hit_data: RayHitData<usize, MeshRayCastData>| {
+                    let mut intersect_info = IntersectInfo::new(
+                        hit_data.dist,
+                        hit_data.data.unwrap().co,
+                        hit_data.extra_data.unwrap().uv,
+                    );
                     intersect_info.set_normal(ray, &hit_data.normal.unwrap());
                     intersect_info
                 })
@@ -558,5 +582,14 @@ fn vec3_apply_bary_coord(
     v3: &glm::DVec3,
     bary_coord: &glm::DVec3,
 ) -> glm::DVec3 {
+    v1 * bary_coord[0] + v2 * bary_coord[1] + v3 * bary_coord[2]
+}
+
+fn vec2_apply_bary_coord(
+    v1: &glm::DVec2,
+    v2: &glm::DVec2,
+    v3: &glm::DVec2,
+    bary_coord: &glm::DVec3,
+) -> glm::DVec2 {
     v1 * bary_coord[0] + v2 * bary_coord[1] + v3 * bary_coord[2]
 }
