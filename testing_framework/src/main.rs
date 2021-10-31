@@ -132,24 +132,41 @@ fn main() -> std::io::Result<()> {
 
     // Spawning a Process for every iteration of data
     config_data.rt_files.iter().for_each(|f| {
-        // TODO: Enter a command using std::command to call executable
-        let output = Command::new(exec_path)
-            .arg("-t")
-            .arg(f.threads.to_string())
-            .arg("-w")
-            .arg(f.width.to_string())
-            .arg("-h")
-            .arg(f.height.to_string())
-            .arg("-S")
-            .arg(f.samples.to_string())
-            .arg("-E")
-            .arg(f.env_map.as_ref().unwrap().as_path())
-            .arg("-r")
-            .arg(f.rt_path.as_path())
-            .arg("-o")
-            .arg(f.output_path.as_path())
-            .output()
-            .expect("Error in Sending");
+        if let Some(path) = &f.env_map {
+            let mut command = &Command::new(exec_path)
+                .arg("-t")
+                .arg(f.threads.to_string())
+                .arg("-w")
+                .arg(f.width.to_string())
+                .arg("-h")
+                .arg(f.height.to_string())
+                .arg("-S")
+                .arg(f.samples.to_string())
+                .arg("-E")
+                .arg(path.as_path())
+                .arg("-r")
+                .arg(f.rt_path.as_path())
+                .arg("-o")
+                .arg(f.output_path.as_path())
+                .output()
+                .expect("Error in Sending");
+        } else {
+            let _command = Command::new(exec_path)
+                .arg("-t")
+                .arg(f.threads.to_string())
+                .arg("-w")
+                .arg(f.width.to_string())
+                .arg("-h")
+                .arg(f.height.to_string())
+                .arg("-S")
+                .arg(f.samples.to_string())
+                .arg("-r")
+                .arg(f.rt_path.as_path())
+                .arg("-o")
+                .arg(f.output_path.as_path())
+                .output()
+                .expect("Error in Sending");
+        }
     });
 
     Ok(())
