@@ -52,5 +52,8 @@ name = "main"
 [[bin]]
 name = "blank_3d"
 
+[[bin]]
+name = "vector_math_visualize"
+
 [patch.crates-io]
 generational-arena = { git = "ssh://git@github.com/JOE1994/generational-arena.git", branch = 'fix_bug' }
