@@ -22,3 +22,44 @@ impl Medium {
         self.ior
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct Mediums {
+    mediums: Vec<Medium>,
+}
+
+impl Mediums {
+    pub fn new() -> Self {
+        Self {
+            mediums: Vec::new(),
+        }
+    }
+
+    pub fn with_air() -> Self {
+        let mut res = Self::new();
+        res.add_medium(Medium::air());
+        res
+    }
+
+    pub fn add_medium(&mut self, medium: Medium) {
+        self.mediums.push(medium);
+    }
+
+    pub fn remove_medium(&mut self) -> Option<Medium> {
+        self.mediums.pop()
+    }
+
+    pub fn get_lastest_medium(&self) -> Option<&Medium> {
+        self.mediums.first()
+    }
+
+    pub fn get_number_of_mediums(&self) -> usize {
+        self.mediums.len()
+    }
+}
+
+impl Default for Mediums {
+    fn default() -> Self {
+        Self::new()
+    }
+}

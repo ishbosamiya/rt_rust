@@ -7,7 +7,7 @@ use super::utils::{ColorPicker, ColorPickerUiData};
 use super::BSDFUiData;
 use crate::glm;
 use crate::math;
-use crate::path_trace::medium::Medium;
+use crate::path_trace::medium::Mediums;
 use crate::path_trace::texture_list::TextureList;
 use crate::ui::DrawUI;
 
@@ -39,7 +39,7 @@ impl BSDF for Blinnphong {
     fn sample(
         &self,
         _wo: &glm::DVec3,
-        _wo_medium: &Medium,
+        _mediums: &mut Mediums,
         intersect_info: &IntersectInfo,
         sampling_types: BitFlags<SamplingTypes>,
     ) -> Option<SampleData> {
@@ -60,7 +60,6 @@ impl BSDF for Blinnphong {
         &self,
         wi: &glm::DVec3,
         wo: &glm::DVec3,
-        _wo_medium: &Medium,
         intersect_info: &IntersectInfo,
         texture_list: &TextureList,
     ) -> glm::DVec3 {

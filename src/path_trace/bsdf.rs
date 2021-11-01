@@ -1,5 +1,5 @@
 use super::{
-    bsdfs::BSDFUiData, intersectable::IntersectInfo, medium::Medium, texture_list::TextureList,
+    bsdfs::BSDFUiData, intersectable::IntersectInfo, medium::Mediums, texture_list::TextureList,
 };
 use crate::{glm, ui::DrawUI};
 
@@ -42,9 +42,17 @@ pub trait BSDF: DrawUI<ExtraData = BSDFUiData> {
     /// used.
     ///
     /// `wo`: outgoing ray direction
+    ///
     /// `wi`: incoming ray direction
-    /// `wo_medium`: medium of ray in `wo` direction
+    ///
+    /// `mediums`: mediums that the ray is currently in. Usually the
+    /// latest medium is most useful. Depending on the material,
+    /// `mediums` might be changed, add a medium or remove a
+    /// medium. Take a look at [`super::bsdfs::refraction::Refraction`] for
+    /// better insight.
+    ///
     /// `intersect_info`: information at the point of intersection
+    ///
     /// `sampling_types`: the current sampling types that are possible
     ///
     /// Need to calculate the incoming ray direction since in ray
@@ -58,7 +66,7 @@ pub trait BSDF: DrawUI<ExtraData = BSDFUiData> {
     fn sample(
         &self,
         wo: &glm::DVec3,
-        wo_medium: &Medium,
+        mediums: &mut Mediums,
         intersect_info: &IntersectInfo,
         sampling_types: BitFlags<SamplingTypes>,
     ) -> Option<SampleData>;
@@ -67,7 +75,6 @@ pub trait BSDF: DrawUI<ExtraData = BSDFUiData> {
     ///
     /// `wo`: outgoing ray direction
     /// `wi`: incoming ray direction
-    /// `wo_medium`: medium of ray in `wo` direction
     /// `intersect_info`: information at the point of intersection
     ///
     /// TODO: when different sampling type(s) are used, instead of
@@ -78,7 +85,6 @@ pub trait BSDF: DrawUI<ExtraData = BSDFUiData> {
         &self,
         wi: &glm::DVec3,
         wo: &glm::DVec3,
-        wo_medium: &Medium,
         intersect_info: &IntersectInfo,
         texture_list: &TextureList,
     ) -> glm::DVec3;
