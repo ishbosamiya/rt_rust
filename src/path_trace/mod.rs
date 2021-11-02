@@ -420,9 +420,6 @@ fn shade_hit(
         .emission(intersect_info, texture_list)
         .map(EmissionHitData::new);
 
-    // Scattering or emissive or both but not none
-    // assert!(emission_data.is_some() || scattering_data.is_some());
-
     (scattering_data, emission_data)
 }
 

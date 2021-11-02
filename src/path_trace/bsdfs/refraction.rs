@@ -53,10 +53,14 @@ impl BSDF for Refraction {
             } else {
                 // need to remove the lastest medium since it would be
                 // the same as the medium of wi
-                let current_medium = mediums.remove_medium().unwrap();
-                debug_assert!((current_medium.get_ior() - self.get_ior()).abs() < f64::EPSILON);
+                mediums.remove_medium().unwrap();
 
-                self.get_ior() / mediums.get_lastest_medium().unwrap().get_ior()
+                // if there is no more mediums, the ray must have had
+                // more exits than entries and thus must not
+                // sample. This can happen because of non manifold
+                // meshes. If there exists a medium, calculate the
+                // ior.
+                self.get_ior() / mediums.get_lastest_medium()?.get_ior()
             };
 
             let output =
