@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::path_trace::texture_list::{TextureID, TextureList};
 use crate::ui::DrawUI;
-use crate::{glm, ui};
+use crate::{glm, math, ui};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ColorPicker {
@@ -136,4 +136,13 @@ impl DrawUI for ColorPicker {
             }
         }
     }
+}
+
+/// Get `wi` when sampling pure diffuse
+pub fn wi_diffuse(normal: &glm::DVec3) -> glm::DVec3 {
+    // TODO: make this random in hemisphere instead of using a
+    // sphere for better performance
+
+    //need to return `wi` which should point towards the hitpoint
+    -(normal + math::random_in_unit_sphere())
 }

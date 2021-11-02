@@ -3,10 +3,9 @@ use serde::{Deserialize, Serialize};
 
 use super::super::bsdf::{SampleData, SamplingTypes, BSDF};
 use super::super::intersectable::IntersectInfo;
-use super::utils::{ColorPicker, ColorPickerUiData};
+use super::utils::{self, ColorPicker, ColorPickerUiData};
 use super::BSDFUiData;
 use crate::glm;
-use crate::math;
 use crate::path_trace::medium::Mediums;
 use crate::path_trace::texture_list::TextureList;
 use crate::ui::DrawUI;
@@ -39,12 +38,9 @@ impl BSDF for Lambert {
         intersect_info: &IntersectInfo,
         sampling_types: BitFlags<SamplingTypes>,
     ) -> Option<SampleData> {
-        // TODO: make this random in hemisphere instead of using a
-        // sphere for better performance
         if sampling_types.contains(SamplingTypes::Diffuse) {
-            // need to return `wi` which should point towards the hitpoint
             Some(SampleData::new(
-                -(intersect_info.get_normal().unwrap() + math::random_in_unit_sphere()),
+                utils::wi_diffuse(intersect_info.get_normal().as_ref().unwrap()),
                 SamplingTypes::Diffuse,
             ))
         } else {
