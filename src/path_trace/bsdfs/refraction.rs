@@ -3,38 +3,43 @@ use serde::{Deserialize, Serialize};
 
 use super::super::bsdf::{SampleData, SamplingTypes, BSDF};
 use super::super::intersectable::IntersectInfo;
-use super::utils::{ColorPicker, ColorPickerUiData};
+use super::utils::{self, ColorPicker, ColorPickerUiData};
 use super::BSDFUiData;
 use crate::glm;
 use crate::path_trace::medium::{Medium, Mediums};
 use crate::path_trace::texture_list::TextureList;
 use crate::ui::DrawUI;
 
-// TODO: add roughness parameter, right now it is purely reflective
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Refraction {
     color: ColorPicker,
     ior: f64,
+
+    #[serde(default = "default_roughness")]
+    roughness: f64,
+}
+
+fn default_roughness() -> f64 {
+    // any previous files assumed roughness of 0.0
+    0.0
 }
 
 impl Default for Refraction {
     fn default() -> Self {
-        Self::new(glm::vec3(1.0, 1.0, 1.0), 1.5)
+        Self::new(glm::vec3(1.0, 1.0, 1.0), 1.5, 0.4)
     }
 }
 
 impl Refraction {
-    pub fn new(color: glm::DVec3, ior: f64) -> Self {
+    pub fn new(color: glm::DVec3, ior: f64, roughness: f64) -> Self {
         Self {
             color: ColorPicker::Color(color),
             ior,
+            roughness,
         }
     }
-}
 
-#[typetag::serde]
-impl BSDF for Refraction {
-    fn sample(
+    fn handle_refraction(
         &self,
         wo: &glm::DVec3,
         mediums: &mut Mediums,
@@ -43,7 +48,6 @@ impl BSDF for Refraction {
     ) -> Option<SampleData> {
         // TODO: need to figure out which sampling type it would be,
         // both diffuse and reflection seem to make sense
-
         if sampling_types.contains(SamplingTypes::Diffuse) {
             let entering = intersect_info.get_front_face();
 
@@ -84,6 +88,43 @@ impl BSDF for Refraction {
             }
         } else {
             None
+        }
+    }
+
+    fn handle_diffuse(
+        &self,
+        intersect_info: &IntersectInfo,
+        sampling_types: BitFlags<SamplingTypes>,
+    ) -> Option<SampleData> {
+        if sampling_types.contains(SamplingTypes::Diffuse) {
+            Some(SampleData::new(
+                utils::wi_diffuse(intersect_info.get_normal().as_ref().unwrap()),
+                SamplingTypes::Diffuse,
+            ))
+        } else {
+            None
+        }
+    }
+}
+
+#[typetag::serde]
+impl BSDF for Refraction {
+    fn sample(
+        &self,
+        wo: &glm::DVec3,
+        mediums: &mut Mediums,
+        intersect_info: &IntersectInfo,
+        sampling_types: BitFlags<SamplingTypes>,
+    ) -> Option<SampleData> {
+        // TODO(ish): need to handle roughness accurately, using
+        // something like GGX microfacet model. Right now it cannot
+        // give physically accurate results.
+        if rand::random::<f64>() < self.roughness {
+            // sample diffuse
+            self.handle_diffuse(intersect_info, sampling_types)
+        } else {
+            // sample pure refraction
+            self.handle_refraction(wo, mediums, intersect_info, sampling_types)
         }
     }
 
@@ -129,5 +170,6 @@ impl DrawUI for Refraction {
             );
         });
         ui.add(egui::Slider::new(&mut self.ior, 1.0..=2.0).text("ior"));
+        ui.add(egui::Slider::new(&mut self.roughness, 0.0..=1.0).text("Roughness"));
     }
 }
