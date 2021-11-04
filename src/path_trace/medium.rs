@@ -53,6 +53,10 @@ impl Mediums {
         self.mediums.first()
     }
 
+    pub fn get_second_lastest_medium(&self) -> Option<&Medium> {
+        self.mediums.get(self.mediums.len() - 2)
+    }
+
     pub fn get_number_of_mediums(&self) -> usize {
         self.mediums.len()
     }

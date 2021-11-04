@@ -44,22 +44,20 @@ impl Glass {
         if sampling_types.contains(SamplingTypes::Diffuse | SamplingTypes::Reflection) {
             let entering = intersect_info.get_front_face();
 
-            let medium;
             let ior = if entering {
                 let ior = mediums.get_lastest_medium().unwrap().get_ior() / self.get_ior();
-                medium = None;
                 ior
             } else {
-                // need to remove the lastest medium since it would be
-                // the same as the medium of wi
-                medium = Some(mediums.remove_medium().unwrap());
-
+                // need to check second latest medium since the
+                // lastest medium would be the same as the medium of
+                // wi
+                //
                 // if there is no more mediums, the ray must have had
                 // more exits than entries and thus must not
                 // sample. This can happen because of non manifold
                 // meshes. If there exists a medium, calculate the
                 // ior.
-                self.get_ior() / mediums.get_lastest_medium()?.get_ior()
+                self.get_ior() / mediums.get_second_lastest_medium()?.get_ior()
             };
 
             let refracted_wi =
@@ -75,6 +73,9 @@ impl Glass {
                     // add `wi` medium if entering the medium
                     if entering {
                         mediums.add_medium(Medium::new(self.get_ior()));
+                    } else {
+                        // must remove the latest medium
+                        mediums.remove_medium().unwrap();
                     }
 
                     Some(SampleData::new(refracted_wi, SamplingTypes::Diffuse))
@@ -83,10 +84,6 @@ impl Glass {
                 }
             } else {
                 // total internal reflection (TIR)
-
-                // Add back the medium
-                mediums.add_medium(medium.unwrap());
-
                 if sampling_types.contains(SamplingTypes::Reflection) {
                     Some(SampleData::new(
                         glm::reflect_vec(wo, intersect_info.get_normal().as_ref().unwrap()),
