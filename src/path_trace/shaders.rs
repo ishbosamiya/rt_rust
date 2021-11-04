@@ -154,7 +154,8 @@ ShaderFromBSDF!("default_viewport_color",
                 Glossy, bsdfs::glossy::Glossy;
                 Emissive, bsdfs::emissive::Emissive;
                 Blinnphong, bsdfs::blinnphong::Blinnphong;
-                Refraction, bsdfs::refraction::Refraction);
+                Refraction, bsdfs::refraction::Refraction;
+                Glass, bsdfs::glass::Glass);
 
 impl Default for ShaderType {
     fn default() -> Self {
