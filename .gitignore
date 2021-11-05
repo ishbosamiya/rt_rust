@@ -10,3 +10,4 @@ peda-session*.*
 .testing/
 Cargo.lock
 image.ppm
+.dir-locals.el
