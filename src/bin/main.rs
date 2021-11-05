@@ -22,14 +22,17 @@ use rt::ui::DrawUI;
 use rt::viewport::Viewport;
 use rt::{glm, ui, UiData};
 
+extern crate clap;
 extern crate lazy_static;
 
 use std::cell::RefCell;
 use std::convert::TryInto;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::{mpsc, Arc, RwLock};
 use std::thread;
 
+use clap::{App, Arg, ArgMatches};
 use egui::{FontDefinitions, FontFamily, TextStyle};
 use egui_glfw::EguiBackend;
 use glfw::{Action, Context, Key};
@@ -43,6 +46,86 @@ use rt::rasterize::drawable::Drawable;
 use rt::rasterize::gpu_immediate::GPUImmediate;
 use rt::rasterize::infinite_grid::{InfiniteGrid, InfiniteGridDrawData};
 use rt::rasterize::shader;
+
+// TODO: Figure out shorter way to assign cli args to struct
+// struct TestArgs {
+//     threads: usize,
+//     width: usize,
+//     height: usize,
+//     sample_count: usize,
+//     envt_map: Option<PathBuf>,
+//     input_path: PathBuf,
+//     output_path: PathBuf,
+// }
+
+struct InputArgs<'a> {
+    cli_args: ArgMatches<'a>,
+    test_num: usize,
+}
+
+// Function to return test args processed using clap via cli
+impl<'a> InputArgs<'a> {
+    pub fn read_test_cli_args() -> InputArgs<'a> {
+        let app = App::new("Config-exec")
+            .version("1.0")
+            .about("Test Command Line Arguements")
+            .author("Nobody")
+            .arg(
+                Arg::with_name("threads")
+                    .required(true)
+                    .short("t")
+                    .help("Number of threads")
+                    .takes_value(true),
+            )
+            .arg(
+                Arg::with_name("width")
+                    .required(true)
+                    .short("w")
+                    .help("Width")
+                    .takes_value(true),
+            )
+            .arg(
+                Arg::with_name("height")
+                    .required(true)
+                    .short("h")
+                    .help("Height")
+                    .takes_value(true),
+            )
+            .arg(
+                Arg::with_name("samples")
+                    .required(true)
+                    .short("S")
+                    .help("Number of Samples")
+                    .takes_value(true),
+            )
+            .arg(
+                Arg::with_name("environment")
+                    .short("E")
+                    .help("Environment map path")
+                    .takes_value(true),
+            )
+            .arg(
+                Arg::with_name("rt_file")
+                    .required(true)
+                    .short("r")
+                    .help("RT File Path")
+                    .takes_value(true),
+            )
+            .arg(
+                Arg::with_name("output")
+                    .required(true)
+                    .short("o")
+                    .help("Output File Path")
+                    .takes_value(true),
+            )
+            .get_matches();
+
+        return Self {
+            cli_args: app,
+            test_num: 1,
+        };
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 struct File {
