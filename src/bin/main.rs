@@ -65,7 +65,7 @@ struct InputArgs<'a> {
 
 // Function to return test args processed using clap via cli
 impl<'a> InputArgs<'a> {
-    pub fn read_test_cli_args() -> InputArgs<'a> {
+    pub fn read_test_cli_args(&self) {
         let app = App::new("Config-exec")
             .version("1.0")
             .about("Test Command Line Arguements")
@@ -120,10 +120,26 @@ impl<'a> InputArgs<'a> {
             )
             .get_matches();
 
-        return Self {
-            cli_args: app,
-            test_num: 1,
-        };
+        self.cli_args = app;
+        self.test_num = 1;
+    }
+
+    pub fn check_paths(&self) {
+        let rt_path = Path::new(self.cli_args.value_of("rt_file").unwrap());
+        if !rt_path.exists() || !rt_path.is_file() {
+            eprintln!(
+                "rt path is invalid or is not a file: {}",
+                rt_path.to_str().unwrap()
+            )
+        }
+
+        let envt_map = Path::new(self.cli_args.value_of("environment").unwrap());
+        if !envt_map.exists() || !envt_map.is_file() {
+            eprintln!(
+                "environment path is invalid or is not a file: {}",
+                envt_map.to_str().unwrap()
+            )
+        }
     }
 }
 
