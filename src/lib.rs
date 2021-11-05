@@ -1,6 +1,7 @@
 pub mod bvh;
 pub mod fps;
 pub mod image;
+pub mod inputs;
 pub mod math;
 pub mod mesh;
 pub mod meshio;
