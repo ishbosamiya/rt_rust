@@ -28,12 +28,12 @@ extern crate lazy_static;
 
 use std::cell::RefCell;
 use std::convert::TryInto;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::{mpsc, Arc, RwLock};
 use std::thread;
 
-use clap::{App, Arg, ArgMatches};
+use clap::{App, Arg};
 use egui::{FontDefinitions, FontFamily, TextStyle};
 use egui_glfw::EguiBackend;
 use glfw::{Action, Context, Key};
@@ -49,47 +49,51 @@ use rt::rasterize::infinite_grid::{InfiniteGrid, InfiniteGridDrawData};
 use rt::rasterize::shader;
 
 // TODO: Figure out shorter way to assign cli args to struct
-struct TestArgs {
+#[derive(Debug)]
+pub struct InputArguments {
+    run_headless: bool,
     threads: usize,
     width: usize,
     height: usize,
     sample_count: usize,
-    envt_map: PathBuf,
-    input_path: PathBuf,
-    output_path: PathBuf,
+    envt_map: Option<PathBuf>,
+    input_path: Option<PathBuf>,
+    output_path: Option<PathBuf>,
 }
 
 // Function to return test args processed using clap via cli
-impl TestArgs {
-    pub fn read_test_cli_args(&self) {
+impl InputArguments {
+    pub fn read() -> Self {
         let app = App::new("Config-exec")
             .version("1.0")
             .about("Test Command Line Arguements")
             .author("Nobody")
             .arg(
+                Arg::with_name("headless")
+                    .long("headless")
+                    .requires("rt_file")
+                    .requires("output"),
+            )
+            .arg(
                 Arg::with_name("threads")
-                    .required(true)
                     .short("t")
                     .help("Number of threads")
                     .takes_value(true),
             )
             .arg(
                 Arg::with_name("width")
-                    .required(true)
                     .short("w")
                     .help("Width")
                     .takes_value(true),
             )
             .arg(
                 Arg::with_name("height")
-                    .required(true)
                     .short("h")
                     .help("Height")
                     .takes_value(true),
             )
             .arg(
                 Arg::with_name("samples")
-                    .required(true)
                     .short("S")
                     .help("Number of Samples")
                     .takes_value(true),
@@ -102,41 +106,33 @@ impl TestArgs {
             )
             .arg(
                 Arg::with_name("rt_file")
-                    .required(true)
                     .short("r")
                     .help("RT File Path")
                     .takes_value(true),
             )
             .arg(
                 Arg::with_name("output")
-                    .required(true)
                     .short("o")
                     .help("Output File Path")
                     .takes_value(true),
             )
             .get_matches();
 
-        let env: Option<PathBuf> = match clap::value_t!(app.value_of("environment"), PathBuf) {
-            Ok(t) => Ok(Some(t.into())),
-            Err(e) => match e.kind {
-                ::clap::ErrorKind::ArgumentNotFound => Ok(None),
-                _ => Err(e),
-            },
-        }
-        .unwrap_or_else(|e| e.exit());
+        dbg!(InputArguments {
+            run_headless: app.is_present("headless"),
+            // TODO: default number of threads should be determined by system
+            threads: clap::value_t!(app, "threads", usize).unwrap_or(6),
+            width: clap::value_t!(app, "width", usize).unwrap_or(200),
+            height: clap::value_t!(app, "height", usize).unwrap_or(200),
+            sample_count: clap::value_t!(app, "samples", usize).unwrap_or(5),
+            envt_map: clap::value_t!(app, "environment", PathBuf).ok(),
+            input_path: clap::value_t!(app, "rt_file", PathBuf).ok(),
+            output_path: clap::value_t!(app, "output", PathBuf).ok(),
+        })
+    }
 
-        self.threads = app.value_of("threads").unwrap().parse::<usize>().unwrap();
-        self.sample_count = app.value_of("samples").unwrap().parse::<usize>().unwrap();
-        self.width = app.value_of("width").unwrap().parse::<usize>().unwrap();
-        self.height = app.value_of("heigh").unwrap().parse::<usize>().unwrap();
-
-        // Paths
-        self.input_path = PathBuf::new();
-        self.input_path.push(app.value_of("rt_file").unwrap());
-        self.output_path = PathBuf::new();
-        self.output_path.push(app.value_of("output").unwrap());
-        self.envt_map = PathBuf::new();
-        self.envt_map.push(app.value_of("environment").unwrap());
+    pub fn get_run_headless(&self) -> bool {
+        self.run_headless
     }
 }
 
@@ -171,11 +167,9 @@ impl File {
 }
 
 fn main() {
-    let matches = clap::App::new("RT Rust")
-        .arg(clap::Arg::with_name("headless"))
-        .get_matches();
+    let arguments = InputArguments::read();
 
-    let run_headless = matches.value_of("headless").is_some();
+    let run_headless = arguments.get_run_headless();
 
     let image_width = 200;
     let image_height = 200;
