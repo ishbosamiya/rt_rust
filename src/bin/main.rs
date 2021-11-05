@@ -22,6 +22,7 @@ use rt::ui::DrawUI;
 use rt::viewport::Viewport;
 use rt::{glm, ui, UiData};
 
+#[macro_use]
 extern crate clap;
 extern crate lazy_static;
 
@@ -48,23 +49,18 @@ use rt::rasterize::infinite_grid::{InfiniteGrid, InfiniteGridDrawData};
 use rt::rasterize::shader;
 
 // TODO: Figure out shorter way to assign cli args to struct
-// struct TestArgs {
-//     threads: usize,
-//     width: usize,
-//     height: usize,
-//     sample_count: usize,
-//     envt_map: Option<PathBuf>,
-//     input_path: PathBuf,
-//     output_path: PathBuf,
-// }
-
-struct InputArgs<'a> {
-    cli_args: ArgMatches<'a>,
-    test_num: usize,
+struct TestArgs {
+    threads: usize,
+    width: usize,
+    height: usize,
+    sample_count: usize,
+    envt_map: PathBuf,
+    input_path: PathBuf,
+    output_path: PathBuf,
 }
 
 // Function to return test args processed using clap via cli
-impl<'a> InputArgs<'a> {
+impl TestArgs {
     pub fn read_test_cli_args(&self) {
         let app = App::new("Config-exec")
             .version("1.0")
@@ -120,26 +116,27 @@ impl<'a> InputArgs<'a> {
             )
             .get_matches();
 
-        self.cli_args = app;
-        self.test_num = 1;
-    }
-
-    pub fn check_paths(&self) {
-        let rt_path = Path::new(self.cli_args.value_of("rt_file").unwrap());
-        if !rt_path.exists() || !rt_path.is_file() {
-            eprintln!(
-                "rt path is invalid or is not a file: {}",
-                rt_path.to_str().unwrap()
-            )
+        let env: Option<PathBuf> = match clap::value_t!(app.value_of("environment"), PathBuf) {
+            Ok(t) => Ok(Some(t.into())),
+            Err(e) => match e.kind {
+                ::clap::ErrorKind::ArgumentNotFound => Ok(None),
+                _ => Err(e),
+            },
         }
+        .unwrap_or_else(|e| e.exit());
 
-        let envt_map = Path::new(self.cli_args.value_of("environment").unwrap());
-        if !envt_map.exists() || !envt_map.is_file() {
-            eprintln!(
-                "environment path is invalid or is not a file: {}",
-                envt_map.to_str().unwrap()
-            )
-        }
+        self.threads = app.value_of("threads").unwrap().parse::<usize>().unwrap();
+        self.sample_count = app.value_of("samples").unwrap().parse::<usize>().unwrap();
+        self.width = app.value_of("width").unwrap().parse::<usize>().unwrap();
+        self.height = app.value_of("heigh").unwrap().parse::<usize>().unwrap();
+
+        // Paths
+        self.input_path = PathBuf::new();
+        self.input_path.push(app.value_of("rt_file").unwrap());
+        self.output_path = PathBuf::new();
+        self.output_path.push(app.value_of("output").unwrap());
+        self.envt_map = PathBuf::new();
+        self.envt_map.push(app.value_of("environment").unwrap());
     }
 }
 
