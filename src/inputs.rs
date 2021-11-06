@@ -1,3 +1,4 @@
+use crate::glm;
 use clap::value_t;
 use clap::{App, Arg};
 use std::path::PathBuf;
@@ -16,9 +17,12 @@ pub struct InputArguments {
     envt_map: Option<PathBuf>,
     input_path: Option<PathBuf>,
     output_path: Option<PathBuf>,
-    trace_max_depth: usize,
+    trace_max_depth: Option<usize>,
     environment_strength: usize,
     texture: Option<PathBuf>,
+    // environment_location: Option<glm::DVec3>,
+    // environment_rotation: Option<glm::DVec3>,
+    // environment_scale: Option<glm::DVec3>,
 }
 
 // Function to return test args processed using clap via cli
@@ -99,7 +103,32 @@ impl InputArguments {
                     .requires("headless")
                     .takes_value(true),
             )
+            .arg(
+                Arg::with_name("environment_transform_location")
+                    .short("envt-loc")
+                    .help("Transformation Position")
+                    .requires("headless")
+                    .multiple(true),
+            )
+            .arg(
+                Arg::with_name("environment_transform_rotation")
+                    .short("envt-rot")
+                    .help("Transformation Rotation")
+                    .requires("headless")
+                    .multiple(true),
+            )
+            .arg(
+                Arg::with_name("environment_transform_scale")
+                    .short("envt-scale")
+                    .help("Transformation Scale")
+                    .requires("headless")
+                    .multiple(true),
+            )
             .get_matches();
+
+        assert_eq!(app.occurrences_of("environment_transform_position"), 3);
+        assert_eq!(app.occurrences_of("environment_transform_rotation"), 3);
+        assert_eq!(app.occurrences_of("environment_transform_scale"), 3);
 
         dbg!(InputArguments {
             run_headless: app.is_present("headless"),
@@ -120,9 +149,12 @@ impl InputArguments {
             }),
             input_path: value_t!(app, "rt_file", PathBuf).ok(),
             output_path: value_t!(app, "output", PathBuf).ok(),
-            trace_max_depth: value_t!(app, "trace_depth", usize).unwrap_or(5),
+            trace_max_depth: value_t!(app, "trace_depth", usize).ok(),
             environment_strength: value_t!(app, "environment_strength", usize).unwrap_or(2),
             texture: value_t!(app, "texture", PathBuf).ok(),
+            // environment_location: ,
+            // environment_rotation: ,
+            // environment_scale: ,
         })
     }
 
@@ -156,5 +188,17 @@ impl InputArguments {
 
     pub fn get_output_file(&self) -> Option<&PathBuf> {
         self.output_path.as_ref()
+    }
+
+    pub fn get_max_depth(&self) -> Option<usize> {
+        self.trace_max_depth
+    }
+
+    pub fn get_environment_strength(&self) -> usize {
+        self.environment_strength
+    }
+
+    pub fn get_texture(&self) -> Option<&PathBuf> {
+        self.texture.as_ref()
     }
 }
