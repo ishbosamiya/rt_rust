@@ -5,7 +5,7 @@ use std::path::PathBuf;
 #[derive(Debug)]
 pub struct InputArguments {
     run_headless: bool,
-    threads: usize,
+    num_threads: Option<usize>,
     width: usize,
     height: usize,
     sample_count: usize,
@@ -74,7 +74,7 @@ impl InputArguments {
         dbg!(InputArguments {
             run_headless: app.is_present("headless"),
             // TODO: default number of threads should be determined by system
-            threads: value_t!(app, "threads", usize).unwrap_or(6),
+            num_threads: value_t!(app, "threads", usize).ok(),
             width: value_t!(app, "width", usize).unwrap_or(200),
             height: value_t!(app, "height", usize).unwrap_or(200),
             sample_count: value_t!(app, "samples", usize).unwrap_or(5),
@@ -100,8 +100,8 @@ impl InputArguments {
         self.sample_count
     }
 
-    pub fn get_threads_count(&self) -> usize {
-        self.threads
+    pub fn get_num_threads(&self) -> Option<usize> {
+        self.num_threads
     }
 
     pub fn get_environment_map(&self) -> Option<&PathBuf> {

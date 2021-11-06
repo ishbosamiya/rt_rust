@@ -23,18 +23,12 @@ use rt::ui::DrawUI;
 use rt::viewport::Viewport;
 use rt::{glm, ui, UiData};
 
-#[macro_use]
-extern crate clap;
-extern crate lazy_static;
-
 use std::cell::RefCell;
 use std::convert::TryInto;
-use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::{mpsc, Arc, RwLock};
 use std::thread;
 
-use clap::{App, Arg};
 use egui::{FontDefinitions, FontFamily, TextStyle};
 use egui_glfw::EguiBackend;
 use glfw::{Action, Context, Key};
@@ -83,6 +77,11 @@ fn main() {
     let arguments = InputArguments::read();
 
     let run_headless = arguments.get_run_headless();
+
+    rayon::ThreadPoolBuilder::new()
+        .num_threads(arguments.get_num_threads().unwrap_or(0))
+        .build_global()
+        .unwrap();
 
     let image_width = arguments.get_image_width();
     let image_height = arguments.get_image_height();
