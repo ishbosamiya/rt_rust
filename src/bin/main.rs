@@ -177,8 +177,7 @@ fn main() {
             ray_trace_main_thread_handle,
             ray_trace_thread_sender,
             rendered_image,
-            image_width,
-            image_height,
+            arguments,
         );
     } else {
         main_gui(
@@ -191,8 +190,7 @@ fn main() {
             path_trace_progress,
             ray_trace_main_thread_handle,
             ray_trace_thread_sender,
-            image_width,
-            image_height,
+            arguments,
         );
     }
 }
@@ -201,11 +199,13 @@ fn main_headless(
     ray_trace_main_thread_handle: thread::JoinHandle<()>,
     ray_trace_thread_sender: mpsc::Sender<RayTraceMessage>,
     rendered_image: Arc<RwLock<Image>>,
-    image_width: usize,
-    image_height: usize,
+    arguments: InputArguments,
 ) {
+    let image_width = arguments.get_image_width();
+    let image_height = arguments.get_image_height();
+    // TODO: get trace max depth arguments
     let trace_max_depth = 5;
-    let samples_per_pixel = 5;
+    let samples_per_pixel = arguments.get_samples();
 
     ray_trace_thread_sender
         .send(RayTraceMessage::StartRender(RayTraceParams::new(
@@ -238,8 +238,7 @@ fn main_gui(
     path_trace_progress: Arc<RwLock<Progress>>,
     ray_trace_main_thread_handle: thread::JoinHandle<()>,
     ray_trace_thread_sender: mpsc::Sender<RayTraceMessage>,
-    mut image_width: usize,
-    mut image_height: usize,
+    arguments: InputArguments,
 ) {
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
 
@@ -320,8 +319,11 @@ fn main_gui(
     let mut use_environment_map_as_background = false;
     let mut background_color = glm::vec4(0.051, 0.051, 0.051, 1.0);
     let mut should_cast_scene_ray = false;
+    let mut image_width = arguments.get_image_width();
+    let mut image_height = arguments.get_image_height();
+    // TODO: get trace max depth arguments
     let mut trace_max_depth = 5;
-    let mut samples_per_pixel = 5;
+    let mut samples_per_pixel = arguments.get_samples();
     let mut save_image_location = "test.ppm".to_string();
     let mut ray_traversal_info: Vec<TraversalInfo> = Vec::new();
     let mut ray_to_shoot = (3, 3);
