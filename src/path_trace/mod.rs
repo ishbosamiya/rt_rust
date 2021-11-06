@@ -214,6 +214,7 @@ pub enum RayTraceMessage {
     StartRender(RayTraceParams),
     StopRender,
     KillThread,
+    FinishAndKillThread,
 }
 
 fn ray_trace_stop_render(
@@ -277,6 +278,12 @@ pub fn ray_trace_main(
                     ray_trace_stop_render(stop_render.clone(), render_thread_handle);
             }
             RayTraceMessage::KillThread => {
+                break;
+            }
+            RayTraceMessage::FinishAndKillThread => {
+                if let Some(handle) = render_thread_handle {
+                    handle.join().unwrap();
+                }
                 break;
             }
         }

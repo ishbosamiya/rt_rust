@@ -252,7 +252,7 @@ fn main_headless(
         .unwrap();
 
     ray_trace_thread_sender
-        .send(RayTraceMessage::KillThread)
+        .send(RayTraceMessage::FinishAndKillThread)
         .unwrap();
 
     ray_trace_main_thread_handle.join().unwrap();
