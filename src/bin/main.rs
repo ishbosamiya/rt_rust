@@ -700,6 +700,19 @@ fn main_gui(
                                 }
                             });
 
+                            // path trace camera depends on image
+                            // width and height which can be updated
+                            // when camera header is
+                            // closed. `ui.collapsing()` does not
+                            // evaluate the function when it is closed
+                            // thus the camera is not updated when the
+                            // image width and height is modified and
+                            // must be done so separately here
+                            if let Ok(mut path_trace_camera) = path_trace_camera.try_write() {
+                                path_trace_camera
+                                    .change_aspect_ratio(image_width as f64 / image_height as f64);
+                            }
+
                             ui.separator();
 
                             ui.add(
