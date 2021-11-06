@@ -67,6 +67,7 @@ impl InputArguments {
                 Arg::with_name("output")
                     .short("o")
                     .help("Output File Path")
+                    .requires("headless")
                     .takes_value(true),
             )
             .get_matches();
