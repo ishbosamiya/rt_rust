@@ -19,6 +19,7 @@ use rt::progress::Progress;
 use rt::rasterize::gpu_utils::{self, draw_plane_with_image};
 use rt::rasterize::texture::TextureRGBAFloat;
 use rt::scene::{Scene, SceneDrawData};
+use rt::transform::Transform;
 use rt::ui::DrawUI;
 use rt::viewport::Viewport;
 use rt::{glm, ui, UiData};
@@ -131,7 +132,21 @@ fn main() {
 
     let rendered_image = Arc::new(RwLock::new(Image::new(100, 100)));
 
-    let environment = Arc::new(RwLock::new(Environment::default()));
+    let environment = Arc::new(RwLock::new(
+        arguments
+            .get_environment_map()
+            .map(|path| {
+                let hdr = image::codecs::hdr::HdrDecoder::new(std::io::BufReader::new(
+                    std::fs::File::open(path).unwrap(),
+                ))
+                .unwrap();
+                let width = hdr.metadata().width as _;
+                let height = hdr.metadata().height as _;
+                let image = Image::from_vec_rgb_f32(&hdr.read_image_hdr().unwrap(), width, height);
+                Environment::new(image, 1.0, Transform::default())
+            })
+            .unwrap_or_default(),
+    ));
 
     // Spawn the main ray tracing thread
     let (ray_trace_thread_sender, ray_trace_thread_receiver) = mpsc::channel();

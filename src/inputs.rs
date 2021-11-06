@@ -78,7 +78,16 @@ impl InputArguments {
             width: value_t!(app, "width", usize).unwrap_or(200),
             height: value_t!(app, "height", usize).unwrap_or(200),
             sample_count: value_t!(app, "samples", usize).unwrap_or(5),
-            envt_map: value_t!(app, "environment", PathBuf).ok(),
+            envt_map: value_t!(app, "environment", PathBuf).ok().map(|path| {
+                if path.is_file() {
+                    path
+                } else {
+                    panic!(
+                        "Given environment map path does not point to a file: {}",
+                        path.to_str().unwrap()
+                    );
+                }
+            }),
             input_path: value_t!(app, "rt_file", PathBuf).ok(),
             output_path: value_t!(app, "output", PathBuf).ok(),
         })
