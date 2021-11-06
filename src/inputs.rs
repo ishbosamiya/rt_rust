@@ -1,5 +1,5 @@
 use crate::glm;
-use clap::value_t;
+use clap::{value_t, values_t};
 use clap::{App, Arg};
 use std::path::PathBuf;
 
@@ -20,9 +20,9 @@ pub struct InputArguments {
     trace_max_depth: Option<usize>,
     environment_strength: usize,
     texture: Option<PathBuf>,
-    // environment_location: Option<glm::DVec3>,
-    // environment_rotation: Option<glm::DVec3>,
-    // environment_scale: Option<glm::DVec3>,
+    environment_location: Option<glm::DVec3>,
+    environment_rotation: Option<glm::DVec3>,
+    environment_scale: Option<glm::DVec3>,
 }
 
 // Function to return test args processed using clap via cli
@@ -108,27 +108,29 @@ impl InputArguments {
                     .short("envt-loc")
                     .help("Transformation Position")
                     .requires("headless")
-                    .multiple(true),
+                    .multiple(true)
+                    .number_of_values(3)
+                    .takes_value(true),
             )
             .arg(
                 Arg::with_name("environment_transform_rotation")
                     .short("envt-rot")
                     .help("Transformation Rotation")
                     .requires("headless")
-                    .multiple(true),
+                    .multiple(true)
+                    .number_of_values(3)
+                    .takes_value(true),
             )
             .arg(
                 Arg::with_name("environment_transform_scale")
                     .short("envt-scale")
                     .help("Transformation Scale")
                     .requires("headless")
-                    .multiple(true),
+                    .multiple(true)
+                    .number_of_values(3)
+                    .takes_value(true),
             )
             .get_matches();
-
-        assert_eq!(app.occurrences_of("environment_transform_position"), 3);
-        assert_eq!(app.occurrences_of("environment_transform_rotation"), 3);
-        assert_eq!(app.occurrences_of("environment_transform_scale"), 3);
 
         dbg!(InputArguments {
             run_headless: app.is_present("headless"),
@@ -152,9 +154,15 @@ impl InputArguments {
             trace_max_depth: value_t!(app, "trace_depth", usize).ok(),
             environment_strength: value_t!(app, "environment_strength", usize).unwrap_or(2),
             texture: value_t!(app, "texture", PathBuf).ok(),
-            // environment_location: ,
-            // environment_rotation: ,
-            // environment_scale: ,
+            environment_location: values_t!(app, "environment_transform_location", f64)
+                .ok()
+                .map(|location| { glm::vec3(location[0], location[1], location[2]) }),
+            environment_rotation: values_t!(app, "environment_transform_rotation", f64)
+                .ok()
+                .map(|rotation| { glm::vec3(rotation[0], rotation[1], rotation[2]) }),
+            environment_scale: values_t!(app, "environment_transform_scale", f64)
+                .ok()
+                .map(|scale| { glm::vec3(scale[0], scale[1], scale[2]) }),
         })
     }
 
@@ -200,5 +208,17 @@ impl InputArguments {
 
     pub fn get_texture(&self) -> Option<&PathBuf> {
         self.texture.as_ref()
+    }
+
+    pub fn get_transform_location(&self) -> Option<glm::DVec3> {
+        self.environment_location
+    }
+
+    pub fn get_transform_rotation(&self) -> Option<glm::DVec3> {
+        self.environment_rotation
+    }
+
+    pub fn get_transform_scale(&self) -> Option<glm::DVec3> {
+        self.environment_scale
     }
 }
