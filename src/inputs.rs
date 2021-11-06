@@ -3,6 +3,8 @@ use clap::{App, Arg};
 use std::path::PathBuf;
 
 #[derive(Debug)]
+// TODOs: trace_max_depth, environment_transform,
+// environment_strength, textures, select_texture_for_shader
 pub struct InputArguments {
     run_headless: bool,
     num_threads: Option<usize>,
