@@ -259,7 +259,7 @@ fn main_headless(
 
     let image: &Image = &rendered_image.read().unwrap();
     let file = serde_json::to_string(image).unwrap();
-    std::fs::write("output.image", file).unwrap();
+    std::fs::write(arguments.get_output_file().unwrap(), file).unwrap();
 }
 
 #[allow(clippy::too_many_arguments)]
