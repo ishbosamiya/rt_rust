@@ -74,6 +74,32 @@ impl File {
     }
 }
 
+fn load_rt_file<P>(
+    path: P,
+    scene: Arc<RwLock<Scene>>,
+    shader_list: Arc<RwLock<ShaderList>>,
+    path_trace_camera: Arc<RwLock<PathTraceCamera>>,
+    environment: Arc<RwLock<Environment>>,
+) where
+    P: AsRef<std::path::Path>,
+{
+    let json = String::from_utf8(std::fs::read(path).unwrap()).unwrap();
+    let file: File = serde_json::from_str(&json).unwrap();
+    *scene.write().unwrap() = Arc::try_unwrap(file.scene).unwrap().into_inner().unwrap();
+    *shader_list.write().unwrap() = Arc::try_unwrap(file.shader_list)
+        .unwrap()
+        .into_inner()
+        .unwrap();
+    *path_trace_camera.write().unwrap() = Arc::try_unwrap(file.path_trace_camera)
+        .unwrap()
+        .into_inner()
+        .unwrap();
+    *environment.write().unwrap() = Arc::try_unwrap(file.environment)
+        .unwrap()
+        .into_inner()
+        .unwrap();
+}
+
 fn main() {
     let arguments = InputArguments::read();
 
@@ -132,21 +158,30 @@ fn main() {
 
     let rendered_image = Arc::new(RwLock::new(Image::new(100, 100)));
 
-    let environment = Arc::new(RwLock::new(
-        arguments
-            .get_environment_map()
-            .map(|path| {
-                let hdr = image::codecs::hdr::HdrDecoder::new(std::io::BufReader::new(
-                    std::fs::File::open(path).unwrap(),
-                ))
-                .unwrap();
-                let width = hdr.metadata().width as _;
-                let height = hdr.metadata().height as _;
-                let image = Image::from_vec_rgb_f32(&hdr.read_image_hdr().unwrap(), width, height);
-                Environment::new(image, 1.0, Transform::default())
-            })
-            .unwrap_or_default(),
-    ));
+    let environment = Arc::new(RwLock::new(Environment::default()));
+
+    if let Some(path) = arguments.get_rt_file() {
+        load_rt_file(
+            path,
+            scene.clone(),
+            shader_list.clone(),
+            path_trace_camera.clone(),
+            environment.clone(),
+        );
+    }
+
+    // set environment map from the given path overriding the
+    // environment map stored in the rt file
+    if let Some(path) = arguments.get_environment_map() {
+        let hdr = image::codecs::hdr::HdrDecoder::new(std::io::BufReader::new(
+            std::fs::File::open(path).unwrap(),
+        ))
+        .unwrap();
+        let width = hdr.metadata().width as _;
+        let height = hdr.metadata().height as _;
+        let image = Image::from_vec_rgb_f32(&hdr.read_image_hdr().unwrap(), width, height);
+        *environment.write().unwrap() = Environment::new(image, 1.0, Transform::default());
+    }
 
     // Spawn the main ray tracing thread
     let (ray_trace_thread_sender, ray_trace_thread_receiver) = mpsc::channel();
@@ -538,26 +573,13 @@ fn main_gui(
                                     .set_directory(".")
                                     .pick_file()
                                 {
-                                    let json =
-                                        String::from_utf8(std::fs::read(path).unwrap()).unwrap();
-                                    let file: File = serde_json::from_str(&json).unwrap();
-                                    *scene.write().unwrap() =
-                                        Arc::try_unwrap(file.scene).unwrap().into_inner().unwrap();
-                                    *shader_list.write().unwrap() =
-                                        Arc::try_unwrap(file.shader_list)
-                                            .unwrap()
-                                            .into_inner()
-                                            .unwrap();
-                                    *path_trace_camera.write().unwrap() =
-                                        Arc::try_unwrap(file.path_trace_camera)
-                                            .unwrap()
-                                            .into_inner()
-                                            .unwrap();
-                                    *environment.write().unwrap() =
-                                        Arc::try_unwrap(file.environment)
-                                            .unwrap()
-                                            .into_inner()
-                                            .unwrap();
+                                    load_rt_file(
+                                        path,
+                                        scene.clone(),
+                                        shader_list.clone(),
+                                        path_trace_camera.clone(),
+                                        environment.clone(),
+                                    );
                                 }
                             }
 
