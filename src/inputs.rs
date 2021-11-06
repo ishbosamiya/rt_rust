@@ -2,6 +2,8 @@ use clap::value_t;
 use clap::{App, Arg};
 use std::path::PathBuf;
 
+use crate::rasterize::texture;
+
 #[derive(Debug)]
 // TODOs: trace_max_depth, environment_transform,
 // environment_strength, textures, select_texture_for_shader
@@ -14,6 +16,9 @@ pub struct InputArguments {
     envt_map: Option<PathBuf>,
     input_path: Option<PathBuf>,
     output_path: Option<PathBuf>,
+    trace_max_depth: usize,
+    environment_strength: usize,
+    texture: Option<PathBuf>,
 }
 
 // Function to return test args processed using clap via cli
@@ -74,6 +79,26 @@ impl InputArguments {
                     .requires("headless")
                     .takes_value(true),
             )
+            .arg(
+                Arg::with_name("trace_depth")
+                    .short("t")
+                    .help("Tracing the Max Depth")
+                    .takes_value(true),
+            )
+            .arg(
+                Arg::with_name("environment_strength")
+                    .short("es")
+                    .help("Strength of the environment")
+                    .requires("headless")
+                    .takes_value(true),
+            )
+            .arg(
+                Arg::with_name("texture")
+                    .short("tx")
+                    .help("Texture Image")
+                    .requires("headless")
+                    .takes_value(true),
+            )
             .get_matches();
 
         dbg!(InputArguments {
@@ -95,6 +120,9 @@ impl InputArguments {
             }),
             input_path: value_t!(app, "rt_file", PathBuf).ok(),
             output_path: value_t!(app, "output", PathBuf).ok(),
+            trace_max_depth: value_t!(app, "trace_depth", usize).unwrap_or(5),
+            environment_strength: value_t!(app, "environment_strength", usize).unwrap_or(2),
+            texture: value_t!(app, "texture", PathBuf).ok(),
         })
     }
 
