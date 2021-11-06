@@ -9,7 +9,7 @@ use rt::path_trace::camera::Camera as PathTraceCamera;
 use rt::path_trace::camera::CameraDrawData as PathTraceCameraDrawData;
 use rt::path_trace::environment::Environment;
 use rt::path_trace::intersectable::Intersectable;
-use rt::path_trace::medium::Medium;
+use rt::path_trace::medium::Mediums;
 use rt::path_trace::ray::Ray;
 use rt::path_trace::shader_list::{ShaderID, ShaderList};
 use rt::path_trace::texture_list::TextureList;
@@ -139,13 +139,13 @@ fn main() {
         let mut shader_list = ShaderList::new();
 
         shader_list.add_shader(Box::new(path_trace::shaders::Lambert::new(
-            path_trace::bsdfs::lambert::Lambert::new(glm::vec3(1.0, 1.0, 1.0)),
+            path_trace::bsdfs::lambert::Lambert::default(),
         )));
         shader_list.add_shader(Box::new(path_trace::shaders::Lambert::new(
             path_trace::bsdfs::lambert::Lambert::new(glm::vec3(1.0, 0.0, 0.0)),
         )));
         shader_list.add_shader(Box::new(path_trace::shaders::Glossy::new(
-            path_trace::bsdfs::glossy::Glossy::new(glm::vec3(1.0, 1.0, 1.0)),
+            path_trace::bsdfs::glossy::Glossy::default(),
         )));
         shader_list.add_shader(Box::new(path_trace::shaders::Emissive::new(
             path_trace::bsdfs::emissive::Emissive::new(glm::vec3(1.0, 0.4, 1.0), 5.0),
@@ -871,7 +871,7 @@ fn main_gui(
                                                 &shader_list.read().unwrap(),
                                                 &texture_list.read().unwrap(),
                                                 &environment.into(),
-                                                &Medium::air(),
+                                                &mut Mediums::with_air(),
                                             );
                                             ray_traversal_info.push(traversal_info);
                                         }
@@ -1096,7 +1096,7 @@ fn main_gui(
                 &shader_list.read().unwrap(),
                 &texture_list.read().unwrap(),
                 &environment.into(),
-                &Medium::air(),
+                &mut Mediums::with_air(),
             );
 
             // generate the new ray from the path_trace_camera's
@@ -1118,7 +1118,7 @@ fn main_gui(
                 &shader_list.read().unwrap(),
                 &texture_list.read().unwrap(),
                 &environment.into(),
-                &Medium::air(),
+                &mut Mediums::with_air(),
             );
 
             scene.write().unwrap().unapply_model_matrices();

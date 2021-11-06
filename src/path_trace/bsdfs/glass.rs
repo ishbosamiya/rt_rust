@@ -11,26 +11,19 @@ use crate::path_trace::texture_list::TextureList;
 use crate::ui::DrawUI;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Refraction {
+pub struct Glass {
     color: ColorPicker,
     ior: f64,
-
-    #[serde(default = "default_roughness")]
     roughness: f64,
 }
 
-fn default_roughness() -> f64 {
-    // any previous files assumed roughness of 0.0
-    0.0
-}
-
-impl Default for Refraction {
+impl Default for Glass {
     fn default() -> Self {
         Self::new(glm::vec3(1.0, 1.0, 1.0), 1.5, 0.4)
     }
 }
 
-impl Refraction {
+impl Glass {
     pub fn new(color: glm::DVec3, ior: f64, roughness: f64) -> Self {
         Self {
             color: ColorPicker::Color(color),
@@ -39,7 +32,7 @@ impl Refraction {
         }
     }
 
-    fn handle_refraction(
+    fn handle_refraction_and_reflection(
         &self,
         wo: &glm::DVec3,
         mediums: &mut Mediums,
@@ -48,43 +41,57 @@ impl Refraction {
     ) -> Option<SampleData> {
         // TODO: need to figure out which sampling type it would be,
         // both diffuse and reflection seem to make sense
-        if sampling_types.contains(SamplingTypes::Diffuse) {
+        if sampling_types.contains(SamplingTypes::Diffuse | SamplingTypes::Reflection) {
             let entering = intersect_info.get_front_face();
 
             let ior = if entering {
                 let ior = mediums.get_lastest_medium().unwrap().get_ior() / self.get_ior();
                 ior
             } else {
-                // need to remove the lastest medium since it would be
-                // the same as the medium of wi
-                mediums.remove_medium().unwrap();
-
+                // need to check second latest medium since the
+                // lastest medium would be the same as the medium of
+                // wi
+                //
                 // if there is no more mediums, the ray must have had
                 // more exits than entries and thus must not
                 // sample. This can happen because of non manifold
                 // meshes. If there exists a medium, calculate the
                 // ior.
-                self.get_ior() / mediums.get_lastest_medium()?.get_ior()
+                self.get_ior() / mediums.get_second_lastest_medium()?.get_ior()
             };
 
-            let output =
+            let refracted_wi =
                 -glm::refract_vec(&-wo, intersect_info.get_normal().as_ref().unwrap(), ior);
 
             // if refraction can take place. It may not be possible
             // when `wi` is at an angle (with the normal) greater than
             // critical angle and `wi` would be in a denser medium
             // than `wo`. In such a case total internal reflection
-            // will take place but in refraction only bsdf, this isn't
-            // considered
-            if output != glm::DVec3::zeros() {
-                // add `wi` medium if entering the medium
-                if entering {
-                    mediums.add_medium(Medium::new(self.get_ior()));
-                }
+            // will take place.
+            if refracted_wi != glm::DVec3::zeros() {
+                if sampling_types.contains(SamplingTypes::Diffuse) {
+                    // add `wi` medium if entering the medium
+                    if entering {
+                        mediums.add_medium(Medium::new(self.get_ior()));
+                    } else {
+                        // must remove the latest medium
+                        mediums.remove_medium().unwrap();
+                    }
 
-                Some(SampleData::new(output, SamplingTypes::Diffuse))
+                    Some(SampleData::new(refracted_wi, SamplingTypes::Diffuse))
+                } else {
+                    None
+                }
             } else {
-                None
+                // total internal reflection (TIR)
+                if sampling_types.contains(SamplingTypes::Reflection) {
+                    Some(SampleData::new(
+                        glm::reflect_vec(wo, intersect_info.get_normal().as_ref().unwrap()),
+                        SamplingTypes::Reflection,
+                    ))
+                } else {
+                    None
+                }
             }
         } else {
             None
@@ -108,7 +115,7 @@ impl Refraction {
 }
 
 #[typetag::serde]
-impl BSDF for Refraction {
+impl BSDF for Glass {
     fn sample(
         &self,
         wo: &glm::DVec3,
@@ -119,12 +126,13 @@ impl BSDF for Refraction {
         // TODO(ish): need to handle roughness accurately, using
         // something like GGX microfacet model. Right now it cannot
         // give physically accurate results.
+
         if rand::random::<f64>() < self.roughness {
             // sample diffuse
             self.handle_diffuse(intersect_info, sampling_types)
         } else {
-            // sample pure refraction
-            self.handle_refraction(wo, mediums, intersect_info, sampling_types)
+            // sample refraction and reflection
+            self.handle_refraction_and_reflection(wo, mediums, intersect_info, sampling_types)
         }
     }
 
@@ -139,7 +147,7 @@ impl BSDF for Refraction {
     }
 
     fn get_bsdf_name(&self) -> &str {
-        "Refraction"
+        "Glass"
     }
 
     fn get_base_color(&self, texture_list: &TextureList) -> glm::DVec3 {
@@ -151,7 +159,7 @@ impl BSDF for Refraction {
     }
 }
 
-impl DrawUI for Refraction {
+impl DrawUI for Glass {
     type ExtraData = BSDFUiData;
 
     fn draw_ui(&self, ui: &mut egui::Ui, _extra_data: &Self::ExtraData) {

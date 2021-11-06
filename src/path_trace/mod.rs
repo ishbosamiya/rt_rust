@@ -36,7 +36,8 @@ use crate::util;
 
 use self::environment::Environment;
 use self::environment::EnvironmentShadingData;
-use self::medium::Medium;
+
+use self::medium::Mediums;
 use self::shader_list::Shader;
 use self::shader_list::ShaderList;
 use self::texture_list::TextureList;
@@ -181,7 +182,7 @@ fn ray_trace_scene(
                         &shader_list,
                         &texture_list,
                         &environment,
-                        &Medium::air(),
+                        &mut Mediums::with_air(),
                     );
 
                     **pixel += color;
@@ -290,10 +291,11 @@ pub fn ray_trace_main(
     }
 }
 
-/// Data returned during [`shade_hit`]
+/// Data returned during shading of the hitpoint
 pub type ShadeHitData = (Option<ScatterHitData>, Option<EmissionHitData>);
 
-/// Data returned during scattering of light in [`shade_hit`]
+/// Data returned during scattering of light while shading of the
+/// hitpoint
 #[derive(Debug, Clone, PartialEq)]
 pub struct ScatterHitData {
     /// color information that should be propagated forward
@@ -304,22 +306,14 @@ pub struct ScatterHitData {
     /// type of sampling performed to generate the next ray by the
     /// `BSDF`
     sampling_type: SamplingTypes,
-    /// medium that the next ray goes into
-    next_medium: Medium,
 }
 
 impl ScatterHitData {
-    pub fn new(
-        color: glm::DVec3,
-        next_ray: Ray,
-        sampling_type: SamplingTypes,
-        next_medium: Medium,
-    ) -> Self {
+    pub fn new(color: glm::DVec3, next_ray: Ray, sampling_type: SamplingTypes) -> Self {
         Self {
             color,
             next_ray,
             sampling_type,
-            next_medium,
         }
     }
 
@@ -334,14 +328,10 @@ impl ScatterHitData {
     pub fn get_sampling_type(&self) -> SamplingTypes {
         self.sampling_type
     }
-
-    /// Get a reference to the scatter hit data's next medium.
-    pub fn get_next_medium(&self) -> &Medium {
-        &self.next_medium
-    }
 }
 
-/// Data returned during emission of light in [`shade_hit`]
+/// Data returned during emission of light while shading of the
+/// hitpoint
 #[derive(Debug, Clone, PartialEq)]
 pub struct EmissionHitData {
     /// color of light produced with intensity of the light encoded
@@ -393,7 +383,7 @@ fn shade_hit(
     intersect_info: &IntersectInfo,
     shader_list: &ShaderList,
     texture_list: &TextureList,
-    current_medium: &Medium,
+    mediums: &mut Mediums,
 ) -> ShadeHitData {
     // TODO: currently using a default shader only if the shader has
     // been deleted but there is no way to inform this to the user as
@@ -413,12 +403,12 @@ fn shade_hit(
     let wo = -ray.get_direction();
 
     let scattering_data = bsdf
-        .sample(&wo, current_medium, intersect_info, BitFlags::all())
+        .sample(&wo, mediums, intersect_info, BitFlags::all())
         .map(|sample_data| {
             // wi: incoming way direction
             let wi = sample_data.get_wi().normalize();
             let sampling_type = sample_data.get_sampling_type();
-            let color = bsdf.eval(&wi, &wo, current_medium, intersect_info, texture_list);
+            let color = bsdf.eval(&wi, &wo, intersect_info, texture_list);
 
             // BSDF returns the incoming ray direction at the point of
             // intersection but for the next ray that is shot in the opposite
@@ -430,16 +420,12 @@ fn shade_hit(
                 color,
                 Ray::new(*intersect_info.get_point(), next_ray_dir),
                 sampling_type,
-                Medium::new(bsdf.get_ior()),
             )
         });
 
     let emission_data = bsdf
         .emission(intersect_info, texture_list)
         .map(EmissionHitData::new);
-
-    // Scattering or emissive or both but not none
-    assert!(emission_data.is_some() || scattering_data.is_some());
 
     (scattering_data, emission_data)
 }
@@ -463,7 +449,7 @@ pub fn trace_ray(
     shader_list: &ShaderList,
     texture_list: &TextureList,
     environment: &EnvironmentShadingData,
-    current_medium: &Medium,
+    mediums: &mut Mediums,
 ) -> (glm::DVec3, TraversalInfo) {
     if depth == 0 {
         return (glm::zero(), TraversalInfo::new());
@@ -473,7 +459,7 @@ pub fn trace_ray(
 
     if let Some(info) = scene.hit(ray, 0.01, 1000.0) {
         let (scattering_data, emission_data) =
-            shade_hit(ray, &info, shader_list, texture_list, current_medium);
+            shade_hit(ray, &info, shader_list, texture_list, mediums);
 
         // compute scattering of light
         let scattering_intensity = scattering_data.map_or(glm::zero(), |scattering_data| {
@@ -485,7 +471,7 @@ pub fn trace_ray(
                 shader_list,
                 texture_list,
                 environment,
-                scattering_data.get_next_medium(),
+                mediums,
             );
 
             traversal_info.append_traversal(scatter_traversal_info);

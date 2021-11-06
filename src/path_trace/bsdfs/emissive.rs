@@ -6,7 +6,7 @@ use super::super::intersectable::IntersectInfo;
 use super::utils::{ColorPicker, ColorPickerUiData};
 use super::BSDFUiData;
 use crate::glm;
-use crate::path_trace::medium::Medium;
+use crate::path_trace::medium::Mediums;
 use crate::path_trace::texture_list::TextureList;
 use crate::ui::DrawUI;
 
@@ -36,7 +36,7 @@ impl BSDF for Emissive {
     fn sample(
         &self,
         _wo: &glm::DVec3,
-        _wo_medium: &Medium,
+        _mediums: &mut Mediums,
         _intersect_info: &IntersectInfo,
         _sampling_types: BitFlags<SamplingTypes>,
     ) -> Option<SampleData> {
@@ -47,7 +47,6 @@ impl BSDF for Emissive {
         &self,
         _wi: &glm::DVec3,
         _wo: &glm::DVec3,
-        _wo_medium: &Medium,
         _intersect_info: &IntersectInfo,
         _texture_list: &TextureList,
     ) -> glm::DVec3 {
