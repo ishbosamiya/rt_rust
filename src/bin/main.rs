@@ -100,6 +100,18 @@ fn load_rt_file<P>(
         .unwrap();
 }
 
+fn default_image_width() -> usize {
+    200
+}
+
+fn default_image_height() -> usize {
+    200
+}
+
+fn default_samples_per_pixel() -> usize {
+    5
+}
+
 fn main() {
     let arguments = InputArguments::read();
 
@@ -110,8 +122,12 @@ fn main() {
         .build_global()
         .unwrap();
 
-    let image_width = arguments.get_image_width();
-    let image_height = arguments.get_image_height();
+    let image_width = arguments
+        .get_image_width()
+        .unwrap_or_else(default_image_width);
+    let image_height = arguments
+        .get_image_height()
+        .unwrap_or_else(default_image_height);
 
     let path_trace_camera = Arc::new(RwLock::new({
         let camera_focal_length = 12.0;
@@ -183,6 +199,18 @@ fn main() {
         *environment.write().unwrap() = Environment::new(image, 1.0, Transform::default());
     }
 
+    // if image width or image height are present in the arguments,
+    // must overide image width and height and also the camera
+    if let Some((image_width, image_height)) = arguments
+        .get_image_width()
+        .zip(arguments.get_image_height())
+    {
+        path_trace_camera
+            .write()
+            .unwrap()
+            .change_aspect_ratio(image_width as f64 / image_height as f64);
+    }
+
     // Spawn the main ray tracing thread
     let (ray_trace_thread_sender, ray_trace_thread_receiver) = mpsc::channel();
     let ray_trace_main_thread_handle = {
@@ -236,11 +264,17 @@ fn main_headless(
     rendered_image: Arc<RwLock<Image>>,
     arguments: InputArguments,
 ) {
-    let image_width = arguments.get_image_width();
-    let image_height = arguments.get_image_height();
+    let image_width = arguments
+        .get_image_width()
+        .unwrap_or_else(default_image_width);
+    let image_height = arguments
+        .get_image_height()
+        .unwrap_or_else(default_image_height);
     // TODO: get trace max depth arguments
     let trace_max_depth = 5;
-    let samples_per_pixel = arguments.get_samples();
+    let samples_per_pixel = arguments
+        .get_samples()
+        .unwrap_or_else(default_samples_per_pixel);
 
     ray_trace_thread_sender
         .send(RayTraceMessage::StartRender(RayTraceParams::new(
@@ -354,11 +388,17 @@ fn main_gui(
     let mut use_environment_map_as_background = false;
     let mut background_color = glm::vec4(0.051, 0.051, 0.051, 1.0);
     let mut should_cast_scene_ray = false;
-    let mut image_width = arguments.get_image_width();
-    let mut image_height = arguments.get_image_height();
+    let mut image_width = arguments
+        .get_image_width()
+        .unwrap_or_else(default_image_width);
+    let mut image_height = arguments
+        .get_image_height()
+        .unwrap_or_else(default_image_height);
     // TODO: get trace max depth arguments
     let mut trace_max_depth = 5;
-    let mut samples_per_pixel = arguments.get_samples();
+    let mut samples_per_pixel = arguments
+        .get_samples()
+        .unwrap_or_else(default_samples_per_pixel);
     let mut save_image_location = "test.ppm".to_string();
     let mut ray_traversal_info: Vec<TraversalInfo> = Vec::new();
     let mut ray_to_shoot = (3, 3);

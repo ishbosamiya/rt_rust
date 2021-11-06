@@ -8,9 +8,9 @@ use std::path::PathBuf;
 pub struct InputArguments {
     run_headless: bool,
     num_threads: Option<usize>,
-    width: usize,
-    height: usize,
-    sample_count: usize,
+    width: Option<usize>,
+    height: Option<usize>,
+    sample_count: Option<usize>,
     envt_map: Option<PathBuf>,
     input_path: Option<PathBuf>,
     output_path: Option<PathBuf>,
@@ -39,12 +39,14 @@ impl InputArguments {
                 Arg::with_name("width")
                     .short("w")
                     .help("Width")
+                    .requires("height")
                     .takes_value(true),
             )
             .arg(
                 Arg::with_name("height")
                     .short("h")
                     .help("Height")
+                    .requires("width")
                     .takes_value(true),
             )
             .arg(
@@ -78,9 +80,9 @@ impl InputArguments {
             run_headless: app.is_present("headless"),
             // TODO: default number of threads should be determined by system
             num_threads: value_t!(app, "threads", usize).ok(),
-            width: value_t!(app, "width", usize).unwrap_or(200),
-            height: value_t!(app, "height", usize).unwrap_or(200),
-            sample_count: value_t!(app, "samples", usize).unwrap_or(5),
+            width: value_t!(app, "width", usize).ok(),
+            height: value_t!(app, "height", usize).ok(),
+            sample_count: value_t!(app, "samples", usize).ok(),
             envt_map: value_t!(app, "environment", PathBuf).ok().map(|path| {
                 if path.is_file() {
                     path
@@ -100,15 +102,15 @@ impl InputArguments {
         self.run_headless
     }
 
-    pub fn get_image_width(&self) -> usize {
+    pub fn get_image_width(&self) -> Option<usize> {
         self.width
     }
 
-    pub fn get_image_height(&self) -> usize {
+    pub fn get_image_height(&self) -> Option<usize> {
         self.height
     }
 
-    pub fn get_samples(&self) -> usize {
+    pub fn get_samples(&self) -> Option<usize> {
         self.sample_count
     }
 
