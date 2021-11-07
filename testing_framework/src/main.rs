@@ -2,10 +2,14 @@ extern crate clap;
 extern crate serde;
 extern crate serde_json;
 
+
+
 use clap::{App, Arg};
+use crate::glm;
 use is_executable::IsExecutable;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::process::Command;
+
 
 use std::path::{Path, PathBuf};
 
@@ -16,6 +20,8 @@ use std::path::{Path, PathBuf};
 pub struct Config {
     rt_files: Vec<RustFileInfo>,
 }
+
+
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "PascalCase")]
@@ -28,6 +34,10 @@ pub struct RustFileInfo {
     env_map: Option<PathBuf>,
     rt_path: PathBuf,
     output_path: PathBuf,
+    env_str: usize,
+    env_loc: Option<glm::DVec3>,
+    env_rot: Option<glm::DVec3>,
+    env_scale: Option<glm::DVec3>,
 }
 
 impl RustFileInfo {
@@ -68,7 +78,7 @@ fn main() -> std::io::Result<()> {
     //println!("Main");
     let app = App::new("Config-exec")
         .version("1.0")
-        .about("Configs Command Line Arguements")
+        .about("Configs Command Line Arguments")
         .author("Nobody")
         .arg(
             Arg::with_name("config")
@@ -141,7 +151,17 @@ fn main() -> std::io::Result<()> {
             .arg("-h")
             .arg(f.height.to_string())
             .arg("-S")
-            .arg(f.samples.to_string());
+            .arg(f.samples.to_string())
+            .arg("-d")
+            .arg(f.trace_depth.to_string())
+            .arg("es")
+            .arg(f.env_str.to_string())
+            .arg("envt-loc")
+            .arg(f.env_loc.to_string())
+            .arg("envt-rot")
+            .arg(f.env_rot.to_string())
+            .arg("envt-scale")
+            .arg(f.env_scale.to_string());
         if let Some(path) = f.env_map.as_ref() {
             command.arg("-E").arg(path);
         }
@@ -153,6 +173,6 @@ fn main() -> std::io::Result<()> {
             .output()
             .expect("Error in Sending");
     });
-
+    
     Ok(())
 }
