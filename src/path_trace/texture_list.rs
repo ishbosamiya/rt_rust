@@ -1,11 +1,9 @@
 use std::collections::{hash_map, HashMap};
-use std::convert::TryInto;
 
-use image::GenericImageView;
 use rfd::FileDialog;
 use serde::{Deserialize, Serialize};
 
-use crate::{glm, UiData};
+use crate::UiData;
 use crate::{rasterize::texture::TextureRGBAFloat, ui::DrawUI};
 
 /// A unique identifier given to each `Texture` during its
@@ -111,29 +109,7 @@ impl DrawUI for TextureList {
                     .set_directory(".")
                     .pick_file()
                 {
-                    let file = std::fs::File::open(path).unwrap();
-                    let image_reader = image::io::Reader::new(std::io::BufReader::new(file))
-                        .with_guessed_format()
-                        .unwrap();
-                    let image = image_reader.decode().unwrap();
-                    let texture = TextureRGBAFloat::from_pixels(
-                        image.width().try_into().unwrap(),
-                        image.height().try_into().unwrap(),
-                        image
-                            .to_rgba16()
-                            .pixels()
-                            .map(|pixel| {
-                                glm::vec4(
-                                    pixel[0] as f32 / u16::MAX as f32,
-                                    pixel[1] as f32 / u16::MAX as f32,
-                                    pixel[2] as f32 / u16::MAX as f32,
-                                    pixel[3] as f32 / u16::MAX as f32,
-                                )
-                            })
-                            .collect(),
-                    );
-
-                    self.add_texture(texture);
+                    self.add_texture(TextureRGBAFloat::load_from_disk(path).unwrap());
                 }
             }
         });
