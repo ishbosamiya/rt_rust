@@ -112,6 +112,14 @@ fn default_samples_per_pixel() -> usize {
     5
 }
 
+fn default_trace_max_depth() -> usize {
+    5
+}
+
+fn default_environment_strength() -> f64 {
+    1.0
+}
+
 fn main() {
     let arguments = InputArguments::read();
 
@@ -196,7 +204,23 @@ fn main() {
         let width = hdr.metadata().width as _;
         let height = hdr.metadata().height as _;
         let image = Image::from_vec_rgb_f32(&hdr.read_image_hdr().unwrap(), width, height);
-        *environment.write().unwrap() = Environment::new(image, 1.0, Transform::default());
+        *environment.write().unwrap() = Environment::new(
+            image,
+            arguments
+                .get_environment_strength()
+                .unwrap_or_else(default_environment_strength),
+            Transform::new(
+                arguments
+                    .get_environment_location()
+                    .map_or(glm::zero(), |location| *location),
+                arguments
+                    .get_environment_rotation()
+                    .map_or(glm::zero(), |rotation| *rotation),
+                arguments
+                    .get_environment_scale()
+                    .map_or(glm::vec3(1.0, 1.0, 1.0), |scale| *scale),
+            ),
+        );
     }
 
     // if image width or image height are present in the arguments,
@@ -270,8 +294,9 @@ fn main_headless(
     let image_height = arguments
         .get_image_height()
         .unwrap_or_else(default_image_height);
-    // TODO: get trace max depth arguments
-    let trace_max_depth = 5;
+    let trace_max_depth = arguments
+        .get_trace_max_depth()
+        .unwrap_or_else(default_trace_max_depth);
     let samples_per_pixel = arguments
         .get_samples()
         .unwrap_or_else(default_samples_per_pixel);
@@ -394,8 +419,9 @@ fn main_gui(
     let mut image_height = arguments
         .get_image_height()
         .unwrap_or_else(default_image_height);
-    // TODO: get trace max depth arguments
-    let mut trace_max_depth = 5;
+    let mut trace_max_depth = arguments
+        .get_trace_max_depth()
+        .unwrap_or_else(default_trace_max_depth);
     let mut samples_per_pixel = arguments
         .get_samples()
         .unwrap_or_else(default_samples_per_pixel);

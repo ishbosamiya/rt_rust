@@ -3,8 +3,6 @@ use clap::{value_t, values_t};
 use clap::{App, Arg};
 use std::path::PathBuf;
 
-use crate::rasterize::texture;
-
 #[derive(Debug)]
 // TODOs: trace_max_depth, environment_transform,
 // environment_strength, textures, select_texture_for_shader
@@ -14,11 +12,11 @@ pub struct InputArguments {
     width: Option<usize>,
     height: Option<usize>,
     sample_count: Option<usize>,
-    envt_map: Option<PathBuf>,
+    environment_map: Option<PathBuf>,
     input_path: Option<PathBuf>,
     output_path: Option<PathBuf>,
     trace_max_depth: Option<usize>,
-    environment_strength: usize,
+    environment_strength: Option<f64>,
     texture: Option<PathBuf>,
     environment_location: Option<glm::DVec3>,
     environment_rotation: Option<glm::DVec3>,
@@ -40,12 +38,14 @@ impl InputArguments {
             )
             .arg(
                 Arg::with_name("threads")
+                    .long("threads")
                     .short("t")
                     .help("Number of threads")
                     .takes_value(true),
             )
             .arg(
                 Arg::with_name("width")
+                    .long("width")
                     .short("w")
                     .help("Width")
                     .requires("height")
@@ -53,6 +53,7 @@ impl InputArguments {
             )
             .arg(
                 Arg::with_name("height")
+                    .long("height")
                     .short("h")
                     .help("Height")
                     .requires("width")
@@ -60,86 +61,91 @@ impl InputArguments {
             )
             .arg(
                 Arg::with_name("samples")
+                    .long("samples")
                     .short("S")
                     .help("Number of Samples")
                     .takes_value(true),
             )
             .arg(
                 Arg::with_name("environment")
+                    .long("environment")
                     .short("E")
                     .help("Environment map path")
                     .takes_value(true),
             )
             .arg(
                 Arg::with_name("rt_file")
+                    .long("rt_file")
                     .short("r")
                     .help("RT File Path")
                     .takes_value(true),
             )
             .arg(
                 Arg::with_name("output")
+                    .long("output")
                     .short("o")
                     .help("Output File Path")
                     .requires("headless")
                     .takes_value(true),
             )
             .arg(
-                Arg::with_name("trace_depth")
-                    .short("t")
+                Arg::with_name("trace_max_depth")
+                    .long("trace_max_depth")
+                    .alias("tmd")
                     .help("Tracing the Max Depth")
                     .takes_value(true),
             )
             .arg(
                 Arg::with_name("environment_strength")
-                    .short("es")
+                    .long("environment_strength")
+                    .alias("es")
                     .help("Strength of the environment")
-                    .requires("headless")
+                    .requires("environment")
                     .takes_value(true),
             )
             .arg(
                 Arg::with_name("texture")
-                    .short("tx")
+                    .long("texture")
+                    .alias("tx")
                     .help("Texture Image")
-                    .requires("headless")
                     .takes_value(true),
             )
             .arg(
-                Arg::with_name("environment_transform_location")
-                    .short("envt-loc")
-                    .help("Transformation Position")
-                    .requires("headless")
-                    .multiple(true)
-                    .number_of_values(3)
-                    .takes_value(true),
+                Arg::with_name("environment_location")
+                    .long("environment_location")
+                    // .alias("envt-loc")
+                    .help("Environment Location")
+                    .requires("environment")
+                    .takes_value(true)
+                    .number_of_values(3),
             )
             .arg(
-                Arg::with_name("environment_transform_rotation")
-                    .short("envt-rot")
-                    .help("Transformation Rotation")
-                    .requires("headless")
-                    .multiple(true)
-                    .number_of_values(3)
-                    .takes_value(true),
+                Arg::with_name("environment_rotation")
+                    .long("environment_rotation")
+                    // .alias("envt-rot")
+                    .help("Environment Rotation")
+                    .requires("environment")
+                    .takes_value(true)
+                    .number_of_values(3),
             )
             .arg(
-                Arg::with_name("environment_transform_scale")
-                    .short("envt-scale")
-                    .help("Transformation Scale")
-                    .requires("headless")
-                    .multiple(true)
-                    .number_of_values(3)
-                    .takes_value(true),
+                Arg::with_name("environment_scale")
+                    .long("environment_scale")
+                    .alias("envt-scale")
+                    .help("Environment Scale")
+                    .requires("environment")
+                    .takes_value(true)
+                    .number_of_values(3),
             )
             .get_matches();
 
-        dbg!(InputArguments {
+        let res = InputArguments {
             run_headless: app.is_present("headless"),
-            // TODO: default number of threads should be determined by system
             num_threads: value_t!(app, "threads", usize).ok(),
             width: value_t!(app, "width", usize).ok(),
             height: value_t!(app, "height", usize).ok(),
             sample_count: value_t!(app, "samples", usize).ok(),
-            envt_map: value_t!(app, "environment", PathBuf).ok().map(|path| {
+            environment_map: value_t!(app, "environment", PathBuf).ok().map(|path| {
                 if path.is_file() {
                     path
                 } else {
@@ -151,19 +157,21 @@ impl InputArguments {
             }),
             input_path: value_t!(app, "rt_file", PathBuf).ok(),
             output_path: value_t!(app, "output", PathBuf).ok(),
-            trace_max_depth: value_t!(app, "trace_depth", usize).ok(),
-            environment_strength: value_t!(app, "environment_strength", usize).unwrap_or(2),
+            trace_max_depth: value_t!(app, "trace_max_depth", usize).ok(),
+            environment_strength: value_t!(app, "environment_strength", f64).ok(),
             texture: value_t!(app, "texture", PathBuf).ok(),
-            environment_location: values_t!(app, "environment_transform_location", f64)
+            environment_location: values_t!(app, "environment_location", f64)
                 .ok()
-                .map(|location| { glm::vec3(location[0], location[1], location[2]) }),
-            environment_rotation: values_t!(app, "environment_transform_rotation", f64)
+                .map(|location| glm::vec3(location[0], location[1], location[2])),
+            environment_rotation: values_t!(app, "environment_rotation", f64)
                 .ok()
-                .map(|rotation| { glm::vec3(rotation[0], rotation[1], rotation[2]) }),
-            environment_scale: values_t!(app, "environment_transform_scale", f64)
+                .map(|rotation| glm::vec3(rotation[0], rotation[1], rotation[2])),
+            environment_scale: values_t!(app, "environment_scale", f64)
                 .ok()
-                .map(|scale| { glm::vec3(scale[0], scale[1], scale[2]) }),
-        })
+                .map(|scale| glm::vec3(scale[0], scale[1], scale[2])),
+        };
+
+        dbg!(res)
     }
 
     pub fn get_run_headless(&self) -> bool {
@@ -187,7 +195,7 @@ impl InputArguments {
     }
 
     pub fn get_environment_map(&self) -> Option<&PathBuf> {
-        self.envt_map.as_ref()
+        self.environment_map.as_ref()
     }
 
     pub fn get_rt_file(&self) -> Option<&PathBuf> {
@@ -198,11 +206,11 @@ impl InputArguments {
         self.output_path.as_ref()
     }
 
-    pub fn get_max_depth(&self) -> Option<usize> {
+    pub fn get_trace_max_depth(&self) -> Option<usize> {
         self.trace_max_depth
     }
 
-    pub fn get_environment_strength(&self) -> usize {
+    pub fn get_environment_strength(&self) -> Option<f64> {
         self.environment_strength
     }
 
@@ -210,15 +218,15 @@ impl InputArguments {
         self.texture.as_ref()
     }
 
-    pub fn get_transform_location(&self) -> Option<glm::DVec3> {
-        self.environment_location
+    pub fn get_environment_location(&self) -> Option<&glm::DVec3> {
+        self.environment_location.as_ref()
     }
 
-    pub fn get_transform_rotation(&self) -> Option<glm::DVec3> {
-        self.environment_rotation
+    pub fn get_environment_rotation(&self) -> Option<&glm::DVec3> {
+        self.environment_rotation.as_ref()
     }
 
-    pub fn get_transform_scale(&self) -> Option<glm::DVec3> {
-        self.environment_scale
+    pub fn get_environment_scale(&self) -> Option<&glm::DVec3> {
+        self.environment_scale.as_ref()
     }
 }
