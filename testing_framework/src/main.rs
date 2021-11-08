@@ -2,105 +2,113 @@ extern crate clap;
 extern crate serde;
 extern crate serde_json;
 
-
-
-use clap::{App, Arg};
-use crate::glm;
+use clap::{value_t, App, Arg};
 use is_executable::IsExecutable;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::process::Command;
-
+use nalgebra_glm as glm;
+use serde::{Deserialize, Serialize};
+use std::io::Write;
+use std::process::{exit, Command};
 
 use std::path::{Path, PathBuf};
 
 // Stores values in JSON
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "PascalCase")]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
     rt_files: Vec<RustFileInfo>,
 }
 
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            rt_files: vec![RustFileInfo::default()],
+        }
+    }
+}
 
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "PascalCase")]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RustFileInfo {
     threads: usize,
     width: usize,
     height: usize,
-    trace_depth: usize,
+    trace_max_depth: usize,
     samples: usize,
     env_map: Option<PathBuf>,
     rt_path: PathBuf,
     output_path: PathBuf,
-    env_str: usize,
-    env_loc: Option<glm::DVec3>,
-    env_rot: Option<glm::DVec3>,
-    env_scale: Option<glm::DVec3>,
+    environment_strength: Option<f64>,
+    environment_location: Option<glm::DVec3>,
+    environment_rotation: Option<glm::DVec3>,
+    environment_scale: Option<glm::DVec3>,
 }
 
-impl RustFileInfo {
-    // fn new(
-    //     threads: usize,
-    //     width: usize,
-    //     height: usize,
-    //     trace_depth: usize,
-    //     samples: usize,
-    //     env_map: Option<PathBuf>,
-    //     rt_path: PathBuf,
-    //     output_path: PathBuf,
-    // ) -> Self {
-    //     Self {
-    //         threads,
-    //         width,
-    //         height,
-    //         trace_depth,
-    //         samples,
-    //         env_map,
-    //         rt_path,
-    //         output_path,
-    //     }
-    // }
+impl Default for RustFileInfo {
+    fn default() -> Self {
+        Self {
+            threads: 0,
+            width: 200,
+            height: 200,
+            trace_max_depth: 10,
+            samples: 20,
+            env_map: Some(PathBuf::from("example.hdr")),
+            rt_path: PathBuf::from("example.rt"),
+            output_path: PathBuf::from("output.image"),
+            environment_strength: Some(1.0),
+            environment_location: Some(glm::vec3(0.0, 0.0, 0.0)),
+            environment_rotation: Some(glm::vec3(0.0, 0.0, 0.0)),
+            environment_scale: Some(glm::vec3(1.0, 1.0, 1.0)),
+        }
+    }
 }
 
 pub fn read_config(config_path: &Path) -> Config {
-    // Assume configs are stored in one folder only
+    let json = std::fs::read_to_string(config_path).unwrap();
 
-    let conf = std::fs::read_to_string(config_path).unwrap();
-
-    let rt_files: Vec<RustFileInfo> = serde_json::from_str(&conf).unwrap();
-
-    Config { rt_files }
+    serde_json::from_str(&json).unwrap()
 }
 
-fn main() -> std::io::Result<()> {
-    //println!("Main");
+fn main() {
     let app = App::new("Config-exec")
         .version("1.0")
         .about("Configs Command Line Arguments")
         .author("Nobody")
         .arg(
+            Arg::with_name("generate-default-config")
+                .long("generate-default-config")
+                .takes_value(true)
+                .conflicts_with_all(&["config", "exec", "working-directory"])
+                .help("Generation default config at the given file path"),
+        )
+        .arg(
             Arg::with_name("config")
-                .required(true)
+                .long("config")
+                .required_unless("generate-default-config")
                 .short("c")
                 .help("Config File Location")
                 .takes_value(true),
         )
         .arg(
             Arg::with_name("exec")
-                .required(true)
+                .long("exec")
+                .required_unless("generate-default-config")
                 .short("e")
                 .help("Executable Location")
                 .takes_value(true),
         )
         .arg(
             Arg::with_name("working-directory")
+                .long("working-directory")
                 .short("w")
                 .help("Working Directory")
                 .takes_value(true),
         )
         .get_matches();
+
+    if let Some(path) = clap::value_t!(app, "generate-default-config", PathBuf).ok() {
+        let json = serde_json::to_string_pretty(&Config::default()).unwrap();
+        std::fs::write(path, json).unwrap();
+        exit(0);
+    }
 
     let config_path = Path::new(app.value_of("config").unwrap());
     if !config_path.exists() || !config_path.is_file() {
@@ -141,38 +149,61 @@ fn main() -> std::io::Result<()> {
     let config_data = read_config(config_path);
 
     // Spawning a Process for every iteration of data
-    config_data.rt_files.iter().for_each(|f| {
+    config_data.rt_files.iter().for_each(|file| {
         let mut command = Command::new(exec_path);
         command
-            .arg("-t")
-            .arg(f.threads.to_string())
-            .arg("-w")
-            .arg(f.width.to_string())
-            .arg("-h")
-            .arg(f.height.to_string())
-            .arg("-S")
-            .arg(f.samples.to_string())
-            .arg("-d")
-            .arg(f.trace_depth.to_string())
-            .arg("es")
-            .arg(f.env_str.to_string())
-            .arg("envt-loc")
-            .arg(f.env_loc.to_string())
-            .arg("envt-rot")
-            .arg(f.env_rot.to_string())
-            .arg("envt-scale")
-            .arg(f.env_scale.to_string());
-        if let Some(path) = f.env_map.as_ref() {
-            command.arg("-E").arg(path);
+            .arg("--headless")
+            .arg("--threads")
+            .arg(file.threads.to_string())
+            .arg("--width")
+            .arg(file.width.to_string())
+            .arg("--height")
+            .arg(file.height.to_string())
+            .arg("--samples")
+            .arg(file.samples.to_string())
+            .arg("--trace-max-depth")
+            .arg(file.trace_max_depth.to_string());
+        if let Some(path) = file.env_map.as_ref() {
+            command.arg("--environment").arg(path);
+        }
+        if let Some(strength) = file.environment_strength {
+            command
+                .arg("--environment-strength")
+                .arg(strength.to_string());
+        }
+        if let Some(location) = file.environment_location.as_ref() {
+            command
+                .arg("--environment-location")
+                .arg(location[0].to_string())
+                .arg(location[1].to_string())
+                .arg(location[2].to_string());
+        }
+        if let Some(rotation) = file.environment_rotation.as_ref() {
+            command
+                .arg("--environment-rotation")
+                .arg(rotation[0].to_string())
+                .arg(rotation[1].to_string())
+                .arg(rotation[2].to_string());
+        }
+        if let Some(scale) = file.environment_scale.as_ref() {
+            command
+                .arg("--environment-scale")
+                .arg(scale[0].to_string())
+                .arg(scale[1].to_string())
+                .arg(scale[2].to_string());
         }
         command
-            .arg("-r")
-            .arg(f.rt_path.as_path())
-            .arg("-o")
-            .arg(f.output_path.as_path())
-            .output()
-            .expect("Error in Sending");
+            .arg("--rt-file")
+            .arg(file.rt_path.as_path())
+            .arg("--output")
+            .arg(file.output_path.as_path());
+
+        let output = command.output().expect("Error in Sending");
+
+        println!("status: {}", output.status);
+        std::io::stdout().write_all(&output.stdout).unwrap();
+        std::io::stderr().write_all(&output.stderr).unwrap();
+
+        assert!(output.status.success());
     });
-    
-    Ok(())
 }
