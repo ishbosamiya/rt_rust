@@ -28,14 +28,14 @@ impl Default for Config {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RustFileInfo {
+    rt_path: PathBuf,
+    output_path: PathBuf,
     threads: usize,
     width: usize,
     height: usize,
     trace_max_depth: usize,
     samples: usize,
-    env_map: Option<PathBuf>,
-    rt_path: PathBuf,
-    output_path: PathBuf,
+    environment_map: Option<PathBuf>,
     environment_strength: Option<f64>,
     environment_location: Option<glm::DVec3>,
     environment_rotation: Option<glm::DVec3>,
@@ -45,14 +45,14 @@ pub struct RustFileInfo {
 impl Default for RustFileInfo {
     fn default() -> Self {
         Self {
+            rt_path: PathBuf::from("example.rt"),
+            output_path: PathBuf::from("output.image"),
             threads: 0,
             width: 200,
             height: 200,
             trace_max_depth: 10,
             samples: 20,
-            env_map: Some(PathBuf::from("example.hdr")),
-            rt_path: PathBuf::from("example.rt"),
-            output_path: PathBuf::from("output.image"),
+            environment_map: Some(PathBuf::from("example.hdr")),
             environment_strength: Some(1.0),
             environment_location: Some(glm::vec3(0.0, 0.0, 0.0)),
             environment_rotation: Some(glm::vec3(0.0, 0.0, 0.0)),
@@ -163,7 +163,7 @@ fn main() {
             .arg(file.samples.to_string())
             .arg("--trace-max-depth")
             .arg(file.trace_max_depth.to_string());
-        if let Some(path) = file.env_map.as_ref() {
+        if let Some(path) = file.environment_map.as_ref() {
             command.arg("--environment").arg(path);
         }
         if let Some(strength) = file.environment_strength {
@@ -200,10 +200,22 @@ fn main() {
 
         let output = command.output().expect("Error in Sending");
 
-        println!("status: {}", output.status);
-        std::io::stdout().write_all(&output.stdout).unwrap();
-        std::io::stderr().write_all(&output.stderr).unwrap();
-
-        assert!(output.status.success());
+        if output.status.success() {
+            println!(
+                "RT File: {} rendered successfully and generated output: {}",
+                file.rt_path.to_str().unwrap(),
+                file.output_path.to_str().unwrap()
+            );
+        } else {
+            println!(
+                "RT File: {} failed with exit status: {}",
+                file.rt_path.to_str().unwrap(),
+                output.status
+            );
+            println!("stdout:");
+            std::io::stdout().write_all(&output.stdout).unwrap();
+            println!("stderr:");
+            std::io::stderr().write_all(&output.stderr).unwrap();
+        }
     });
 }
