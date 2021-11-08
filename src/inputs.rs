@@ -33,7 +33,7 @@ impl InputArguments {
             .arg(
                 Arg::with_name("headless")
                     .long("headless")
-                    .requires("rt_file")
+                    .requires("rt-file")
                     .requires("output"),
             )
             .arg(
@@ -62,20 +62,20 @@ impl InputArguments {
             .arg(
                 Arg::with_name("samples")
                     .long("samples")
-                    .short("S")
-                    .help("Number of Samples")
+                    .short("s")
+                    .help("Number of Samples per Pixel")
                     .takes_value(true),
             )
             .arg(
                 Arg::with_name("environment")
                     .long("environment")
-                    .short("E")
+                    .short("e")
                     .help("Environment map path")
                     .takes_value(true),
             )
             .arg(
-                Arg::with_name("rt_file")
-                    .long("rt_file")
+                Arg::with_name("rt-file")
+                    .long("rt-file")
                     .short("r")
                     .help("RT File Path")
                     .takes_value(true),
@@ -89,15 +89,15 @@ impl InputArguments {
                     .takes_value(true),
             )
             .arg(
-                Arg::with_name("trace_max_depth")
-                    .long("trace_max_depth")
+                Arg::with_name("trace-max-depth")
+                    .long("trace-max-depth")
                     .alias("tmd")
                     .help("Tracing the Max Depth")
                     .takes_value(true),
             )
             .arg(
-                Arg::with_name("environment_strength")
-                    .long("environment_strength")
+                Arg::with_name("environment-strength")
+                    .long("environment-strength")
                     .alias("es")
                     .help("Strength of the environment")
                     .requires("environment")
@@ -111,27 +111,27 @@ impl InputArguments {
                     .takes_value(true),
             )
             .arg(
-                Arg::with_name("environment_location")
-                    .long("environment_location")
-                    // .alias("envt-loc")
+                Arg::with_name("environment-location")
+                    .long("environment-location")
+                    .alias("env-loc")
                     .help("Environment Location")
                     .requires("environment")
                     .takes_value(true)
                     .number_of_values(3),
             )
             .arg(
-                Arg::with_name("environment_rotation")
-                    .long("environment_rotation")
-                    // .alias("envt-rot")
+                Arg::with_name("environment-rotation")
+                    .long("environment-rotation")
+                    .alias("env-rot")
                     .help("Environment Rotation")
                     .requires("environment")
                     .takes_value(true)
                     .number_of_values(3),
             )
             .arg(
-                Arg::with_name("environment_scale")
-                    .long("environment_scale")
-                    .alias("envt-scale")
+                Arg::with_name("environment-scale")
+                    .long("environment-scale")
+                    .alias("env-scale")
                     .help("Environment Scale")
                     .requires("environment")
                     .takes_value(true)
@@ -155,18 +155,18 @@ impl InputArguments {
                     );
                 }
             }),
-            input_path: value_t!(app, "rt_file", PathBuf).ok(),
+            input_path: value_t!(app, "rt-file", PathBuf).ok(),
             output_path: value_t!(app, "output", PathBuf).ok(),
-            trace_max_depth: value_t!(app, "trace_max_depth", usize).ok(),
-            environment_strength: value_t!(app, "environment_strength", f64).ok(),
+            trace_max_depth: value_t!(app, "trace-max-depth", usize).ok(),
+            environment_strength: value_t!(app, "environment-strength", f64).ok(),
             texture: value_t!(app, "texture", PathBuf).ok(),
-            environment_location: values_t!(app, "environment_location", f64)
+            environment_location: values_t!(app, "environment-location", f64)
                 .ok()
                 .map(|location| glm::vec3(location[0], location[1], location[2])),
-            environment_rotation: values_t!(app, "environment_rotation", f64)
+            environment_rotation: values_t!(app, "environment-rotation", f64)
                 .ok()
                 .map(|rotation| glm::vec3(rotation[0], rotation[1], rotation[2])),
-            environment_scale: values_t!(app, "environment_scale", f64)
+            environment_scale: values_t!(app, "environment-scale", f64)
                 .ok()
                 .map(|scale| glm::vec3(scale[0], scale[1], scale[2])),
         };
