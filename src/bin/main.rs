@@ -264,6 +264,7 @@ fn main() {
             ray_trace_main_thread_handle,
             ray_trace_thread_sender,
             rendered_image,
+            path_trace_progress,
             arguments,
         );
     } else {
@@ -286,6 +287,7 @@ fn main_headless(
     ray_trace_main_thread_handle: thread::JoinHandle<()>,
     ray_trace_thread_sender: mpsc::Sender<RayTraceMessage>,
     rendered_image: Arc<RwLock<Image>>,
+    path_trace_progress: Arc<RwLock<Progress>>,
     arguments: InputArguments,
 ) {
     let image_width = arguments
@@ -313,6 +315,26 @@ fn main_headless(
     ray_trace_thread_sender
         .send(RayTraceMessage::FinishAndKillThread)
         .unwrap();
+
+    // total number of samples must be kept consistent with ray trace
+    // thread to ensure the progress bar shows things accurately
+    let total_number_of_samples: u64 = (samples_per_pixel * image_width * image_height)
+        .try_into()
+        .unwrap();
+
+    let mut pb = pbr::ProgressBar::new(total_number_of_samples);
+
+    pb.message("Tracing Scene: ");
+
+    loop {
+        let progress = path_trace_progress.read().unwrap().get_progress();
+        if (progress - 1.0).abs() < f64::EPSILON {
+            break;
+        }
+        pb.set((progress * total_number_of_samples as f64) as u64);
+    }
+
+    pb.finish();
 
     ray_trace_main_thread_handle.join().unwrap();
 
