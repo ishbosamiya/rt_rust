@@ -3,10 +3,10 @@ extern crate serde;
 extern crate serde_json;
 
 use clap::{value_t, App, Arg};
+use ipc_channel::ipc;
 use is_executable::IsExecutable;
 use nalgebra_glm as glm;
 use serde::{Deserialize, Serialize};
-use std::io::Write;
 use std::process::{exit, Command};
 
 use std::path::{Path, PathBuf};
@@ -150,8 +150,14 @@ fn main() {
 
     // Spawning a Process for every iteration of data
     config_data.rt_files.iter().for_each(|file| {
+        // setup progress server
+        let (progress_server, progress_server_name): (ipc::IpcOneShotServer<u64>, _) =
+            ipc::IpcOneShotServer::new().unwrap();
+
         let mut command = Command::new(exec_path);
         command
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
             .arg("--headless")
             .arg("--threads")
             .arg(file.threads.to_string())
@@ -197,25 +203,59 @@ fn main() {
             .arg(file.rt_path.as_path())
             .arg("--output")
             .arg(file.output_path.as_path());
+        command
+            .arg("--path-trace-progress-server-name")
+            .arg(progress_server_name);
 
-        let output = command.output().expect("Error in Sending");
+        let mut path_trace_handle = command.spawn().expect("Error in spawing");
 
-        if output.status.success() {
-            println!(
-                "RT File: {} rendered successfully and generated output: {}",
-                file.rt_path.to_str().unwrap(),
-                file.output_path.to_str().unwrap()
-            );
-        } else {
-            println!(
-                "RT File: {} failed with exit status: {}",
-                file.rt_path.to_str().unwrap(),
-                output.status
-            );
-            println!("stdout:");
-            std::io::stdout().write_all(&output.stdout).unwrap();
-            println!("stderr:");
-            std::io::stderr().write_all(&output.stderr).unwrap();
+        // accept the connect, must be done after spawning the child
+        // process since it will wait for the first message to be
+        // passed to the server
+        let (progress_receiver, total_number_of_samples) = progress_server.accept().unwrap();
+
+        let mut pb = pbr::ProgressBar::new(total_number_of_samples);
+
+        pb.message(&format!("Tracing {}: ", file.rt_path.to_str().unwrap()));
+
+        loop {
+            match path_trace_handle.try_wait() {
+                Ok(Some(status)) => {
+                    // process exits
+
+                    pb.finish();
+
+                    if status.success() {
+                        println!(
+                            "RT File: {} rendered successfully and generated output: {}",
+                            file.rt_path.to_str().unwrap(),
+                            file.output_path.to_str().unwrap()
+                        );
+                    } else {
+                        println!(
+                            "RT File: {} failed with exit status: {}",
+                            file.rt_path.to_str().unwrap(),
+                            status
+                        );
+                    }
+
+                    break;
+                }
+                Ok(None) => {
+                    if let Ok(progress) = progress_receiver.try_recv() {
+                        pb.set(progress);
+                    } else {
+                        pb.tick();
+                    }
+                }
+                Err(error) => {
+                    panic!(
+                        "RT File: {} failed with error: {}",
+                        file.rt_path.to_str().unwrap(),
+                        error
+                    );
+                }
+            }
         }
     });
 }

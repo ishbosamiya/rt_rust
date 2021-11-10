@@ -1,4 +1,5 @@
 use glm::Scalar;
+use ipc_channel::ipc;
 use rfd::FileDialog;
 use rt::image::{Image, PPM};
 use rt::inputs::InputArguments;
@@ -316,11 +317,22 @@ fn main_headless(
         .send(RayTraceMessage::FinishAndKillThread)
         .unwrap();
 
+    // setup progress sender if required and must send the total
+    // number of samples first followed by the number of samples
+    // completed updated as often as possible
+    let path_trace_progress_sender = arguments
+        .get_path_trace_progress_server_name()
+        .map(|server_name| ipc::IpcSender::connect(server_name.to_string()).unwrap());
+
     // total number of samples must be kept consistent with ray trace
     // thread to ensure the progress bar shows things accurately
     let total_number_of_samples: u64 = (samples_per_pixel * image_width * image_height)
         .try_into()
         .unwrap();
+
+    if let Some(sender) = &path_trace_progress_sender {
+        sender.send(total_number_of_samples).unwrap();
+    }
 
     let mut pb = pbr::ProgressBar::new(total_number_of_samples);
 
@@ -328,10 +340,16 @@ fn main_headless(
 
     loop {
         let progress = path_trace_progress.read().unwrap().get_progress();
+        println!("progress: {}", progress);
         if (progress - 1.0).abs() < f64::EPSILON {
             break;
         }
-        pb.set((progress * total_number_of_samples as f64) as u64);
+        let progress = (progress * total_number_of_samples as f64) as u64;
+        pb.set(progress);
+
+        if let Some(sender) = &path_trace_progress_sender {
+            sender.send(progress).unwrap();
+        }
     }
 
     pb.finish();

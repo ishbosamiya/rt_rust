@@ -11,3 +11,5 @@ nalgebra-glm = { version = "0.13", features = ["serde-serialize"] }
 is_executable = "1.0"
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive", "rc"] }
+ipc-channel = "0.15"
+pbr = "1.0"

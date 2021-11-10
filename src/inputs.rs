@@ -21,6 +21,9 @@ pub struct InputArguments {
     environment_location: Option<glm::DVec3>,
     environment_rotation: Option<glm::DVec3>,
     environment_scale: Option<glm::DVec3>,
+    /// If provided with a server name (see crate ipc-channel), a
+    /// sender is created that sends a progress update of the path trace.
+    path_trace_progress_server_name: Option<String>,
 }
 
 // Function to return test args processed using clap via cli
@@ -137,6 +140,12 @@ impl InputArguments {
                     .takes_value(true)
                     .number_of_values(3),
             )
+            .arg(
+                Arg::with_name("path-trace-progress-server-name")
+                    .long("path-trace-progress-server-name")
+                    .help("ipc-channel server name that will receive path trace progress updates")
+                    .takes_value(true),
+            )
             .get_matches();
 
         let res = InputArguments {
@@ -169,6 +178,12 @@ impl InputArguments {
             environment_scale: values_t!(app, "environment-scale", f64)
                 .ok()
                 .map(|scale| glm::vec3(scale[0], scale[1], scale[2])),
+            path_trace_progress_server_name: value_t!(
+                app,
+                "path-trace-progress-server-name",
+                String
+            )
+            .ok(),
         };
 
         dbg!(res)
@@ -228,5 +243,10 @@ impl InputArguments {
 
     pub fn get_environment_scale(&self) -> Option<&glm::DVec3> {
         self.environment_scale.as_ref()
+    }
+
+    /// Get a reference to the input arguments's path trace progress server name.
+    pub fn get_path_trace_progress_server_name(&self) -> Option<&String> {
+        self.path_trace_progress_server_name.as_ref()
     }
 }

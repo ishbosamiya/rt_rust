@@ -29,6 +29,7 @@ rfd = "0.5"
 image = "0.23"
 clap = "2.33"
 pbr = "1.0"
+ipc-channel = "0.15"
 
 [dev-dependencies]
 criterion = { version = "0.3.4", features = ["html_reports"]}
