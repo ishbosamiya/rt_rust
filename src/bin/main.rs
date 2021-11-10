@@ -236,6 +236,18 @@ fn main() {
             .change_aspect_ratio(image_width as f64 / image_height as f64);
     }
 
+    // add more textures to texture_list if provided in the arguments
+    arguments.get_textures().iter().for_each(|path| {
+        texture_list.write().unwrap().add_texture(
+            TextureRGBAFloat::load_from_disk(path).unwrap_or_else(|| {
+                panic!(
+                    "could not load the texture from specified path: {}",
+                    path.to_str().unwrap()
+                )
+            }),
+        );
+    });
+
     // Spawn the main ray tracing thread
     let (ray_trace_thread_sender, ray_trace_thread_receiver) = mpsc::channel();
     let ray_trace_main_thread_handle = {

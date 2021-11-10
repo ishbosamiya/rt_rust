@@ -4,8 +4,7 @@ use clap::{App, Arg};
 use std::path::PathBuf;
 
 #[derive(Debug)]
-// TODOs: trace_max_depth, environment_transform,
-// environment_strength, textures, select_texture_for_shader
+// TODOs: select_texture_for_shader
 pub struct InputArguments {
     run_headless: bool,
     num_threads: Option<usize>,
@@ -17,7 +16,7 @@ pub struct InputArguments {
     output_path: Option<PathBuf>,
     trace_max_depth: Option<usize>,
     environment_strength: Option<f64>,
-    texture: Option<PathBuf>,
+    textures: Vec<PathBuf>,
     environment_location: Option<glm::DVec3>,
     environment_rotation: Option<glm::DVec3>,
     environment_scale: Option<glm::DVec3>,
@@ -107,11 +106,12 @@ impl InputArguments {
                     .takes_value(true),
             )
             .arg(
-                Arg::with_name("texture")
-                    .long("texture")
+                Arg::with_name("textures")
+                    .long("textures")
                     .alias("tx")
-                    .help("Texture Image")
-                    .takes_value(true),
+                    .help("Path to one or more textures")
+                    .takes_value(true)
+                    .multiple(true),
             )
             .arg(
                 Arg::with_name("environment-location")
@@ -168,7 +168,7 @@ impl InputArguments {
             output_path: value_t!(app, "output", PathBuf).ok(),
             trace_max_depth: value_t!(app, "trace-max-depth", usize).ok(),
             environment_strength: value_t!(app, "environment-strength", f64).ok(),
-            texture: value_t!(app, "texture", PathBuf).ok(),
+            textures: values_t!(app, "textures", PathBuf).map_or(vec![], |textures| textures),
             environment_location: values_t!(app, "environment-location", f64)
                 .ok()
                 .map(|location| glm::vec3(location[0], location[1], location[2])),
@@ -229,8 +229,8 @@ impl InputArguments {
         self.environment_strength
     }
 
-    pub fn get_texture(&self) -> Option<&PathBuf> {
-        self.texture.as_ref()
+    pub fn get_textures(&self) -> &[PathBuf] {
+        self.textures.as_slice()
     }
 
     pub fn get_environment_location(&self) -> Option<&glm::DVec3> {
