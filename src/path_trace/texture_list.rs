@@ -62,6 +62,11 @@ impl TextureList {
 
         self.textures.remove(&texture_id).unwrap();
     }
+
+    /// Get a reference to the texture list's texture ids.
+    pub fn get_texture_ids(&self) -> &[TextureID] {
+        self.texture_ids.as_slice()
+    }
 }
 
 impl Default for TextureList {

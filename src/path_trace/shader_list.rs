@@ -71,6 +71,10 @@ impl ShaderList {
         self.shaders.values()
     }
 
+    pub fn get_shaders_mut(&mut self) -> hash_map::ValuesMut<'_, ShaderID, Box<dyn Shader>> {
+        self.shaders.values_mut()
+    }
+
     pub fn get_shader(&self, shader_id: ShaderID) -> Option<&dyn Shader> {
         self.shaders
             .get(&shader_id)

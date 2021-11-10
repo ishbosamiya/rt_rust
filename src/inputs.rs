@@ -1,10 +1,10 @@
 use crate::glm;
 use clap::{value_t, values_t};
 use clap::{App, Arg};
+use itertools::Itertools;
 use std::path::PathBuf;
 
 #[derive(Debug)]
-// TODOs: select_texture_for_shader
 pub struct InputArguments {
     run_headless: bool,
     num_threads: Option<usize>,
@@ -23,6 +23,7 @@ pub struct InputArguments {
     /// If provided with a server name (see crate ipc-channel), a
     /// sender is created that sends a progress update of the path trace.
     path_trace_progress_server_name: Option<String>,
+    shader_texture: Vec<(String, usize)>,
 }
 
 // Function to return test args processed using clap via cli
@@ -146,6 +147,16 @@ impl InputArguments {
                     .help("ipc-channel server name that will receive path trace progress updates")
                     .takes_value(true),
             )
+            .arg(
+                Arg::with_name("shader-texture")
+                    .long("shader-texture")
+                    .help("Assign texture to shader given the shader name and texture index")
+                    .takes_value(true)
+                    .number_of_values(2)
+                    .multiple(true)
+                    .use_delimiter(true)
+                    .require_delimiter(true),
+            )
             .get_matches();
 
         let res = InputArguments {
@@ -184,6 +195,14 @@ impl InputArguments {
                 String
             )
             .ok(),
+            shader_texture: app
+                .values_of("shader-texture")
+                .map_or(vec![], |shader_texture| {
+                    shader_texture
+                        .tuples()
+                        .map(|(shader, texture)| (shader.to_string(), texture.parse().unwrap()))
+                        .collect()
+                }),
         };
 
         dbg!(res)
@@ -248,5 +267,10 @@ impl InputArguments {
     /// Get a reference to the input arguments's path trace progress server name.
     pub fn get_path_trace_progress_server_name(&self) -> Option<&String> {
         self.path_trace_progress_server_name.as_ref()
+    }
+
+    /// Get a reference to the input arguments's shader texture.
+    pub fn get_shader_texture(&self) -> &[(String, usize)] {
+        self.shader_texture.as_slice()
     }
 }

@@ -154,6 +154,10 @@ impl BSDF for Glass {
         self.color.get_color(&glm::zero(), texture_list)
     }
 
+    fn set_base_color(&mut self, color: ColorPicker) {
+        self.color = color;
+    }
+
     fn get_ior(&self) -> f64 {
         self.ior
     }

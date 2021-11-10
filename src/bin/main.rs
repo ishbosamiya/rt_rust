@@ -6,6 +6,7 @@ use rt::inputs::InputArguments;
 use rt::meshio::MeshIO;
 use rt::object::objects::Mesh as MeshObject;
 use rt::object::Object;
+use rt::path_trace::bsdfs::utils::ColorPicker;
 use rt::path_trace::camera::Camera as PathTraceCamera;
 use rt::path_trace::camera::CameraDrawData as PathTraceCameraDrawData;
 use rt::path_trace::environment::Environment;
@@ -247,6 +248,22 @@ fn main() {
             }),
         );
     });
+
+    // assign texture to shader
+    arguments
+        .get_shader_texture()
+        .iter()
+        .for_each(|(shader_name, texture_index)| {
+            let texture_id = texture_list.read().unwrap().get_texture_ids()[*texture_index];
+            shader_list
+                .write()
+                .unwrap()
+                .get_shaders_mut()
+                .find(|shader| shader.get_shader_name() == shader_name)
+                .unwrap_or_else(|| panic!("no shader found with shader name: {}", shader_name))
+                .get_bsdf_mut()
+                .set_base_color(ColorPicker::Texture(Some(texture_id)));
+        });
 
     // Spawn the main ray tracing thread
     let (ray_trace_thread_sender, ray_trace_thread_receiver) = mpsc::channel();

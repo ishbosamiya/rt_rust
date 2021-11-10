@@ -107,6 +107,10 @@ impl BSDF for Glossy {
     fn get_base_color(&self, texture_list: &TextureList) -> glm::DVec3 {
         self.color.get_color(&glm::zero(), texture_list)
     }
+
+    fn set_base_color(&mut self, color: ColorPicker) {
+        self.color = color;
+    }
 }
 
 impl DrawUI for Glossy {

@@ -1,5 +1,8 @@
 use super::{
-    bsdfs::BSDFUiData, intersectable::IntersectInfo, medium::Mediums, texture_list::TextureList,
+    bsdfs::{utils::ColorPicker, BSDFUiData},
+    intersectable::IntersectInfo,
+    medium::Mediums,
+    texture_list::TextureList,
 };
 use crate::{glm, ui::DrawUI};
 
@@ -101,6 +104,8 @@ pub trait BSDF: DrawUI<ExtraData = BSDFUiData> {
     fn get_bsdf_name(&self) -> &str;
 
     fn get_base_color(&self, texture_list: &TextureList) -> glm::DVec3;
+
+    fn set_base_color(&mut self, color: ColorPicker);
 
     fn get_ior(&self) -> f64 {
         1.0
