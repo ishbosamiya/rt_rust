@@ -31,8 +31,16 @@ impl TextureList {
         self.textures.iter()
     }
 
+    pub fn get_textures_mut(&mut self) -> hash_map::IterMut<'_, TextureID, TextureRGBAFloat> {
+        self.textures.iter_mut()
+    }
+
     pub fn get_texture(&self, texture_id: TextureID) -> Option<&TextureRGBAFloat> {
         self.textures.get(&texture_id)
+    }
+
+    pub fn get_texture_mut(&mut self, texture_id: TextureID) -> Option<&mut TextureRGBAFloat> {
+        self.textures.get_mut(&texture_id)
     }
 
     pub fn add_texture(&mut self, texture: TextureRGBAFloat) -> TextureID {
@@ -74,6 +82,7 @@ impl DrawUI for TextureList {
             let texture_width = ui.available_width();
 
             let mut delete_texture = None;
+            let textures = &mut self.textures;
             self.texture_ids
                 .iter()
                 .enumerate()
@@ -85,7 +94,7 @@ impl DrawUI for TextureList {
                         }
                     });
 
-                    let texture = self.textures.get(texture_id).unwrap();
+                    let texture = textures.get_mut(texture_id).unwrap();
                     ui.image(
                         egui::TextureId::User(texture.get_gl_tex().into()),
                         &[

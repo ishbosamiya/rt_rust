@@ -582,15 +582,14 @@ fn main_gui(
                             ui.collapsing("Environment Image", |ui| {
                                 let environment_texture_ui_width =
                                     250.0_f32.min(0.3 * window_viewport.get_width() as f32);
+                                let mut environment_texture = environment_texture.borrow_mut();
                                 ui.image(
-                                    egui::TextureId::User(
-                                        environment_texture.borrow().get_gl_tex().into(),
-                                    ),
+                                    egui::TextureId::User(environment_texture.get_gl_tex().into()),
                                     egui::vec2(
                                         environment_texture_ui_width,
                                         environment_texture_ui_width
-                                            * environment_texture.borrow().get_height() as f32
-                                            / environment_texture.borrow().get_width() as f32,
+                                            * environment_texture.get_height() as f32
+                                            / environment_texture.get_width() as f32,
                                     ),
                                 );
                             });
@@ -1062,7 +1061,7 @@ fn main_gui(
                 })
                 .scroll(true)
                 .show(egui.get_egui_ctx(), |ui| {
-                    let rendered_texture = rendered_texture.borrow();
+                    let mut rendered_texture = rendered_texture.borrow_mut();
                     ui.image(
                         egui::TextureId::User(rendered_texture.get_gl_tex().into()),
                         egui::vec2(

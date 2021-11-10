@@ -17,55 +17,32 @@ pub struct TextureRGBAFloat {
 
     #[serde(skip_serializing)]
     #[serde(skip_deserializing)]
-    gl_tex: gl::types::GLuint,
+    gl_tex: Option<gl::types::GLuint>,
 }
 
 impl TextureRGBAFloat {
     pub fn new_empty(width: usize, height: usize) -> Self {
-        let gl_tex = Self::gen_gl_texture();
         let pixels = Vec::new();
         let res = Self {
             id: rand::random(),
             width,
             height,
             pixels,
-            gl_tex,
+            gl_tex: None,
         };
-
-        unsafe {
-            gl::BindTexture(gl::TEXTURE_2D, gl_tex);
-
-            gl::TexImage2D(
-                gl::TEXTURE_2D,
-                0,
-                gl::RGBA32F.try_into().unwrap(),
-                res.width.try_into().unwrap(),
-                res.height.try_into().unwrap(),
-                0,
-                gl::RGBA,
-                gl::FLOAT,
-                std::ptr::null(),
-            )
-        }
 
         res
     }
 
     pub fn from_pixels(width: usize, height: usize, pixels: Vec<glm::Vec4>) -> Self {
-        let gl_tex = Self::gen_gl_texture();
-        let res = Self {
+        assert_eq!(pixels.len(), width * height);
+        Self {
             id: rand::random(),
             width,
             height,
             pixels,
-            gl_tex,
-        };
-
-        assert_eq!(res.pixels.len(), res.width * res.height);
-
-        res.new_texture_to_gl();
-
-        res
+            gl_tex: None,
+        }
     }
 
     pub fn from_image(tex: &Image) -> Self {
@@ -125,14 +102,18 @@ impl TextureRGBAFloat {
     /// deserialization so there is no need to call this function
     /// except immediately after deserialization once.
     pub unsafe fn send_to_gpu(&mut self) {
-        let gl_tex = Self::gen_gl_texture();
-        self.gl_tex = gl_tex;
-        assert_eq!(self.pixels.len(), self.width * self.height);
+        assert!(self.gl_tex.is_none());
+
+        self.gl_tex = Some(Self::gen_gl_texture());
 
         self.new_texture_to_gl();
     }
 
     pub fn activate(&mut self, texture_target: u8) {
+        if self.gl_tex.is_none() {
+            unsafe { self.send_to_gpu() };
+        }
+
         let target = match texture_target {
             0 => gl::TEXTURE0,
             1 => gl::TEXTURE1,
@@ -170,13 +151,13 @@ impl TextureRGBAFloat {
         };
         unsafe {
             gl::ActiveTexture(target);
-            gl::BindTexture(gl::TEXTURE_2D, self.gl_tex);
+            gl::BindTexture(gl::TEXTURE_2D, self.gl_tex.unwrap());
         }
     }
 
     fn new_texture_to_gl(&self) {
         unsafe {
-            gl::BindTexture(gl::TEXTURE_2D, self.gl_tex);
+            gl::BindTexture(gl::TEXTURE_2D, self.gl_tex.unwrap());
 
             gl::TexImage2D(
                 gl::TEXTURE_2D,
@@ -230,8 +211,13 @@ impl TextureRGBAFloat {
         gl_tex
     }
 
-    pub fn get_gl_tex(&self) -> gl::types::GLuint {
-        self.gl_tex
+    /// Get OpenGL texture name (GLuint) of the current texture, send
+    /// texture to GPU if not done so already.
+    pub fn get_gl_tex(&mut self) -> gl::types::GLuint {
+        if self.gl_tex.is_none() {
+            unsafe { self.send_to_gpu() };
+        }
+        self.gl_tex.unwrap()
     }
 
     pub fn get_width(&self) -> usize {
@@ -248,6 +234,7 @@ impl TextureRGBAFloat {
 
     pub fn set_pixel(&mut self, i: usize, j: usize, data: glm::Vec4) {
         self.id = rand::random();
+        self.gl_tex = None;
         self.pixels[j * self.width + i] = data;
     }
 
@@ -275,7 +262,9 @@ impl TextureRGBAFloat {
 impl Drop for TextureRGBAFloat {
     fn drop(&mut self) {
         unsafe {
-            gl::DeleteTextures(1, &self.gl_tex);
+            if let Some(gl_tex) = self.gl_tex {
+                gl::DeleteTextures(1, &gl_tex);
+            }
         }
     }
 }

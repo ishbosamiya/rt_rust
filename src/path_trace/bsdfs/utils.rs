@@ -95,43 +95,48 @@ impl DrawUI for ColorPicker {
             ColorPicker::Color(color) => ui::color_edit_button_dvec3(ui, "", color),
             ColorPicker::Texture(selected_texture_id) => {
                 ui.vertical(|ui| {
-                    let texture_list = extra_data.texture_list.read().unwrap();
-                    if let Some(texture) = selected_texture_id
-                        .and_then(|texture_id| texture_list.get_texture(texture_id))
-                    {
-                        ui.label("Selected Texture:");
-                        ui.image(
-                            egui::TextureId::User(texture.get_gl_tex().into()),
-                            &[
-                                150.0,
-                                150.0 * texture.get_height() as f32 / texture.get_width() as f32,
-                            ],
-                        );
+                    if let Ok(mut texture_list) = extra_data.texture_list.try_write() {
+                        if let Some(texture) = selected_texture_id
+                            .and_then(|texture_id| texture_list.get_texture_mut(texture_id))
+                        {
+                            ui.label("Selected Texture:");
+                            ui.image(
+                                egui::TextureId::User(texture.get_gl_tex().into()),
+                                &[
+                                    150.0,
+                                    150.0 * texture.get_height() as f32
+                                        / texture.get_width() as f32,
+                                ],
+                            );
+                        } else {
+                            ui.label("No Texture Selected");
+                        }
+                        egui::CollapsingHeader::new("Select Texture")
+                            .id_source(extra_data.color_picker_id.with("Select Texture"))
+                            .show(ui, |ui| {
+                                texture_list.get_textures_mut().for_each(
+                                    |(texture_id, texture)| {
+                                        ui.horizontal(|ui| {
+                                            if ui.button(".").clicked() {
+                                                *selected_texture_id = Some(*texture_id);
+                                            }
+                                            ui.image(
+                                                egui::TextureId::User(texture.get_gl_tex().into()),
+                                                &[
+                                                    100.0,
+                                                    100.0 * texture.get_height() as f32
+                                                        / texture.get_width() as f32,
+                                                ],
+                                            );
+                                        });
+                                    },
+                                );
+                            });
                     } else {
-                        ui.label("No Texture Selected");
+                        ui.label(
+                            "Textures not available right now, currently accessed by something",
+                        );
                     }
-
-                    egui::CollapsingHeader::new("Select Texture")
-                        .id_source(extra_data.color_picker_id.with("Select Texture"))
-                        .show(ui, |ui| {
-                            texture_list
-                                .get_textures()
-                                .for_each(|(texture_id, texture)| {
-                                    ui.horizontal(|ui| {
-                                        if ui.button(".").clicked() {
-                                            *selected_texture_id = Some(*texture_id);
-                                        }
-                                        ui.image(
-                                            egui::TextureId::User(texture.get_gl_tex().into()),
-                                            &[
-                                                100.0,
-                                                100.0 * texture.get_height() as f32
-                                                    / texture.get_width() as f32,
-                                            ],
-                                        );
-                                    });
-                                });
-                        });
                 });
             }
         }
