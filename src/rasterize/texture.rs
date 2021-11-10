@@ -23,15 +23,13 @@ pub struct TextureRGBAFloat {
 impl TextureRGBAFloat {
     pub fn new_empty(width: usize, height: usize) -> Self {
         let pixels = Vec::new();
-        let res = Self {
+        Self {
             id: rand::random(),
             width,
             height,
             pixels,
             gl_tex: None,
-        };
-
-        res
+        }
     }
 
     pub fn from_pixels(width: usize, height: usize, pixels: Vec<glm::Vec4>) -> Self {
@@ -257,14 +255,19 @@ impl TextureRGBAFloat {
             self.height - (uv[1] * self.height as f64) as usize - 1,
         )
     }
+
+    pub fn cleanup_opengl(&mut self) {
+        unsafe {
+            if let Some(gl_tex) = self.gl_tex {
+                gl::DeleteTextures(1, &gl_tex);
+                self.gl_tex = None;
+            }
+        }
+    }
 }
 
 impl Drop for TextureRGBAFloat {
     fn drop(&mut self) {
-        unsafe {
-            if let Some(gl_tex) = self.gl_tex {
-                gl::DeleteTextures(1, &gl_tex);
-            }
-        }
+        self.cleanup_opengl();
     }
 }

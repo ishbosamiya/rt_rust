@@ -1328,6 +1328,8 @@ fn main_gui(
         window.swap_buffers();
     }
 
+    handle_opengl_cleanup(texture_list);
+
     // wait for all child threads to join
     ray_trace_thread_sender
         .send(RayTraceMessage::KillThread)
@@ -1513,4 +1515,20 @@ fn handle_window_event(
     }
 
     *window_last_cursor = window_cursor;
+}
+
+/// OpenGL commands need to be executed while a context is
+/// active. Sometimes it is possible to loose the context prior to
+/// cleaning up all the OpenGL resources. See
+/// <https://www.khronos.org/opengl/wiki/Common_Mistakes#The_Object_Oriented_Language_Problem>
+/// for more details.
+///
+/// In this case, any opengl related objects created before
+/// [`main_gui()`] (in [`main()`]) must be cleaned up
+fn handle_opengl_cleanup(texture_list: Arc<RwLock<TextureList>>) {
+    texture_list
+        .write()
+        .unwrap()
+        .get_textures_mut()
+        .for_each(|(_, texture)| texture.cleanup_opengl());
 }
