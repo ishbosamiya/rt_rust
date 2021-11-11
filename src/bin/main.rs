@@ -635,11 +635,23 @@ fn main_gui(
                                 ui.label("Shaders are currently in use, cannot edit the shaders");
                             }
 
+                            ui.separator();
+
                             texture_list.read().unwrap().draw_ui(ui, &ui_data);
                             if let Ok(mut texture_list) = texture_list.try_write() {
                                 texture_list.draw_ui_mut(ui, &ui_data);
                             } else {
                                 ui.label("Textures are currently in use, cannot edit the textures");
+                            }
+
+                            ui.separator();
+
+                            scene.read().unwrap().draw_ui(ui, &ui_data);
+                            if let Ok(mut scene) = scene.try_write() {
+                                scene.draw_ui_mut(ui, &ui_data);
+                                scene.rebuild_bvh_if_needed(0.01);
+                            } else {
+                                ui.label("Scene is currently in use, cannot edit the scene");
                             }
                         });
                     })

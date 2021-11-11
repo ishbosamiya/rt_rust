@@ -14,6 +14,8 @@ use crate::path_trace::ray::Ray;
 use crate::path_trace::shader_list::ShaderList;
 use crate::rasterize::drawable::Drawable;
 use crate::rasterize::gpu_immediate::GPUImmediate;
+use crate::ui::DrawUI;
+use crate::UiData;
 
 use serde::{Deserialize, Serialize};
 
@@ -67,10 +69,18 @@ impl Scene {
         self.objects.values()
     }
 
+    pub fn get_object(&self, object_id: ObjectID) -> Option<&dyn Object> {
+        self.objects.get(&object_id).map(|object| object.as_ref())
+    }
+
     /// Get mutable access to all objects of the scene as an
     /// iterator. Caller must ensure that BVH is rebuilt if necessary.
     pub fn get_objects_mut(&mut self) -> hash_map::ValuesMut<'_, ObjectID, Box<dyn Object>> {
         self.objects.values_mut()
+    }
+
+    pub fn get_object_mut(&mut self, object_id: ObjectID) -> Option<&mut Box<dyn Object>> {
+        self.objects.get_mut(&object_id)
     }
 
     pub fn apply_model_matrices(&mut self) {
@@ -107,6 +117,12 @@ impl Scene {
         self.bvh = Some(bvh);
     }
 
+    pub fn rebuild_bvh_if_needed(&mut self, epsilon: f64) {
+        if self.bvh.is_none() {
+            self.build_bvh(epsilon);
+        }
+    }
+
     pub fn get_min_max_bounds(&self) -> (glm::DVec3, glm::DVec3) {
         let bvh = self.bvh.as_ref().unwrap();
         bvh.get_min_max_bounds()
@@ -141,6 +157,11 @@ impl Scene {
 
             self.selected_object = Some(object_id);
         }
+    }
+
+    /// Get scene's selected object.
+    pub fn get_selected_object(&self) -> Option<ObjectID> {
+        self.selected_object
     }
 }
 
@@ -251,5 +272,25 @@ impl Drawable for Scene {
             object.draw(&mut object_draw_data)
         })?;
         Ok(())
+    }
+}
+
+impl DrawUI for Scene {
+    type ExtraData = UiData;
+
+    fn draw_ui(&self, _ui: &mut egui::Ui, _extra_data: &Self::ExtraData) {}
+
+    fn draw_ui_mut(&mut self, ui: &mut egui::Ui, _extra_data: &Self::ExtraData) {
+        if let Some(object_id) = self.get_selected_object() {
+            if ui.button("Delete selected object").clicked() {
+                self.selected_object = None;
+                self.delete_object(object_id);
+            }
+            if ui.button("Deselect object").clicked() {
+                self.selected_object = None;
+            }
+        } else {
+            ui.label("No object currently selected");
+        }
     }
 }
