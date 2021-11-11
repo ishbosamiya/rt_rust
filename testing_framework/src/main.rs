@@ -42,6 +42,19 @@ pub struct RustFileInfo {
     environment_location: Option<glm::DVec3>,
     environment_rotation: Option<glm::DVec3>,
     environment_scale: Option<glm::DVec3>,
+
+    #[serde(default = "default_textures")]
+    textures: Vec<PathBuf>,
+    #[serde(default = "default_shader_texture")]
+    shader_texture: Vec<(String, usize)>,
+}
+
+fn default_textures() -> Vec<PathBuf> {
+    vec![]
+}
+
+fn default_shader_texture() -> Vec<(String, usize)> {
+    vec![]
 }
 
 impl Default for RustFileInfo {
@@ -59,6 +72,8 @@ impl Default for RustFileInfo {
             environment_location: Some(glm::vec3(0.0, 0.0, 0.0)),
             environment_rotation: Some(glm::vec3(0.0, 0.0, 0.0)),
             environment_scale: Some(glm::vec3(1.0, 1.0, 1.0)),
+            textures: vec![PathBuf::from("example_texture.png")],
+            shader_texture: vec![("shader_1".to_string(), 0)],
         }
     }
 }
@@ -246,6 +261,20 @@ fn main() {
                 .arg(scale[1].to_string())
                 .arg(scale[2].to_string());
         }
+        if !file.textures.is_empty() {
+            command.arg("--textures");
+            file.textures.iter().for_each(|texture_path| {
+                command.arg(texture_path);
+            });
+        }
+        if !file.shader_texture.is_empty() {
+            file.shader_texture
+                .iter()
+                .for_each(|(shader_name, texture_index)| {
+                    command.arg("--shader-texture");
+                    command.arg(format!("{},{}", shader_name, texture_index));
+                });
+        }
         command
             .arg("--rt-file")
             .arg(file.rt_path.as_path())
@@ -257,7 +286,10 @@ fn main() {
 
         let mut path_trace_handle = command.spawn().expect("Error in spawing");
 
-        println!("Tracing with arguments:");
+        println!(
+            "Tracing RT File: {} with arguments:",
+            file.rt_path.to_str().unwrap()
+        );
         println!("{}", command.get_complete_string());
 
         // Fixes a bug where the child has some error before sending
