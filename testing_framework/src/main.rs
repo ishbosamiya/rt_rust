@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use std::process::{exit, Command};
 
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 // Stores values in JSON
 
@@ -208,6 +209,25 @@ fn main() {
             .arg(progress_server_name);
 
         let mut path_trace_handle = command.spawn().expect("Error in spawing");
+
+        // Fixes a bug where the child has some error before sending
+        // the first packet to the server thus it has already exited
+        // but progress_server is gonna wait to receive a packet
+        // leading to a complete block of the testing
+        // framework. Simplest fix is to assume that the error will
+        // happen in under 500ms so just wait for that long and check
+        // if child has exited yet.
+        //
+        // TODO: find a better way to fix this sort of bug
+        std::thread::sleep(Duration::from_millis(500));
+        if let Ok(Some(status)) = path_trace_handle.try_wait() {
+            println!(
+                "RT File: {} failed with exit status: {}",
+                file.rt_path.to_str().unwrap(),
+                status
+            );
+            return;
+        }
 
         // accept the connect, must be done after spawning the child
         // process since it will wait for the first message to be
