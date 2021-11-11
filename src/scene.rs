@@ -30,6 +30,9 @@ pub struct Scene {
 
     /// true if model matrices are currently applied
     model_matrices_applied: bool,
+
+    /// selected object
+    selected_object: Option<ObjectID>,
 }
 
 impl Default for Scene {
@@ -44,6 +47,7 @@ impl Scene {
             objects: Vec::new(),
             bvh: None,
             model_matrices_applied: false,
+            selected_object: None,
         }
     }
 
@@ -135,6 +139,14 @@ impl Scene {
         //         )
         //     },
         // )
+    }
+
+    pub fn try_select_object(&mut self, ray: &Ray) {
+        if let Some(info) = self.hit(ray, 0.01, 1000.0) {
+            let object_id = info.get_object_id().unwrap();
+
+            self.selected_object = Some(object_id);
+        }
     }
 }
 

@@ -482,6 +482,7 @@ fn main_gui(
     let mut use_environment_map_as_background = false;
     let mut background_color = glm::vec4(0.051, 0.051, 0.051, 1.0);
     let mut should_cast_scene_ray = false;
+    let mut try_select_object = false;
     let mut image_width = arguments
         .get_image_width()
         .unwrap_or_else(default_image_width);
@@ -523,6 +524,7 @@ fn main_gui(
                 &mut camera,
                 &path_trace_camera.read().unwrap(),
                 &mut should_cast_scene_ray,
+                &mut try_select_object,
                 &mut use_top_panel,
                 &mut use_bottom_panel,
                 &mut use_left_panel,
@@ -1276,6 +1278,25 @@ fn main_gui(
             should_cast_scene_ray = false;
         }
 
+        // select object
+        if try_select_object {
+            if let Ok(mut scene) = scene.try_write() {
+                let ray_direction = camera.get_raycast_direction(
+                    scene_last_cursor_pos[0] as f64,
+                    scene_last_cursor_pos[1] as f64,
+                    scene_viewport.get_width().try_into().unwrap(),
+                    scene_viewport.get_height().try_into().unwrap(),
+                );
+
+                scene.apply_model_matrices();
+
+                scene.try_select_object(&Ray::new(camera.get_position(), ray_direction));
+
+                scene.unapply_model_matrices();
+            }
+            try_select_object = false;
+        }
+
         if window.get_mouse_button(glfw::MouseButtonLeft) == glfw::Action::Press {
             if let Some(shader_id) = selected_shader {
                 let ray_direction = camera.get_raycast_direction(
@@ -1373,6 +1394,7 @@ fn handle_window_event(
     camera: &mut RasterizeCamera,
     path_trace_camera: &PathTraceCamera,
     should_cast_scene_ray: &mut bool,
+    try_select_object: &mut bool,
     use_top_panel: &mut bool,
     use_bottom_panel: &mut bool,
     use_left_panel: &mut bool,
@@ -1529,6 +1551,10 @@ fn handle_window_event(
         && window.get_key(glfw::Key::LeftAlt) == glfw::Action::Press
     {
         *should_cast_scene_ray = true;
+    }
+
+    if window.get_mouse_button(glfw::MouseButtonRight) == glfw::Action::Press {
+        *try_select_object = true;
     }
 
     *window_last_cursor = window_cursor;
