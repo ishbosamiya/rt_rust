@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::collections::{hash_map, HashMap};
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
 
@@ -14,19 +15,15 @@ use crate::path_trace::shader_list::ShaderList;
 use crate::rasterize::drawable::Drawable;
 use crate::rasterize::gpu_immediate::GPUImmediate;
 
-use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-
-// TODO: store Scene::objects in a HashMap instead of Vec for speed
-// and object id stuff
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Scene {
-    objects: Vec<Box<dyn Object>>,
+    objects: HashMap<ObjectID, Box<dyn Object>>,
 
     /// BVH over all the objects in the scene. User must handle
     /// building/rebuilding the bvh before usage.
-    bvh: Option<BVHTree<usize>>,
+    bvh: Option<BVHTree<ObjectID>>,
 
     /// true if model matrices are currently applied
     model_matrices_applied: bool,
@@ -44,7 +41,7 @@ impl Default for Scene {
 impl Scene {
     pub fn new() -> Self {
         Self {
-            objects: Vec::new(),
+            objects: HashMap::new(),
             bvh: None,
             model_matrices_applied: false,
             selected_object: None,
@@ -54,36 +51,33 @@ impl Scene {
     pub fn add_object(&mut self, mut object: Box<dyn Object>) {
         let object_id = unsafe { ObjectID::from_raw(rand::random()) };
         object.set_object_id(object_id);
-        self.objects.push(object);
+        self.objects.insert(object_id, object);
         self.bvh = None;
     }
 
     pub fn delete_object(&mut self, object_id: ObjectID) -> Option<Box<dyn Object>> {
-        if let Some((index, _)) = self
-            .objects
-            .iter()
-            .find_position(|object| object.get_object_id() == object_id)
-        {
+        let object = self.objects.remove(&object_id);
+        if object.is_some() {
             self.bvh = None;
-            Some(self.objects.remove(index))
-        } else {
-            None
         }
+        object
     }
 
-    pub fn get_objects(&self) -> &Vec<Box<dyn Object>> {
-        &self.objects
+    pub fn get_objects(&self) -> hash_map::Values<'_, ObjectID, Box<dyn Object>> {
+        self.objects.values()
     }
 
-    pub fn get_objects_mut(&mut self) -> &mut Vec<Box<dyn Object>> {
-        &mut self.objects
+    /// Get mutable access to all objects of the scene as an
+    /// iterator. Caller must ensure that BVH is rebuilt if necessary.
+    pub fn get_objects_mut(&mut self) -> hash_map::ValuesMut<'_, ObjectID, Box<dyn Object>> {
+        self.objects.values_mut()
     }
 
     pub fn apply_model_matrices(&mut self) {
         if self.model_matrices_applied {
             return;
         }
-        self.objects.iter_mut().for_each(|object| {
+        self.get_objects_mut().for_each(|object| {
             object.apply_model_matrix();
         });
         self.model_matrices_applied = true;
@@ -93,7 +87,7 @@ impl Scene {
         if !self.model_matrices_applied {
             return;
         }
-        self.objects.iter_mut().for_each(|object| {
+        self.get_objects_mut().for_each(|object| {
             object.unapply_model_matrix();
         });
         self.model_matrices_applied = false;
@@ -102,10 +96,10 @@ impl Scene {
     pub fn build_bvh(&mut self, epsilon: f64) {
         let mut bvh = BVHTree::new(self.objects.len(), epsilon, 4, 8);
 
-        self.objects.iter().enumerate().for_each(|(index, object)| {
+        self.get_objects().for_each(|object| {
             let co = object.get_min_max_bounds();
             let co = [co.0, co.1];
-            bvh.insert(index, &co);
+            bvh.insert(object.get_object_id(), &co);
         });
 
         bvh.balance();
@@ -184,19 +178,19 @@ impl Intersectable for Scene {
             assert!(self.bvh.is_some());
 
             let scene_ray_cast_callback =
-                |(co, dir): (&glm::DVec3, &glm::DVec3), object_index: usize| {
+                |(co, dir): (&glm::DVec3, &glm::DVec3), object_id: ObjectID| {
                     debug_assert_eq!(ray.get_origin(), co);
                     debug_assert_eq!(ray.get_direction(), dir);
 
-                    let object = &self.objects[object_index];
+                    let object = &self.objects.get(&object_id).unwrap();
 
                     object.hit(ray, t_min, t_max).and_then(
-                        |info| -> Option<RayHitData<usize, IntersectInfo>> {
+                        |info| -> Option<RayHitData<ObjectID, IntersectInfo>> {
                             if info.get_t() > t_min && info.get_t() < t_max {
                                 let mut hit_data = RayHitData::new(info.get_t());
                                 hit_data.normal = *info.get_normal();
                                 hit_data.set_data(RayHitOptionalData::new(
-                                    object_index,
+                                    object_id,
                                     ray.at(info.get_t()),
                                 ));
                                 hit_data.set_extra_data(info);
@@ -243,7 +237,7 @@ impl Drawable for Scene {
         unsafe {
             object_draw_data.set_use_model_matrix(!self.model_matrices_applied);
         }
-        self.get_objects().iter().try_for_each(|object| {
+        self.get_objects().try_for_each(|object| {
             let viewport_color = object
                 .get_path_trace_shader_id()
                 .and_then(|shader_id| shader_list.get_shader(shader_id))

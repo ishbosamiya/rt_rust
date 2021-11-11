@@ -1033,16 +1033,11 @@ fn main_gui(
                             if ui.button("Random assign shaders to objects").clicked() {
                                 let shader_list = shader_list.read().unwrap();
                                 let mut rng = rand::thread_rng();
-                                scene
-                                    .write()
-                                    .unwrap()
-                                    .get_objects_mut()
-                                    .iter_mut()
-                                    .for_each(|object| {
-                                        let shader =
-                                            shader_list.get_shaders().choose(&mut rng).unwrap();
-                                        object.set_path_trace_shader_id(shader.get_shader_id());
-                                    });
+                                scene.write().unwrap().get_objects_mut().for_each(|object| {
+                                    let shader =
+                                        shader_list.get_shaders().choose(&mut rng).unwrap();
+                                    object.set_path_trace_shader_id(shader.get_shader_id());
+                                });
                             }
                         });
                     })
@@ -1314,7 +1309,7 @@ fn main_gui(
                     1000.0,
                 ) {
                     let object_id = hit_info.get_object_id().unwrap();
-                    scene.get_objects_mut().iter_mut().for_each(|object| {
+                    scene.get_objects_mut().for_each(|object| {
                         if object_id == object.get_object_id() {
                             object.set_path_trace_shader_id(shader_id);
                             selected_shader = None;
