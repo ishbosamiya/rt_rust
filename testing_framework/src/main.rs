@@ -7,7 +7,8 @@ use ipc_channel::ipc;
 use is_executable::IsExecutable;
 use nalgebra_glm as glm;
 use serde::{Deserialize, Serialize};
-use std::process::{exit, Command};
+use std::ffi::OsStr;
+use std::process::{self, exit};
 
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -66,6 +67,52 @@ pub fn read_config(config_path: &Path) -> Config {
     let json = std::fs::read_to_string(config_path).unwrap();
 
     serde_json::from_str(&json).unwrap()
+}
+
+/// Wrapper around [`std::process::Command`] so that the complete list
+/// of arguments can be stored
+pub struct Command {
+    command: process::Command,
+    complete_string: String,
+}
+
+impl Command {
+    pub fn new<S: AsRef<OsStr>>(program: S) -> Self {
+        let complete_string = program.as_ref().to_str().unwrap().to_string();
+        Self {
+            command: process::Command::new(program),
+            complete_string,
+        }
+    }
+
+    pub fn stdout<T: Into<process::Stdio>>(&mut self, cfg: T) -> &mut Self {
+        self.command.stdout(cfg);
+        self
+    }
+
+    pub fn stderr<T: Into<process::Stdio>>(&mut self, cfg: T) -> &mut Self {
+        self.command.stderr(cfg);
+        self
+    }
+
+    pub fn arg<S: AsRef<OsStr>>(&mut self, arg: S) -> &mut Self {
+        self.complete_string = format!(
+            "{} {}",
+            self.complete_string,
+            arg.as_ref().to_str().unwrap()
+        );
+        self.command.arg(arg);
+        self
+    }
+
+    pub fn spawn(&mut self) -> std::io::Result<process::Child> {
+        self.command.spawn()
+    }
+
+    /// Get a reference to the command's complete string.
+    pub fn get_complete_string(&self) -> &str {
+        self.complete_string.as_str()
+    }
 }
 
 fn main() {
@@ -209,6 +256,9 @@ fn main() {
             .arg(progress_server_name);
 
         let mut path_trace_handle = command.spawn().expect("Error in spawing");
+
+        println!("Tracing with arguments:");
+        println!("{}", command.get_complete_string());
 
         // Fixes a bug where the child has some error before sending
         // the first packet to the server thus it has already exited
