@@ -14,6 +14,7 @@ use crate::path_trace::shader_list::ShaderList;
 use crate::rasterize::drawable::Drawable;
 use crate::rasterize::gpu_immediate::GPUImmediate;
 
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 // TODO: store Scene::objects in a HashMap instead of Vec for speed
@@ -50,6 +51,20 @@ impl Scene {
         let object_id = unsafe { ObjectID::from_raw(rand::random()) };
         object.set_object_id(object_id);
         self.objects.push(object);
+        self.bvh = None;
+    }
+
+    pub fn delete_object(&mut self, object_id: ObjectID) -> Option<Box<dyn Object>> {
+        if let Some((index, _)) = self
+            .objects
+            .iter()
+            .find_position(|object| object.get_object_id() == object_id)
+        {
+            self.bvh = None;
+            Some(self.objects.remove(index))
+        } else {
+            None
+        }
     }
 
     pub fn get_objects(&self) -> &Vec<Box<dyn Object>> {
