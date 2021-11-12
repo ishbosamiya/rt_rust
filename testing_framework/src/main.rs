@@ -11,6 +11,8 @@ use std::ffi::OsStr;
 use std::process::{self, exit};
 
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{self, AtomicBool};
+use std::sync::Arc;
 use std::time::Duration;
 
 // Stores values in JSON
@@ -131,6 +133,16 @@ impl Command {
 }
 
 fn main() {
+    let sigint_triggered = Arc::new(AtomicBool::new(false));
+    {
+        let sigint_triggered = sigint_triggered.clone();
+        ctrlc::set_handler(move || {
+            sigint_triggered.store(true, atomic::Ordering::SeqCst);
+            println!("SIGINT or SIGTERM is triggered");
+        })
+        .expect("Error setting signal handler");
+    }
+
     let app = App::new("Config-exec")
         .version("1.0")
         .about("Configs Command Line Arguments")
@@ -320,19 +332,29 @@ fn main() {
 
         pb.message(&format!("Tracing {}: ", file.rt_path.to_str().unwrap()));
 
-        loop {
+        // tries to wait for the path trace to finish while updating
+        // the progress and returns if the loop should break or not
+        let mut path_trace_try_wait = |sigint_triggered: bool| {
             match path_trace_handle.try_wait() {
                 Ok(Some(status)) => {
                     // process exits
 
-                    pb.finish();
-
                     if status.success() {
-                        println!(
-                            "RT File: {} rendered successfully and generated output: {}",
-                            file.rt_path.to_str().unwrap(),
-                            file.output_path.to_str().unwrap()
-                        );
+                        if sigint_triggered {
+                            println!(
+                                "RT File: {} not fully rendered and generated output: {}",
+                                file.rt_path.to_str().unwrap(),
+                                file.output_path.to_str().unwrap()
+                            );
+                        } else {
+                            println!(
+                                "RT File: {} rendered successfully and generated output: {}",
+                                file.rt_path.to_str().unwrap(),
+                                file.output_path.to_str().unwrap()
+                            );
+
+                            pb.finish();
+                        }
                     } else {
                         println!(
                             "RT File: {} failed with exit status: {}",
@@ -341,14 +363,14 @@ fn main() {
                         );
                     }
 
-                    break;
+                    true
                 }
                 Ok(None) => {
                     if let Ok(progress) = progress_receiver.try_recv() {
                         pb.set(progress);
-                    } else {
-                        pb.tick();
                     }
+
+                    false
                 }
                 Err(error) => {
                     panic!(
@@ -357,6 +379,25 @@ fn main() {
                         error
                     );
                 }
+            }
+        };
+
+        loop {
+            let sigint_triggered = sigint_triggered.load(atomic::Ordering::SeqCst);
+            if sigint_triggered {
+                println!("waiting to finish current file");
+                loop {
+                    let should_break = path_trace_try_wait(sigint_triggered);
+                    if should_break {
+                        break;
+                    }
+                }
+                exit(-1);
+            }
+
+            let should_break = path_trace_try_wait(sigint_triggered);
+            if should_break {
+                break;
             }
         }
     });
