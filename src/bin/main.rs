@@ -29,6 +29,7 @@ use rt::{glm, ui, UiData};
 use std::cell::RefCell;
 use std::convert::TryInto;
 use std::rc::Rc;
+use std::sync::atomic::{self, AtomicBool};
 use std::sync::{mpsc, Arc, RwLock};
 use std::thread;
 
@@ -123,6 +124,16 @@ fn default_environment_strength() -> f64 {
 }
 
 fn main() {
+    let sigint_triggered = Arc::new(AtomicBool::new(false));
+    {
+        let sigint_triggered = sigint_triggered.clone();
+        ctrlc::set_handler(move || {
+            sigint_triggered.store(true, atomic::Ordering::SeqCst);
+            println!("SIGINT or SIGTERM is triggered");
+        })
+        .expect("Error setting signal handler");
+    }
+
     let arguments = InputArguments::read();
 
     let run_headless = arguments.get_run_headless();
@@ -296,6 +307,7 @@ fn main() {
             rendered_image,
             path_trace_progress,
             arguments,
+            sigint_triggered,
         );
     } else {
         main_gui(
@@ -309,6 +321,7 @@ fn main() {
             ray_trace_main_thread_handle,
             ray_trace_thread_sender,
             arguments,
+            sigint_triggered,
         );
     }
 }
@@ -319,6 +332,7 @@ fn main_headless(
     rendered_image: Arc<RwLock<Image>>,
     path_trace_progress: Arc<RwLock<Progress>>,
     arguments: InputArguments,
+    sigint_triggered: Arc<AtomicBool>,
 ) {
     let image_width = arguments
         .get_image_width()
@@ -340,10 +354,6 @@ fn main_headless(
             trace_max_depth,
             samples_per_pixel,
         )))
-        .unwrap();
-
-    ray_trace_thread_sender
-        .send(RayTraceMessage::FinishAndKillThread)
         .unwrap();
 
     // setup progress sender if required and must send the total
@@ -368,9 +378,17 @@ fn main_headless(
     pb.message("Tracing Scene: ");
 
     loop {
+        if sigint_triggered.load(atomic::Ordering::SeqCst) {
+            println!("waiting to finish current sample");
+            ray_trace_thread_sender
+                .send(RayTraceMessage::StopRender)
+                .unwrap();
+            break;
+        }
+
         let progress = path_trace_progress.read().unwrap().get_progress();
-        println!("progress: {}", progress);
         if (progress - 1.0).abs() < f64::EPSILON {
+            pb.finish();
             break;
         }
         let progress = (progress * total_number_of_samples as f64) as u64;
@@ -381,13 +399,19 @@ fn main_headless(
         }
     }
 
-    pb.finish();
+    ray_trace_thread_sender
+        .send(RayTraceMessage::FinishAndKillThread)
+        .unwrap();
 
     ray_trace_main_thread_handle.join().unwrap();
 
     let image: &Image = &rendered_image.read().unwrap();
     let file = serde_json::to_string(image).unwrap();
     std::fs::write(arguments.get_output_file().unwrap(), file).unwrap();
+    println!(
+        "saved rendered image to: {}",
+        arguments.get_output_file().unwrap().to_str().unwrap()
+    );
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -402,6 +426,7 @@ fn main_gui(
     ray_trace_main_thread_handle: thread::JoinHandle<()>,
     ray_trace_thread_sender: mpsc::Sender<RayTraceMessage>,
     arguments: InputArguments,
+    sigint_triggered: Arc<AtomicBool>,
 ) {
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
 
@@ -532,6 +557,10 @@ fn main_gui(
                 &mut window_last_cursor,
             );
         });
+
+        if sigint_triggered.load(atomic::Ordering::SeqCst) {
+            break;
+        }
 
         rendered_texture
             .borrow_mut()
