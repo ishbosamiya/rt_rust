@@ -1,13 +1,20 @@
-use std::{cell::RefCell, fmt::Debug, rc::Rc};
+use std::{cell::RefCell, fmt::Debug, rc::Rc, sync::Mutex};
 
 use crate::{
     glm,
     mesh::MeshDrawError,
+    namegen::NameGen,
     path_trace::{intersectable::Intersectable, shader_list::ShaderID as PathTraceShaderID},
     rasterize::{drawable::Drawable, gpu_immediate::GPUImmediate},
 };
 
+use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
+
+lazy_static! {
+    static ref SPHERE_NAME_GEN: Mutex<NameGen> = Mutex::new(NameGen::new("sphere".to_string()));
+    static ref MESH_NAME_GEN: Mutex<NameGen> = Mutex::new(NameGen::new("mesh".to_string()));
+}
 
 /// A unique identifier given to each [`Object`] during its
 /// initialization.
@@ -94,6 +101,11 @@ pub trait Object:
     fn set_object_id(&mut self, object_id: ObjectID);
     fn get_object_id(&self) -> ObjectID;
 
+    /// Get mutable reference to the name of the object
+    fn get_object_name_mut(&mut self) -> &mut String;
+    /// Get reference to the name of the object
+    fn get_object_name(&self) -> &str;
+
     fn get_min_max_bounds(&self) -> (glm::DVec3, glm::DVec3);
 }
 
@@ -114,7 +126,7 @@ pub mod objects {
             sphere::{Sphere as SphereData, SphereDrawData},
         };
 
-        use super::super::{DrawError, Object, ObjectDrawData};
+        use super::super::{DrawError, Object, ObjectDrawData, SPHERE_NAME_GEN};
 
         use serde::{Deserialize, Serialize};
 
@@ -123,6 +135,8 @@ pub mod objects {
             data: SphereData,
             shader_id: Option<ShaderID>,
             object_id: Option<ObjectID>,
+            #[serde(default = "default_object_name")]
+            object_name: String,
             model_matrix: Option<glm::DMat4>,
 
             // TODO: since this is a partial copy of SphereDrawData, it
@@ -130,6 +144,10 @@ pub mod objects {
             // use that
             outside_color: glm::Vec4,
             inside_color: glm::Vec4,
+        }
+
+        fn default_object_name() -> String {
+            SPHERE_NAME_GEN.lock().unwrap().next().unwrap()
         }
 
         impl Sphere {
@@ -142,6 +160,7 @@ pub mod objects {
                     data,
                     shader_id: None,
                     object_id: None,
+                    object_name: SPHERE_NAME_GEN.lock().unwrap().next().unwrap(),
                     model_matrix: None,
                     outside_color,
                     inside_color,
@@ -231,6 +250,14 @@ pub mod objects {
                 self.object_id.unwrap()
             }
 
+            fn get_object_name_mut(&mut self) -> &mut String {
+                &mut self.object_name
+            }
+
+            fn get_object_name(&self) -> &str {
+                &self.object_name
+            }
+
             fn get_min_max_bounds(&self) -> (glm::DVec3, glm::DVec3) {
                 (
                     self.data.get_center()
@@ -263,7 +290,7 @@ pub mod objects {
             rasterize::{drawable::Drawable, shader},
         };
 
-        use super::super::{DrawError, Object, ObjectDrawData};
+        use super::super::{DrawError, Object, ObjectDrawData, MESH_NAME_GEN};
 
         use serde::{Deserialize, Serialize};
 
@@ -272,6 +299,8 @@ pub mod objects {
             data: MeshData,
             shader_id: Option<ShaderID>,
             object_id: Option<ObjectID>,
+            #[serde(default = "default_object_name")]
+            object_name: String,
             model_matrix: Option<glm::DMat4>,
 
             // TODO: since this is a partial copy of MeshDrawData, it
@@ -279,6 +308,10 @@ pub mod objects {
             // use that
             use_shader: MeshUseShader,
             bvh_draw_data: Option<MeshBVHDrawData>,
+        }
+
+        fn default_object_name() -> String {
+            MESH_NAME_GEN.lock().unwrap().next().unwrap()
         }
 
         impl Mesh {
@@ -291,6 +324,7 @@ pub mod objects {
                     data,
                     shader_id: None,
                     object_id: None,
+                    object_name: MESH_NAME_GEN.lock().unwrap().next().unwrap(),
                     model_matrix: None,
 
                     use_shader,
@@ -378,6 +412,14 @@ pub mod objects {
 
             fn get_object_id(&self) -> ObjectID {
                 self.object_id.unwrap()
+            }
+
+            fn get_object_name_mut(&mut self) -> &mut String {
+                &mut self.object_name
+            }
+
+            fn get_object_name(&self) -> &str {
+                &self.object_name
             }
 
             fn get_min_max_bounds(&self) -> (glm::DVec3, glm::DVec3) {

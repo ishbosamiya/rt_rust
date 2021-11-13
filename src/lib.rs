@@ -5,6 +5,7 @@ pub mod inputs;
 pub mod math;
 pub mod mesh;
 pub mod meshio;
+pub mod namegen;
 pub mod object;
 pub mod path_trace;
 pub mod progress;
