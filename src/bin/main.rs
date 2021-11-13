@@ -103,6 +103,38 @@ fn load_rt_file<P>(
         .unwrap();
 }
 
+fn load_obj_file<P>(path: P) -> Vec<MeshObject>
+where
+    P: AsRef<std::path::Path>,
+{
+    // TODO: Handle errors throught the process
+
+    // read the file
+    let meshio = MeshIO::read(path).unwrap();
+    // split the meshio based on
+    // objects and create mesh(s) from
+    // meshio(s)
+    meshio
+        .split()
+        .drain(0..)
+        .map(|meshio| {
+            let mut mesh = rt::mesh::Mesh::read(&meshio).unwrap();
+            // build bvh for mesh
+            mesh.build_bvh(0.01);
+            // add mesh to scene
+            let mut object = MeshObject::new(
+                mesh,
+                MeshUseShader::DirectionalLight {
+                    color: glm::vec3(0.3, 0.2, 0.7),
+                },
+                None,
+            );
+            object.set_model_matrix(glm::identity());
+            object
+        })
+        .collect()
+}
+
 fn default_image_width() -> usize {
     200
 }
@@ -275,6 +307,25 @@ fn main() {
                 .get_bsdf_mut()
                 .set_base_color(ColorPicker::Texture(Some(texture_id)));
         });
+
+    // add more objects to the scene (loading obj files)
+    {
+        arguments.get_obj_files().iter().for_each(|obj_file_path| {
+            load_obj_file(obj_file_path).drain(0..).for_each(|object| {
+                scene.write().unwrap().add_object(Box::new(object));
+            });
+        });
+
+        // update scene bvh
+        {
+            let mut scene = scene.write().unwrap();
+            scene.apply_model_matrices();
+
+            scene.build_bvh(0.01);
+
+            scene.unapply_model_matrices();
+        }
+    }
 
     // Spawn the main ray tracing thread
     let (ray_trace_thread_sender, ray_trace_thread_receiver) = mpsc::channel();
@@ -767,26 +818,7 @@ fn main_gui(
                                     .set_directory(".")
                                     .pick_file()
                                 {
-                                    // TODO: Handle errors throught the process
-
-                                    // read the file
-                                    let meshio = MeshIO::read(path).unwrap();
-                                    // split the meshio based on
-                                    // objects and create mesh(s) from
-                                    // meshio(s)
-                                    meshio.split().drain(0..).for_each(|meshio| {
-                                        let mut mesh = rt::mesh::Mesh::read(&meshio).unwrap();
-                                        // build bvh for mesh
-                                        mesh.build_bvh(0.01);
-                                        // add mesh to scene
-                                        let mut object = MeshObject::new(
-                                            mesh,
-                                            MeshUseShader::DirectionalLight {
-                                                color: glm::vec3(0.3, 0.2, 0.7),
-                                            },
-                                            None,
-                                        );
-                                        object.set_model_matrix(glm::identity());
+                                    load_obj_file(path).drain(0..).for_each(|object| {
                                         scene.write().unwrap().add_object(Box::new(object));
                                     });
                                     // update scene bvh

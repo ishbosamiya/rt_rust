@@ -24,6 +24,7 @@ pub struct InputArguments {
     /// sender is created that sends a progress update of the path trace.
     path_trace_progress_server_name: Option<String>,
     shader_texture: Vec<(String, usize)>,
+    obj_files: Vec<PathBuf>,
 }
 
 // Function to return test args processed using clap via cli
@@ -157,6 +158,13 @@ impl InputArguments {
                     .use_delimiter(true)
                     .require_delimiter(true),
             )
+            .arg(
+                Arg::with_name("obj-files")
+                    .long("obj-files")
+                    .help("More OBJ files to load into the scene prior to render")
+                    .takes_value(true)
+                    .multiple(true),
+            )
             .get_matches();
 
         let res = InputArguments {
@@ -203,6 +211,7 @@ impl InputArguments {
                         .map(|(shader, texture)| (shader.to_string(), texture.parse().unwrap()))
                         .collect()
                 }),
+            obj_files: values_t!(app, "obj-files", PathBuf).map_or(vec![], |obj_files| obj_files),
         };
 
         dbg!(res)
@@ -272,5 +281,10 @@ impl InputArguments {
     /// Get a reference to the input arguments's shader texture.
     pub fn get_shader_texture(&self) -> &[(String, usize)] {
         self.shader_texture.as_slice()
+    }
+
+    /// Get a reference to the input arguments's obj files.
+    pub fn get_obj_files(&self) -> &[PathBuf] {
+        self.obj_files.as_slice()
     }
 }
