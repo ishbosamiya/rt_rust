@@ -17,6 +17,8 @@ pub struct MeshIO {
     /// end of object indices stored for (positions, uvs, normals,
     /// face_indices, line_indices)
     pub end_of_object: Vec<(usize, usize, usize, usize, usize)>,
+    /// object names, if no name available, set to None
+    pub object_names: Vec<Option<String>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -55,6 +57,7 @@ impl MeshIO {
             face_has_normal: false,
             line_indices: Vec::new(),
             end_of_object: Vec::new(),
+            object_names: Vec::new(),
         }
     }
 
@@ -90,6 +93,7 @@ impl MeshIO {
         let mut face_has_normal = false;
         let mut line_indices = Vec::new();
         let mut end_of_object = Vec::new();
+        let mut object_names = Vec::new();
 
         for line in lines {
             Self::process_line(
@@ -102,7 +106,14 @@ impl MeshIO {
                 &mut face_has_normal,
                 &mut line_indices,
                 &mut end_of_object,
+                &mut object_names,
             )?
+        }
+
+        // if there is only one object and it wasn't assigned a name,
+        // push None to object_names so that indexing remains correct
+        if object_names.is_empty() {
+            object_names.push(None);
         }
 
         Ok(MeshIO {
@@ -114,6 +125,7 @@ impl MeshIO {
             face_has_normal,
             line_indices,
             end_of_object,
+            object_names,
         })
     }
 
@@ -127,6 +139,8 @@ impl MeshIO {
             self.line_indices.len(),
         ));
 
+        assert_eq!(self.end_of_object.len(), self.object_names.len());
+
         let mut prev_position = 0;
         let mut prev_uv = 0;
         let mut prev_normal = 0;
@@ -134,42 +148,46 @@ impl MeshIO {
         let mut prev_line = 0;
         self.end_of_object
             .iter()
-            .map(|(end_position, end_uv, end_normal, end_face, end_line)| {
-                let positions = self.positions[prev_position..*end_position].to_vec();
-                let uvs = self.uvs[prev_uv..*end_uv].to_vec();
-                let normals = self.normals[prev_normal..*end_normal].to_vec();
-                let face_indices = self.face_indices[prev_face..*end_face]
-                    .iter()
-                    .map(|face| {
-                        face.iter()
-                            .map(|(pos, uv, normal)| {
-                                (pos - prev_position, uv - prev_uv, normal - prev_normal)
-                            })
-                            .collect()
-                    })
-                    .collect();
-                let line_indices = self.line_indices[prev_line..*end_line]
-                    .iter()
-                    .map(|line| line.iter().map(|pos| pos - prev_position).collect())
-                    .collect();
+            .enumerate()
+            .map(
+                |(object_index, (end_position, end_uv, end_normal, end_face, end_line))| {
+                    let positions = self.positions[prev_position..*end_position].to_vec();
+                    let uvs = self.uvs[prev_uv..*end_uv].to_vec();
+                    let normals = self.normals[prev_normal..*end_normal].to_vec();
+                    let face_indices = self.face_indices[prev_face..*end_face]
+                        .iter()
+                        .map(|face| {
+                            face.iter()
+                                .map(|(pos, uv, normal)| {
+                                    (pos - prev_position, uv - prev_uv, normal - prev_normal)
+                                })
+                                .collect()
+                        })
+                        .collect();
+                    let line_indices = self.line_indices[prev_line..*end_line]
+                        .iter()
+                        .map(|line| line.iter().map(|pos| pos - prev_position).collect())
+                        .collect();
 
-                prev_position = *end_position;
-                prev_uv = *end_uv;
-                prev_normal = *end_normal;
-                prev_face = *end_face;
-                prev_line = *end_line;
+                    prev_position = *end_position;
+                    prev_uv = *end_uv;
+                    prev_normal = *end_normal;
+                    prev_face = *end_face;
+                    prev_line = *end_line;
 
-                Self {
-                    positions,
-                    uvs,
-                    normals,
-                    face_indices,
-                    face_has_uv: self.face_has_uv,
-                    face_has_normal: self.face_has_normal,
-                    line_indices,
-                    end_of_object: Vec::new(),
-                }
-            })
+                    Self {
+                        positions,
+                        uvs,
+                        normals,
+                        face_indices,
+                        face_has_uv: self.face_has_uv,
+                        face_has_normal: self.face_has_normal,
+                        line_indices,
+                        end_of_object: Vec::new(),
+                        object_names: vec![self.object_names[object_index].clone()],
+                    }
+                },
+            )
             .collect()
     }
 
@@ -183,6 +201,7 @@ impl MeshIO {
         let mut face_has_normal = false;
         let mut line_indices = Vec::new();
         let mut end_of_object = Vec::new();
+        let mut object_names = Vec::new();
 
         let mut file_data = std::fs::File::open(path).unwrap();
         let mut contents = String::new();
@@ -201,7 +220,14 @@ impl MeshIO {
                 &mut face_has_normal,
                 &mut line_indices,
                 &mut end_of_object,
+                &mut object_names,
             )?
+        }
+
+        // if there is only one object and it wasn't assigned a name,
+        // push None to object_names so that indexing remains correct
+        if object_names.is_empty() {
+            object_names.push(None);
         }
 
         // TODO(ish): validate the indices
@@ -215,6 +241,7 @@ impl MeshIO {
             face_has_normal,
             line_indices,
             end_of_object,
+            object_names,
         })
     }
 
@@ -229,6 +256,7 @@ impl MeshIO {
         face_has_normal: &mut bool,
         line_indices: &mut Vec<Vec<usize>>,
         end_of_object: &mut Vec<(usize, usize, usize, usize, usize)>,
+        object_names: &mut Vec<Option<String>>,
     ) -> Result<(), MeshIOError> {
         if line.starts_with('#') {
             return Ok(());
@@ -330,6 +358,13 @@ impl MeshIO {
                     // if nothing processed until now, no object could
                     // have been created so just skip
                 } else {
+                    // it is possible for the first object to not have
+                    // a name assigned, at this point the second
+                    // object starts so for proper indexing, None must
+                    // be pushed to object_names if it is empty
+                    if object_names.is_empty() {
+                        object_names.push(None);
+                    }
                     end_of_object.push((
                         positions.len(),
                         uvs.len(),
@@ -338,6 +373,7 @@ impl MeshIO {
                         line_indices.len(),
                     ));
                 }
+                object_names.push(Some(vals[1].to_string()));
                 Ok(())
             }
             _ => Ok(()),
