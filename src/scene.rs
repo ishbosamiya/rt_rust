@@ -17,11 +17,16 @@ use crate::rasterize::gpu_immediate::GPUImmediate;
 use crate::ui::DrawUI;
 use crate::UiData;
 
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(from = "SceneShadow")]
 pub struct Scene {
+    /// list of all objects indexed by their ObjectID
     objects: HashMap<ObjectID, Box<dyn Object>>,
+    /// list of all object ids in the order of addition of objects
+    object_ids: Vec<ObjectID>,
 
     /// BVH over all the objects in the scene. User must handle
     /// building/rebuilding the bvh before usage.
@@ -34,6 +39,48 @@ pub struct Scene {
     selected_object: Option<ObjectID>,
 }
 
+/// A shadow structure that is used to deserialize [`Scene`] and make
+/// additional changes immediately after deserialization. Do not use
+/// for anything other than deserialization.
+///
+/// This would no longer be required once something like a `finalizer`
+/// attribute in `serde` is implemented. See
+/// https://github.com/serde-rs/serde/issues/642 and similar for more
+/// details. This workaround is based on the discussion on that issue.
+#[derive(Debug, Serialize, Deserialize)]
+struct SceneShadow {
+    objects: HashMap<ObjectID, Box<dyn Object>>,
+    #[serde(default)]
+    object_ids: Vec<ObjectID>,
+    bvh: Option<BVHTree<ObjectID>>,
+    model_matrices_applied: bool,
+    selected_object: Option<ObjectID>,
+}
+
+impl From<SceneShadow> for Scene {
+    fn from(scene_shadow: SceneShadow) -> Self {
+        let object_ids = if scene_shadow.object_ids.is_empty() {
+            scene_shadow
+                .objects
+                .iter()
+                .sorted_by(|object1, object2| {
+                    object1.1.get_object_name().cmp(object2.1.get_object_name())
+                })
+                .map(|(&object_id, _)| object_id)
+                .collect()
+        } else {
+            scene_shadow.object_ids
+        };
+        Self {
+            objects: scene_shadow.objects,
+            object_ids,
+            bvh: scene_shadow.bvh,
+            model_matrices_applied: scene_shadow.model_matrices_applied,
+            selected_object: scene_shadow.selected_object,
+        }
+    }
+}
+
 impl Default for Scene {
     fn default() -> Self {
         Self::new()
@@ -44,6 +91,7 @@ impl Scene {
     pub fn new() -> Self {
         Self {
             objects: HashMap::new(),
+            object_ids: Vec::new(),
             bvh: None,
             model_matrices_applied: false,
             selected_object: None,
@@ -54,10 +102,19 @@ impl Scene {
         let object_id = unsafe { ObjectID::from_raw(rand::random()) };
         object.set_object_id(object_id);
         self.objects.insert(object_id, object);
+        self.object_ids.push(object_id);
         self.bvh = None;
     }
 
     pub fn delete_object(&mut self, object_id: ObjectID) -> Option<Box<dyn Object>> {
+        self.object_ids.remove(
+            self.object_ids
+                .iter()
+                .enumerate()
+                .find(|(_, id)| object_id == **id)
+                .unwrap()
+                .0,
+        );
         let object = self.objects.remove(&object_id);
         if object.is_some() {
             self.bvh = None;
@@ -162,6 +219,11 @@ impl Scene {
     /// Get scene's selected object.
     pub fn get_selected_object(&self) -> Option<ObjectID> {
         self.selected_object
+    }
+
+    /// Get a reference to the scene's object ids.
+    pub fn get_object_ids(&self) -> &[ObjectID] {
+        self.object_ids.as_slice()
     }
 }
 
@@ -282,7 +344,8 @@ impl DrawUI for Scene {
 
     fn draw_ui_mut(&mut self, ui: &mut egui::Ui, _extra_data: &Self::ExtraData) {
         let mut selected_object = self.get_selected_object();
-        self.get_objects().for_each(|object| {
+        self.get_object_ids().iter().for_each(|&object_id| {
+            let object = self.get_object(object_id).unwrap();
             let selected = match selected_object {
                 Some(object_id) => object_id == object.get_object_id(),
                 None => false,
