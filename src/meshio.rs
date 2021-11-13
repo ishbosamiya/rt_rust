@@ -193,56 +193,17 @@ impl MeshIO {
 
     fn read_obj(path: &Path) -> Result<MeshIO, MeshIOError> {
         let fin = File::open(path)?;
-        let mut positions = Vec::new();
-        let mut uvs = Vec::new();
-        let mut normals = Vec::new();
-        let mut face_indices = Vec::new();
-        let mut face_has_uv = false;
-        let mut face_has_normal = false;
-        let mut line_indices = Vec::new();
-        let mut end_of_object = Vec::new();
-        let mut object_names = Vec::new();
-
-        let mut file_data = std::fs::File::open(path).unwrap();
-        let mut contents = String::new();
-        file_data.read_to_string(&mut contents).unwrap();
-
         let reader = BufReader::new(fin);
 
-        for line in reader.lines() {
-            Self::process_line(
-                &line?,
-                &mut positions,
-                &mut uvs,
-                &mut normals,
-                &mut face_indices,
-                &mut face_has_uv,
-                &mut face_has_normal,
-                &mut line_indices,
-                &mut end_of_object,
-                &mut object_names,
-            )?
-        }
-
-        // if there is only one object and it wasn't assigned a name,
-        // push None to object_names so that indexing remains correct
-        if object_names.is_empty() {
-            object_names.push(None);
-        }
-
-        // TODO(ish): validate the indices
-
-        Ok(MeshIO {
-            positions,
-            uvs,
-            normals,
-            face_indices,
-            face_has_uv,
-            face_has_normal,
-            line_indices,
-            end_of_object,
-            object_names,
-        })
+        Self::from_lines(
+            &reader
+                .lines()
+                .map(|line| line.unwrap())
+                .collect::<Vec<_>>()
+                .iter()
+                .map(|line| line.as_str())
+                .collect::<Vec<_>>(),
+        )
     }
 
     #[allow(clippy::too_many_arguments)]
