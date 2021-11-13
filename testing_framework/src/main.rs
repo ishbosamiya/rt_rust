@@ -49,6 +49,8 @@ pub struct RustFileInfo {
     textures: Vec<PathBuf>,
     #[serde(default = "default_shader_texture")]
     shader_texture: Vec<(String, usize)>,
+    #[serde(default = "default_obj_files")]
+    obj_files: Vec<PathBuf>,
 }
 
 fn default_textures() -> Vec<PathBuf> {
@@ -56,6 +58,10 @@ fn default_textures() -> Vec<PathBuf> {
 }
 
 fn default_shader_texture() -> Vec<(String, usize)> {
+    vec![]
+}
+
+fn default_obj_files() -> Vec<PathBuf> {
     vec![]
 }
 
@@ -76,6 +82,7 @@ impl Default for RustFileInfo {
             environment_scale: Some(glm::vec3(1.0, 1.0, 1.0)),
             textures: vec![PathBuf::from("example_texture.png")],
             shader_texture: vec![("shader_1".to_string(), 0)],
+            obj_files: vec![PathBuf::from("example_obj_file.obj")],
         }
     }
 }
@@ -286,6 +293,12 @@ fn main() {
                     command.arg("--shader-texture");
                     command.arg(format!("{},{}", shader_name, texture_index));
                 });
+        }
+        if !file.obj_files.is_empty() {
+            command.arg("--obj-files");
+            file.obj_files.iter().for_each(|obj_file_path| {
+                command.arg(obj_file_path);
+            });
         }
         command
             .arg("--rt-file")
