@@ -281,6 +281,20 @@ impl DrawUI for Scene {
     fn draw_ui(&self, _ui: &mut egui::Ui, _extra_data: &Self::ExtraData) {}
 
     fn draw_ui_mut(&mut self, ui: &mut egui::Ui, _extra_data: &Self::ExtraData) {
+        let mut selected_object = self.get_selected_object();
+        self.get_objects().for_each(|object| {
+            let selected = match selected_object {
+                Some(object_id) => object_id == object.get_object_id(),
+                None => false,
+            };
+            let response = ui.selectable_label(selected, object.get_object_name());
+
+            if response.clicked() {
+                selected_object = Some(object.get_object_id());
+            }
+        });
+        self.selected_object = selected_object;
+
         if let Some(object_id) = self.get_selected_object() {
             if ui.button("Delete selected object").clicked() {
                 self.selected_object = None;
