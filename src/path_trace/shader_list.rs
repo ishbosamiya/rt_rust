@@ -81,6 +81,12 @@ impl ShaderList {
             .map(|boxed_shader| boxed_shader.as_ref())
     }
 
+    pub fn get_shader_mut(&mut self, shader_id: ShaderID) -> Option<&mut Box<dyn Shader>> {
+        self.shaders
+            .get_mut(&shader_id)
+            .map(|boxed_shader| boxed_shader)
+    }
+
     pub fn get_selected_shader(&self) -> &Option<ShaderID> {
         &self.selected_shader
     }

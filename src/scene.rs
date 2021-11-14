@@ -9,6 +9,7 @@ use crate::bvh::{RayHitData, RayHitOptionalData};
 #[cfg(not(feature = "scene_no_bvh"))]
 use crate::glm;
 use crate::object::{DrawError, Object, ObjectDrawData, ObjectID};
+use crate::path_trace::bsdfs::BSDFUiData;
 use crate::path_trace::intersectable::{IntersectInfo, Intersectable};
 use crate::path_trace::ray::Ray;
 use crate::path_trace::shader_list::ShaderList;
@@ -342,7 +343,7 @@ impl DrawUI for Scene {
 
     fn draw_ui(&self, _ui: &mut egui::Ui, _extra_data: &Self::ExtraData) {}
 
-    fn draw_ui_mut(&mut self, ui: &mut egui::Ui, _extra_data: &Self::ExtraData) {
+    fn draw_ui_mut(&mut self, ui: &mut egui::Ui, extra_data: &Self::ExtraData) {
         let mut selected_object = self.get_selected_object();
         self.get_object_ids().iter().for_each(|&object_id| {
             let object = self.get_object(object_id).unwrap();
@@ -350,9 +351,32 @@ impl DrawUI for Scene {
                 Some(object_id) => object_id == object.get_object_id(),
                 None => false,
             };
-            let response = ui.selectable_label(selected, object.get_object_name());
+            let response = egui::CollapsingHeader::new(object.get_object_name())
+                .selectable(true)
+                .selected(selected)
+                .show(ui, |ui| {
+                    if let Some(shader_id) = object.get_path_trace_shader_id() {
+                        if let Ok(mut shader_list) = extra_data.get_shader_list().try_write() {
+                            if let Some(shader) = shader_list.get_shader_mut(shader_id) {
+                                let bsdf_ui_data = BSDFUiData::new(
+                                    extra_data.texture_list.clone(),
+                                    egui::Id::new(shader_id),
+                                );
+                                shader.get_bsdf().draw_ui(ui, &bsdf_ui_data);
+                                shader.get_bsdf_mut().draw_ui_mut(ui, &bsdf_ui_data);
+                            } else {
+                                ui.label("Assigned shader not available in shader list");
+                            }
+                        } else {
+                            ui.label("Shader list cannot be accessed at the moment");
+                        }
+                    } else {
+                        ui.label("No shader assigned");
+                    }
+                })
+                .header_response;
 
-            if response.clicked() {
+            if response.double_clicked() {
                 selected_object = Some(object.get_object_id());
             }
         });
