@@ -25,6 +25,9 @@ pub struct InputArguments {
     path_trace_progress_server_name: Option<String>,
     shader_texture: Vec<(String, usize)>,
     obj_files: Vec<PathBuf>,
+    /// A list of object and shader pairs, assigns a shader with the
+    /// given shader name to the object with given object name.
+    object_shader: Vec<(String, String)>,
 }
 
 // Function to return test args processed using clap via cli
@@ -97,7 +100,8 @@ impl InputArguments {
                     .long("trace-max-depth")
                     .alias("tmd")
                     .help("Tracing the Max Depth")
-                    .takes_value(true),
+                    .takes_value(true)
+                    .value_name("depth"),
             )
             .arg(
                 Arg::with_name("environment-strength")
@@ -105,7 +109,8 @@ impl InputArguments {
                     .alias("es")
                     .help("Strength of the environment")
                     .requires("environment")
-                    .takes_value(true),
+                    .takes_value(true)
+                    .value_name("strength"),
             )
             .arg(
                 Arg::with_name("textures")
@@ -122,7 +127,8 @@ impl InputArguments {
                     .help("Environment Location")
                     .requires("environment")
                     .takes_value(true)
-                    .number_of_values(3),
+                    .number_of_values(3)
+                    .value_names(&["x", "y", "z"]),
             )
             .arg(
                 Arg::with_name("environment-rotation")
@@ -131,7 +137,8 @@ impl InputArguments {
                     .help("Environment Rotation")
                     .requires("environment")
                     .takes_value(true)
-                    .number_of_values(3),
+                    .number_of_values(3)
+                    .value_names(&["x", "y", "z"]),
             )
             .arg(
                 Arg::with_name("environment-scale")
@@ -140,13 +147,15 @@ impl InputArguments {
                     .help("Environment Scale")
                     .requires("environment")
                     .takes_value(true)
-                    .number_of_values(3),
+                    .number_of_values(3)
+                    .value_names(&["x", "y", "z"]),
             )
             .arg(
                 Arg::with_name("path-trace-progress-server-name")
                     .long("path-trace-progress-server-name")
                     .help("ipc-channel server name that will receive path trace progress updates")
-                    .takes_value(true),
+                    .takes_value(true)
+                    .value_name("server-name"),
             )
             .arg(
                 Arg::with_name("shader-texture")
@@ -154,6 +163,7 @@ impl InputArguments {
                     .help("Assign texture to shader given the shader name and texture index")
                     .takes_value(true)
                     .number_of_values(2)
+                    .value_names(&["shader-name", "texture-index"])
                     .multiple(true)
                     .use_delimiter(true)
                     .require_delimiter(true),
@@ -164,6 +174,17 @@ impl InputArguments {
                     .help("More OBJ files to load into the scene prior to render")
                     .takes_value(true)
                     .multiple(true),
+            )
+            .arg(
+                Arg::with_name("object-shader")
+                    .long("object-shader")
+                    .help("Assign shader to object given the object name and shader name")
+                    .takes_value(true)
+                    .number_of_values(2)
+                    .value_names(&["object-name", "shader-name"])
+                    .multiple(true)
+                    .use_delimiter(true)
+                    .require_delimiter(true),
             )
             .get_matches();
 
@@ -212,6 +233,14 @@ impl InputArguments {
                         .collect()
                 }),
             obj_files: values_t!(app, "obj-files", PathBuf).map_or(vec![], |obj_files| obj_files),
+            object_shader: app
+                .values_of("object-shader")
+                .map_or(vec![], |object_shader| {
+                    object_shader
+                        .tuples()
+                        .map(|(object, shader)| (object.to_string(), shader.to_string()))
+                        .collect()
+                }),
         };
 
         dbg!(res)
@@ -286,5 +315,10 @@ impl InputArguments {
     /// Get a reference to the input arguments's obj files.
     pub fn get_obj_files(&self) -> &[PathBuf] {
         self.obj_files.as_slice()
+    }
+
+    /// Get a reference to the input arguments's object shader.
+    pub fn get_object_shader(&self) -> &[(String, String)] {
+        self.object_shader.as_slice()
     }
 }

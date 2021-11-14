@@ -330,6 +330,28 @@ fn main() {
         }
     }
 
+    // assign shader to the object
+    {
+        let mut scene = scene.write().unwrap();
+        let shader_list = shader_list.read().unwrap();
+        arguments
+            .get_object_shader()
+            .iter()
+            .for_each(|(object_name, shader_name)| {
+                let object = scene
+                    .get_objects_mut()
+                    .find(|object| object.get_object_name() == object_name)
+                    .unwrap_or_else(|| panic!("No object with name {} was found", object_name));
+
+                let shader = shader_list
+                    .get_shaders()
+                    .find(|shader| shader.get_shader_name() == shader_name)
+                    .unwrap_or_else(|| panic!("No shader with name {} was found", shader_name));
+
+                object.set_path_trace_shader_id(shader.get_shader_id());
+            });
+    }
+
     // Spawn the main ray tracing thread
     let (ray_trace_thread_sender, ray_trace_thread_receiver) = mpsc::channel();
     let ray_trace_main_thread_handle = {
