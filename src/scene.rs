@@ -345,16 +345,19 @@ impl DrawUI for Scene {
 
     fn draw_ui_mut(&mut self, ui: &mut egui::Ui, extra_data: &Self::ExtraData) {
         let mut selected_object = self.get_selected_object();
-        self.get_object_ids().iter().for_each(|&object_id| {
-            let object = self.get_object(object_id).unwrap();
+        for object_id in &self.object_ids {
+            let object = self.objects.get_mut(object_id).unwrap();
             let selected = match selected_object {
                 Some(object_id) => object_id == object.get_object_id(),
                 None => false,
             };
             let response = egui::CollapsingHeader::new(object.get_object_name())
+                .id_source(egui::Id::new(object_id))
                 .selectable(true)
                 .selected(selected)
                 .show(ui, |ui| {
+                    ui.text_edit_singleline(object.get_object_name_mut());
+
                     if let Some(shader_id) = object.get_path_trace_shader_id() {
                         if let Ok(mut shader_list) = extra_data.get_shader_list().try_write() {
                             if let Some(shader) = shader_list.get_shader_mut(shader_id) {
@@ -379,7 +382,7 @@ impl DrawUI for Scene {
             if response.double_clicked() {
                 selected_object = Some(object.get_object_id());
             }
-        });
+        }
         self.selected_object = selected_object;
 
         if let Some(object_id) = self.get_selected_object() {
