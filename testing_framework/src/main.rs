@@ -116,6 +116,11 @@ impl Command {
         }
     }
 
+    pub fn current_dir<P: AsRef<Path>>(&mut self, dir: P) -> &mut Self {
+        self.command.current_dir(dir);
+        self
+    }
+
     pub fn stdout<T: Into<process::Stdio>>(&mut self, cfg: T) -> &mut Self {
         self.command.stdout(cfg);
         self
@@ -243,8 +248,9 @@ fn main() {
         let (progress_server, progress_server_name): (ipc::IpcOneShotServer<u64>, _) =
             ipc::IpcOneShotServer::new().unwrap();
 
-        let mut command = Command::new(exec_path);
+        let mut command = Command::new(std::fs::canonicalize(exec_path).unwrap());
         command
+            .current_dir(std::fs::canonicalize(working_directory_path).unwrap())
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
             .arg("--headless")
