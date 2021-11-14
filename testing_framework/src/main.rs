@@ -381,13 +381,12 @@ fn main() {
                                 file.output_path.to_str().unwrap()
                             );
                         } else {
+                            pb.finish();
                             println!(
                                 "RT File: {} rendered successfully and generated output: {}",
                                 file.rt_path.to_str().unwrap(),
                                 file.output_path.to_str().unwrap()
                             );
-
-                            pb.finish();
                         }
                     } else {
                         println!(
