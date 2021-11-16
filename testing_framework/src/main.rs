@@ -196,6 +196,11 @@ fn main() {
                 .help("Working Directory")
                 .takes_value(true),
         )
+        .arg(
+            Arg::with_name("dry-run")
+                .long("dry-run")
+                .help("do not execute any render"),
+        )
         .get_matches();
 
     if let Some(path) = clap::value_t!(app, "generate-default-config", PathBuf).ok() {
@@ -232,12 +237,15 @@ fn main() {
         )
     }
 
+    let dry_run = app.is_present("dry-run");
+
     println!("config_path: {}", config_path.to_str().unwrap());
     println!("exec_path: {}", exec_path.to_str().unwrap());
     println!(
         "working_directory_path: {}",
         working_directory_path.to_str().unwrap()
     );
+    println!("dry_run: {}", dry_run);
 
     // Calling the config
     let config_data = read_config(config_path);
@@ -330,13 +338,17 @@ fn main() {
             .arg("--path-trace-progress-server-name")
             .arg(progress_server_name);
 
-        let mut path_trace_handle = command.spawn().expect("Error in spawing");
-
         println!(
             "Tracing RT File: {} with arguments:",
             file.rt_path.to_str().unwrap()
         );
         println!("{}", command.get_complete_string());
+
+        if dry_run {
+            return;
+        }
+
+        let mut path_trace_handle = command.spawn().expect("Error in spawing");
 
         // Fixes a bug where the child has some error before sending
         // the first packet to the server thus it has already exited
