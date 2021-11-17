@@ -2,7 +2,7 @@ extern crate clap;
 extern crate serde;
 extern crate serde_json;
 
-use clap::{value_t, App, Arg};
+use clap::{value_t, values_t, App, Arg, ArgMatches};
 use ipc_channel::ipc;
 use is_executable::IsExecutable;
 use nalgebra_glm as glm;
@@ -27,6 +27,187 @@ impl Default for Config {
         Self {
             rt_files: vec![RustFileInfo::default()],
         }
+    }
+}
+
+/// Overrides for the various parameters applied to all the RT
+/// files. It makes it easy to change parameters for the entire
+/// configuration.
+///
+/// Not all parameters of the RT file can be overridden.
+#[derive(Debug)]
+pub struct RTFileOverrides {
+    threads: Option<usize>,
+    width: Option<usize>,
+    height: Option<usize>,
+    trace_max_depth: Option<usize>,
+    samples: Option<usize>,
+    environment_map: Option<PathBuf>,
+    environment_strength: Option<f64>,
+    environment_location: Option<glm::DVec3>,
+    environment_rotation: Option<glm::DVec3>,
+    environment_scale: Option<glm::DVec3>,
+}
+
+impl RTFileOverrides {
+    pub fn clap_cli<'a, 'b>(app: App<'a, 'b>) -> App<'a, 'b> {
+        app.arg(
+            Arg::with_name("threads")
+                .long("threads")
+                .help("Number of threads")
+                .takes_value(true)
+                .number_of_values(1),
+        )
+        .arg(
+            Arg::with_name("width")
+                .long("width")
+                .help("Width")
+                .takes_value(true)
+                .number_of_values(1),
+        )
+        .arg(
+            Arg::with_name("height")
+                .long("height")
+                .help("Height")
+                .takes_value(true)
+                .number_of_values(1),
+        )
+        .arg(
+            Arg::with_name("trace-max-depth")
+                .long("trace-max-depth")
+                .help("Tracing the Max Depth")
+                .takes_value(true)
+                .number_of_values(1),
+        )
+        .arg(
+            Arg::with_name("samples")
+                .long("samples")
+                .help("Number of Samples per Pixel")
+                .takes_value(true)
+                .number_of_values(1),
+        )
+        .arg(
+            Arg::with_name("environment")
+                .long("environment")
+                .help("Environment map path")
+                .takes_value(true)
+                .number_of_values(1),
+        )
+        .arg(
+            Arg::with_name("environment-strength")
+                .long("environment-strength")
+                .help("Strength of the environment")
+                .requires("environment")
+                .takes_value(true)
+                .value_name("strength"),
+        )
+        .arg(
+            Arg::with_name("environment-location")
+                .long("environment-location")
+                .help("Environment Location")
+                .requires("environment")
+                .takes_value(true)
+                .number_of_values(3)
+                .value_names(&["x", "y", "z"]),
+        )
+        .arg(
+            Arg::with_name("environment-rotation")
+                .long("environment-rotation")
+                .help("Environment Rotation")
+                .requires("environment")
+                .takes_value(true)
+                .number_of_values(3)
+                .value_names(&["x", "y", "z"]),
+        )
+        .arg(
+            Arg::with_name("environment-scale")
+                .long("environment-scale")
+                .help("Environment Scale")
+                .requires("environment")
+                .takes_value(true)
+                .number_of_values(3)
+                .value_names(&["x", "y", "z"]),
+        )
+    }
+
+    pub fn from_clap(app: &ArgMatches<'_>) -> Self {
+        Self {
+            threads: value_t!(app, "threads", usize).ok(),
+            width: value_t!(app, "width", usize).ok(),
+            height: value_t!(app, "height", usize).ok(),
+            trace_max_depth: value_t!(app, "trace-max-depth", usize).ok(),
+            samples: value_t!(app, "samples", usize).ok(),
+            environment_map: value_t!(app, "environment", PathBuf).ok().map(|path| {
+                if path.is_file() {
+                    path
+                } else {
+                    panic!(
+                        "Given environment map path does not point to a file: {}",
+                        path.to_str().unwrap()
+                    );
+                }
+            }),
+            environment_strength: value_t!(app, "environment-strength", f64).ok(),
+            environment_location: values_t!(app, "environment-location", f64)
+                .ok()
+                .map(|location| glm::vec3(location[0], location[1], location[2])),
+            environment_rotation: values_t!(app, "environment-rotation", f64)
+                .ok()
+                .map(|rotation| glm::vec3(rotation[0], rotation[1], rotation[2])),
+            environment_scale: values_t!(app, "environment-scale", f64)
+                .ok()
+                .map(|scale| glm::vec3(scale[0], scale[1], scale[2])),
+        }
+    }
+
+    /// Get a reference to the r t file overrides's threads.
+    pub fn get_threads(&self) -> Option<&usize> {
+        self.threads.as_ref()
+    }
+
+    /// Get a reference to the r t file overrides's width.
+    pub fn get_width(&self) -> Option<&usize> {
+        self.width.as_ref()
+    }
+
+    /// Get a reference to the r t file overrides's height.
+    pub fn get_height(&self) -> Option<&usize> {
+        self.height.as_ref()
+    }
+
+    /// Get a reference to the r t file overrides's trace max depth.
+    pub fn get_trace_max_depth(&self) -> Option<&usize> {
+        self.trace_max_depth.as_ref()
+    }
+
+    /// Get a reference to the r t file overrides's samples.
+    pub fn get_samples(&self) -> Option<&usize> {
+        self.samples.as_ref()
+    }
+
+    /// Get a reference to the r t file overrides's environment map.
+    pub fn get_environment_map(&self) -> Option<&PathBuf> {
+        self.environment_map.as_ref()
+    }
+
+    /// Get a reference to the r t file overrides's environment strength.
+    pub fn get_environment_strength(&self) -> Option<&f64> {
+        self.environment_strength.as_ref()
+    }
+
+    /// Get a reference to the r t file overrides's environment location.
+    pub fn get_environment_location(&self) -> Option<&glm::DVec3> {
+        self.environment_location.as_ref()
+    }
+
+    /// Get a reference to the r t file overrides's environment rotation.
+    pub fn get_environment_rotation(&self) -> Option<&glm::DVec3> {
+        self.environment_rotation.as_ref()
+    }
+
+    /// Get a reference to the r t file overrides's environment scale.
+    pub fn get_environment_scale(&self) -> Option<&glm::DVec3> {
+        self.environment_scale.as_ref()
     }
 }
 
@@ -200,8 +381,9 @@ fn main() {
             Arg::with_name("dry-run")
                 .long("dry-run")
                 .help("do not execute any render"),
-        )
-        .get_matches();
+        );
+    let app = RTFileOverrides::clap_cli(app);
+    let app = app.get_matches();
 
     if let Some(path) = clap::value_t!(app, "generate-default-config", PathBuf).ok() {
         let json = serde_json::to_string_pretty(&Config::default()).unwrap();
@@ -239,13 +421,16 @@ fn main() {
 
     let dry_run = app.is_present("dry-run");
 
+    let overrides = RTFileOverrides::from_clap(&app);
+
     println!("config_path: {}", config_path.to_str().unwrap());
     println!("exec_path: {}", exec_path.to_str().unwrap());
     println!(
         "working_directory_path: {}",
         working_directory_path.to_str().unwrap()
     );
-    println!("dry_run: {}", dry_run);
+    dbg!(&dry_run);
+    dbg!(&overrides);
 
     // Calling the config
     let config_data = read_config(config_path);
@@ -263,38 +448,58 @@ fn main() {
             .stderr(std::process::Stdio::null())
             .arg("--headless")
             .arg("--threads")
-            .arg(file.threads.to_string())
+            .arg(overrides.get_threads().unwrap_or(&file.threads).to_string())
             .arg("--width")
-            .arg(file.width.to_string())
+            .arg(overrides.get_width().unwrap_or(&file.width).to_string())
             .arg("--height")
-            .arg(file.height.to_string())
+            .arg(overrides.get_height().unwrap_or(&file.height).to_string())
             .arg("--samples")
-            .arg(file.samples.to_string())
+            .arg(overrides.get_samples().unwrap_or(&file.samples).to_string())
             .arg("--trace-max-depth")
-            .arg(file.trace_max_depth.to_string());
-        if let Some(path) = file.environment_map.as_ref() {
-            command.arg("--environment").arg(path);
+            .arg(
+                overrides
+                    .get_trace_max_depth()
+                    .unwrap_or(&file.trace_max_depth)
+                    .to_string(),
+            );
+        if let Some(environment) = overrides
+            .get_environment_map()
+            .or_else(|| file.environment_map.as_ref())
+        {
+            command.arg("--environment").arg(environment);
         }
-        if let Some(strength) = file.environment_strength {
+        if let Some(environment_strength) = overrides
+            .get_environment_strength()
+            .or_else(|| file.environment_strength.as_ref())
+        {
             command
                 .arg("--environment-strength")
-                .arg(strength.to_string());
+                .arg(environment_strength.to_string());
         }
-        if let Some(location) = file.environment_location.as_ref() {
+        if let Some(location) = overrides
+            .get_environment_location()
+            .or_else(|| file.environment_location.as_ref())
+        {
             command
                 .arg("--environment-location")
                 .arg(location[0].to_string())
                 .arg(location[1].to_string())
                 .arg(location[2].to_string());
         }
-        if let Some(rotation) = file.environment_rotation.as_ref() {
+        if let Some(rotation) = overrides
+            .get_environment_rotation()
+            .or_else(|| file.environment_rotation.as_ref())
+        {
             command
                 .arg("--environment-rotation")
                 .arg(rotation[0].to_string())
                 .arg(rotation[1].to_string())
                 .arg(rotation[2].to_string());
         }
-        if let Some(scale) = file.environment_scale.as_ref() {
+        if let Some(scale) = overrides
+            .get_environment_scale()
+            .or_else(|| file.environment_scale.as_ref())
+        {
             command
                 .arg("--environment-scale")
                 .arg(scale[0].to_string())
