@@ -1,0 +1,3 @@
+[submodule "test_scenes"]
+	path = test_scenes
+	url = git@github.com:ishbosamiya/rt_rust_test_scenes.git
