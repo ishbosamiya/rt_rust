@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use super::super::bsdf::{SampleData, SamplingTypes, BSDF};
 use super::super::intersectable::IntersectInfo;
-use super::utils::{self, ColorPicker, ColorPickerUiData};
+use super::utils::{ColorPicker, ColorPickerUiData};
 use super::BSDFUiData;
 use crate::glm;
 use crate::path_trace::medium::{Medium, Mediums};
@@ -100,12 +100,12 @@ impl Glass {
 
     fn handle_diffuse(
         &self,
-        intersect_info: &IntersectInfo,
+        _intersect_info: &IntersectInfo,
         sampling_types: BitFlags<SamplingTypes>,
     ) -> Option<SampleData> {
         if sampling_types.contains(SamplingTypes::Diffuse) {
             Some(SampleData::new(
-                utils::wi_diffuse(intersect_info.get_normal().as_ref().unwrap()),
+                crate::math::random_in_unit_sphere(),
                 SamplingTypes::Diffuse,
             ))
         } else {
