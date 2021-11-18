@@ -1,14 +1,13 @@
 use glm::Scalar;
 use ipc_channel::ipc;
 use rfd::FileDialog;
+use rt::camera::{Camera, Sensor};
 use rt::image::{Image, PPM};
 use rt::inputs::InputArguments;
 use rt::meshio::MeshIO;
 use rt::object::objects::Mesh as MeshObject;
 use rt::object::Object;
 use rt::path_trace::bsdfs::utils::ColorPicker;
-use rt::path_trace::camera::Camera as PathTraceCamera;
-use rt::path_trace::camera::CameraDrawData as PathTraceCameraDrawData;
 use rt::path_trace::environment::Environment;
 use rt::path_trace::intersectable::Intersectable;
 use rt::path_trace::medium::Mediums;
@@ -41,7 +40,6 @@ use serde::{Deserialize, Serialize};
 
 use rt::fps::FPS;
 use rt::mesh::MeshUseShader;
-use rt::rasterize::camera::Camera as RasterizeCamera;
 use rt::rasterize::drawable::Drawable;
 use rt::rasterize::gpu_immediate::GPUImmediate;
 use rt::rasterize::infinite_grid::{InfiniteGrid, InfiniteGridDrawData};
@@ -51,7 +49,7 @@ use rt::rasterize::shader;
 struct File {
     scene: Arc<RwLock<Scene>>,
     shader_list: Arc<RwLock<ShaderList>>,
-    path_trace_camera: Arc<RwLock<PathTraceCamera>>,
+    path_trace_camera: Arc<RwLock<Camera>>,
 
     #[serde(default = "default_environment")]
     environment: Arc<RwLock<Environment>>,
@@ -65,7 +63,7 @@ impl File {
     fn new(
         scene: Arc<RwLock<Scene>>,
         shader_list: Arc<RwLock<ShaderList>>,
-        path_trace_camera: Arc<RwLock<PathTraceCamera>>,
+        path_trace_camera: Arc<RwLock<Camera>>,
         environment: Arc<RwLock<Environment>>,
     ) -> Self {
         Self {
@@ -81,7 +79,7 @@ fn load_rt_file<P>(
     path: P,
     scene: Arc<RwLock<Scene>>,
     shader_list: Arc<RwLock<ShaderList>>,
-    path_trace_camera: Arc<RwLock<PathTraceCamera>>,
+    path_trace_camera: Arc<RwLock<Camera>>,
     environment: Arc<RwLock<Environment>>,
 ) where
     P: AsRef<std::path::Path>,
@@ -191,12 +189,16 @@ fn main() {
         let camera_position = glm::vec3(0.0, 0.0, 10.0);
         let aspect_ratio = image_width as f64 / image_height as f64;
         let camera_sensor_height = camera_sensor_width / aspect_ratio;
-        PathTraceCamera::new(
-            camera_sensor_height,
-            aspect_ratio,
-            camera_focal_length,
+        let mut camera = Camera::new(
             camera_position,
-        )
+            glm::vec3(0.0, 1.0, 0.0),
+            -90.0,
+            0.0,
+            45.0,
+            Some(Sensor::new(camera_sensor_width, camera_sensor_height)),
+        );
+        camera.set_focal_length(camera_focal_length);
+        camera
     }));
 
     let path_trace_progress = Arc::new(RwLock::new(Progress::new()));
@@ -279,6 +281,9 @@ fn main() {
     {
         path_trace_camera
             .write()
+            .unwrap()
+            .get_sensor_mut()
+            .as_mut()
             .unwrap()
             .change_aspect_ratio(image_width as f64 / image_height as f64);
     }
@@ -495,7 +500,7 @@ fn main_gui(
     scene: Arc<RwLock<Scene>>,
     shader_list: Arc<RwLock<ShaderList>>,
     texture_list: Arc<RwLock<TextureList>>,
-    path_trace_camera: Arc<RwLock<PathTraceCamera>>,
+    path_trace_camera: Arc<RwLock<Camera>>,
     environment: Arc<RwLock<Environment>>,
     rendered_image: Arc<RwLock<Image>>,
     path_trace_progress: Arc<RwLock<Progress>>,
@@ -549,7 +554,7 @@ fn main_gui(
         .insert(TextStyle::Small, (FontFamily::Proportional, 15.0));
     egui.get_egui_ctx().set_fonts(fonts);
 
-    let mut camera = RasterizeCamera::new(
+    let mut camera = Camera::new(
         glm::vec3(0.0, 0.0, 3.0),
         glm::vec3(0.0, 1.0, 0.0),
         -90.0,
@@ -887,8 +892,12 @@ fn main_gui(
 
                             ui.collapsing("Camera", |ui| {
                                 let camera_sensor_width = {
-                                    let mut camera_sensor_width =
-                                        path_trace_camera.read().unwrap().get_sensor_width();
+                                    let mut camera_sensor_width = path_trace_camera
+                                        .read()
+                                        .unwrap()
+                                        .get_sensor()
+                                        .unwrap()
+                                        .get_width();
                                     ui.add(
                                         egui::Slider::new(&mut camera_sensor_width, 0.0..=36.0)
                                             .text("Camera Sensor Width"),
@@ -897,8 +906,11 @@ fn main_gui(
                                 };
 
                                 let camera_focal_length = {
-                                    let mut camera_focal_length =
-                                        path_trace_camera.read().unwrap().get_focal_length();
+                                    let mut camera_focal_length = path_trace_camera
+                                        .read()
+                                        .unwrap()
+                                        .get_focal_length()
+                                        .unwrap();
                                     ui.add(
                                         egui::Slider::new(&mut camera_focal_length, 0.0..=15.0)
                                             .text("Camera Focal Length"),
@@ -908,7 +920,7 @@ fn main_gui(
 
                                 let camera_position = {
                                     let mut camera_position =
-                                        *path_trace_camera.read().unwrap().get_origin();
+                                        path_trace_camera.read().unwrap().get_position();
                                     ui.label("Camera Position");
                                     ui.add(
                                         egui::Slider::new(&mut camera_position[0], -10.0..=10.0)
@@ -926,12 +938,14 @@ fn main_gui(
                                 };
 
                                 if let Ok(mut path_trace_camera) = path_trace_camera.try_write() {
-                                    path_trace_camera.change_sensor_width(camera_sensor_width);
-                                    path_trace_camera.change_aspect_ratio(
+                                    let sensor =
+                                        path_trace_camera.get_sensor_mut().as_mut().unwrap();
+                                    sensor.change_width(camera_sensor_width);
+                                    sensor.change_aspect_ratio(
                                         image_width as f64 / image_height as f64,
                                     );
-                                    path_trace_camera.change_focal_length(camera_focal_length);
-                                    path_trace_camera.change_origin(camera_position);
+                                    path_trace_camera.set_focal_length(camera_focal_length);
+                                    path_trace_camera.set_position(camera_position);
                                 }
                             });
 
@@ -944,7 +958,8 @@ fn main_gui(
                             // image width and height is modified and
                             // must be done so separately here
                             if let Ok(mut path_trace_camera) = path_trace_camera.try_write() {
-                                path_trace_camera
+                                let sensor = path_trace_camera.get_sensor_mut().as_mut().unwrap();
+                                sensor
                                     .change_aspect_ratio(image_width as f64 / image_height as f64);
                             }
 
@@ -1107,7 +1122,9 @@ fn main_gui(
                                                 - 0.5)
                                                 * 2.0;
 
-                                            let ray = path_trace_camera.get_ray(u, v);
+                                            let ray = path_trace_camera
+                                                .get_ray(&glm::vec2(u, v))
+                                                .unwrap();
 
                                             let environment: &Environment =
                                                 &environment.read().unwrap();
@@ -1346,15 +1363,15 @@ fn main_gui(
             // position towards the first hitpoint
             let ray_direction = if let Some(hit_point) = traversal_info.get_traversal()[0].get_co()
             {
-                (hit_point - path_trace_camera.get_origin()).normalize()
+                (hit_point - path_trace_camera.get_position()).normalize()
             } else {
                 (traversal_info.get_traversal()[0].get_ray().at(1000.0)
-                    - path_trace_camera.get_origin())
+                    - path_trace_camera.get_position())
                 .normalize()
             };
 
             let (_color, traversal_info) = path_trace::trace_ray(
-                &Ray::new(*path_trace_camera.get_origin(), ray_direction),
+                &Ray::new(path_trace_camera.get_position(), ray_direction),
                 &path_trace_camera,
                 &scene.read().unwrap(),
                 trace_max_depth,
@@ -1427,17 +1444,17 @@ fn main_gui(
                 gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
             }
 
-            // drawing the camera
-            path_trace_camera
-                .read()
-                .unwrap()
-                .draw(&mut PathTraceCameraDrawData::new(
-                    imm.clone(),
-                    Some(rendered_texture.clone()),
-                    camera_image_alpha_value,
-                    camera_use_depth_for_image,
-                ))
-                .unwrap();
+            // TODO: drawing the camera
+            // path_trace_camera
+            //     .read()
+            //     .unwrap()
+            //     .draw(&mut PathTraceCameraDrawData::new(
+            //         imm.clone(),
+            //         Some(rendered_texture.clone()),
+            //         camera_image_alpha_value,
+            //         camera_use_depth_for_image,
+            //     ))
+            //     .unwrap();
 
             // drawing the infinite grid
             infinite_grid
@@ -1485,8 +1502,8 @@ fn vec_to_string<T: Scalar + std::fmt::Display, const R: usize>(vec: &glm::TVec<
 fn handle_window_event(
     event: &glfw::WindowEvent,
     window: &mut glfw::Window,
-    camera: &mut RasterizeCamera,
-    path_trace_camera: &PathTraceCamera,
+    camera: &mut Camera,
+    path_trace_camera: &Camera,
     should_cast_scene_ray: &mut bool,
     try_select_object: &mut bool,
     use_top_panel: &mut bool,
@@ -1512,7 +1529,7 @@ fn handle_window_event(
         }
         glfw::WindowEvent::Key(Key::Num1 | Key::Kp1, _, Action::Press, modifier) => {
             if modifier.contains(glfw::Modifiers::Control | glfw::Modifiers::Alt) {
-                *camera = RasterizeCamera::new(
+                *camera = Camera::new(
                     glm::vec3(0.0, 0.0, -camera.get_position().norm()),
                     *camera.get_world_up(),
                     90.0,
@@ -1521,7 +1538,7 @@ fn handle_window_event(
                     camera.get_sensor_no_ref(),
                 )
             } else if modifier.contains(glfw::Modifiers::Alt) {
-                *camera = RasterizeCamera::new(
+                *camera = Camera::new(
                     glm::vec3(0.0, 0.0, camera.get_position().norm()),
                     *camera.get_world_up(),
                     -90.0,
@@ -1533,7 +1550,7 @@ fn handle_window_event(
         }
         glfw::WindowEvent::Key(Key::Num3 | Key::Kp3, _, Action::Press, modifier) => {
             if modifier.contains(glfw::Modifiers::Control | glfw::Modifiers::Alt) {
-                *camera = RasterizeCamera::new(
+                *camera = Camera::new(
                     glm::vec3(-camera.get_position().norm(), 0.0, 0.0),
                     *camera.get_world_up(),
                     0.0,
@@ -1542,7 +1559,7 @@ fn handle_window_event(
                     camera.get_sensor_no_ref(),
                 )
             } else if modifier.contains(glfw::Modifiers::Alt) {
-                *camera = RasterizeCamera::new(
+                *camera = Camera::new(
                     glm::vec3(camera.get_position().norm(), 0.0, 0.0),
                     *camera.get_world_up(),
                     180.0,
@@ -1554,7 +1571,7 @@ fn handle_window_event(
         }
         glfw::WindowEvent::Key(Key::Num7 | Key::Kp7, _, Action::Press, modifier) => {
             if modifier.contains(glfw::Modifiers::Control | glfw::Modifiers::Alt) {
-                *camera = RasterizeCamera::new(
+                *camera = Camera::new(
                     glm::vec3(0.0, -camera.get_position().norm(), 0.0),
                     *camera.get_world_up(),
                     -90.0,
@@ -1563,7 +1580,7 @@ fn handle_window_event(
                     camera.get_sensor_no_ref(),
                 )
             } else if modifier.contains(glfw::Modifiers::Alt) {
-                *camera = RasterizeCamera::new(
+                *camera = Camera::new(
                     glm::vec3(0.0, camera.get_position().norm(), 0.0),
                     *camera.get_world_up(),
                     -90.0,
@@ -1575,17 +1592,7 @@ fn handle_window_event(
         }
         glfw::WindowEvent::Key(Key::Num0 | Key::Kp0, _, Action::Press, modifier) => {
             if modifier.contains(glfw::Modifiers::Alt) {
-                let fov = path_trace_camera
-                    .get_fov_hor()
-                    .max(path_trace_camera.get_fov_ver());
-                *camera = RasterizeCamera::new(
-                    *path_trace_camera.get_origin(),
-                    *path_trace_camera.get_vertical(),
-                    -90.0,
-                    0.0,
-                    fov.to_degrees(),
-                    camera.get_sensor_no_ref(),
-                );
+                *camera = path_trace_camera.clone();
             }
         }
         glfw::WindowEvent::Key(Key::C, _, Action::Press, glfw::Modifiers::Shift) => {
@@ -1599,7 +1606,7 @@ fn handle_window_event(
             } else {
                 move_vector
             };
-            *camera = RasterizeCamera::new(
+            *camera = Camera::new(
                 camera.get_position() + move_vector,
                 *camera.get_world_up(),
                 camera.get_yaw(),

@@ -5,10 +5,10 @@ use egui_glfw::EguiBackend;
 use glfw::{Action, Context, Key};
 
 use rt::{
+    camera::Camera,
     fps::FPS,
     glm,
     rasterize::{
-        camera::Camera as RasterizeCamera,
         drawable::Drawable,
         gpu_immediate::GPUImmediate,
         infinite_grid::{InfiniteGrid, InfiniteGridDrawData},
@@ -64,7 +64,7 @@ fn main() {
         .insert(TextStyle::Small, (FontFamily::Proportional, 15.0));
     egui.get_egui_ctx().set_fonts(fonts);
 
-    let mut camera = RasterizeCamera::new(
+    let mut camera = Camera::new(
         glm::vec3(0.0, 0.0, 3.0),
         glm::vec3(0.0, 1.0, 0.0),
         -90.0,
@@ -280,7 +280,7 @@ fn main() {
 fn quick_test_handle_event(
     event: &glfw::WindowEvent,
     window: &mut glfw::Window,
-    camera: &mut RasterizeCamera,
+    camera: &mut Camera,
     window_last_cursor: &mut (f64, f64),
     use_top_panel: &mut bool,
     use_bottom_panel: &mut bool,
@@ -304,7 +304,7 @@ fn quick_test_handle_event(
         }
         glfw::WindowEvent::Key(Key::Num1 | Key::Kp1, _, Action::Press, modifier) => {
             if modifier.contains(glfw::Modifiers::Control | glfw::Modifiers::Alt) {
-                *camera = RasterizeCamera::new(
+                *camera = Camera::new(
                     glm::vec3(0.0, 0.0, -camera.get_position().norm()),
                     *camera.get_world_up(),
                     90.0,
@@ -313,7 +313,7 @@ fn quick_test_handle_event(
                     camera.get_sensor_no_ref(),
                 )
             } else if modifier.contains(glfw::Modifiers::Alt) {
-                *camera = RasterizeCamera::new(
+                *camera = Camera::new(
                     glm::vec3(0.0, 0.0, camera.get_position().norm()),
                     *camera.get_world_up(),
                     -90.0,
@@ -325,7 +325,7 @@ fn quick_test_handle_event(
         }
         glfw::WindowEvent::Key(Key::Num3 | Key::Kp3, _, Action::Press, modifier) => {
             if modifier.contains(glfw::Modifiers::Control | glfw::Modifiers::Alt) {
-                *camera = RasterizeCamera::new(
+                *camera = Camera::new(
                     glm::vec3(-camera.get_position().norm(), 0.0, 0.0),
                     *camera.get_world_up(),
                     0.0,
@@ -334,7 +334,7 @@ fn quick_test_handle_event(
                     camera.get_sensor_no_ref(),
                 )
             } else if modifier.contains(glfw::Modifiers::Alt) {
-                *camera = RasterizeCamera::new(
+                *camera = Camera::new(
                     glm::vec3(camera.get_position().norm(), 0.0, 0.0),
                     *camera.get_world_up(),
                     180.0,
@@ -346,7 +346,7 @@ fn quick_test_handle_event(
         }
         glfw::WindowEvent::Key(Key::Num7 | Key::Kp7, _, Action::Press, modifier) => {
             if modifier.contains(glfw::Modifiers::Control | glfw::Modifiers::Alt) {
-                *camera = RasterizeCamera::new(
+                *camera = Camera::new(
                     glm::vec3(0.0, -camera.get_position().norm(), 0.0),
                     *camera.get_world_up(),
                     -90.0,
@@ -355,7 +355,7 @@ fn quick_test_handle_event(
                     camera.get_sensor_no_ref(),
                 )
             } else if modifier.contains(glfw::Modifiers::Alt) {
-                *camera = RasterizeCamera::new(
+                *camera = Camera::new(
                     glm::vec3(0.0, camera.get_position().norm(), 0.0),
                     *camera.get_world_up(),
                     -90.0,
@@ -376,7 +376,7 @@ fn quick_test_handle_event(
             } else {
                 move_vector
             };
-            *camera = RasterizeCamera::new(
+            *camera = Camera::new(
                 camera.get_position() + move_vector,
                 *camera.get_world_up(),
                 camera.get_yaw(),

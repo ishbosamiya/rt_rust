@@ -1,4 +1,5 @@
 pub mod bvh;
+pub mod camera;
 pub mod fps;
 pub mod image;
 pub mod inputs;
@@ -19,9 +20,8 @@ pub mod viewport;
 
 pub use nalgebra_glm as glm;
 
-use path_trace::{
-    camera::Camera, environment::Environment, shader_list::ShaderList, texture_list::TextureList,
-};
+use camera::Camera;
+use path_trace::{environment::Environment, shader_list::ShaderList, texture_list::TextureList};
 use scene::Scene;
 use std::sync::{Arc, RwLock};
 

@@ -1,6 +1,5 @@
 pub mod bsdf;
 pub mod bsdfs;
-pub mod camera;
 pub mod environment;
 pub mod intersectable;
 pub mod medium;
@@ -23,10 +22,10 @@ use enumflags2::BitFlags;
 use lazy_static::lazy_static;
 use rayon::prelude::*;
 
+use crate::camera::Camera;
 use crate::glm;
 use crate::image::Image;
 use crate::path_trace::bsdf::SamplingTypes;
-use crate::path_trace::camera::Camera;
 use crate::path_trace::intersectable::IntersectInfo;
 use crate::path_trace::intersectable::Intersectable;
 use crate::path_trace::ray::Ray;
@@ -172,7 +171,7 @@ fn ray_trace_scene(
                         - 0.5)
                         * 2.0;
 
-                    let ray = camera.get_ray(u, v);
+                    let ray = camera.get_ray(&glm::vec2(u, v)).unwrap();
 
                     let (color, _traversal_info) = trace_ray(
                         &ray,

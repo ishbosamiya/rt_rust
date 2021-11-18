@@ -1,6 +1,8 @@
-use crate::{glm, util};
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug)]
+use crate::{glm, path_trace::ray::Ray, util};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Camera {
     /// position of the camera in 3D space
     position: glm::DVec3,
@@ -30,7 +32,7 @@ pub struct Camera {
 }
 
 /// Camera sensor
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Sensor {
     /// sensor width
     width: f64,
@@ -83,12 +85,19 @@ impl Sensor {
 
     /// Change sensor's width while keeping aspect ratio the same
     pub fn change_width(&mut self, width: f64) {
-        *self = Self::from_width(width, self.get_aspect_ratio())
+        *self = Self::from_width(width, self.get_aspect_ratio());
     }
 
     /// Change sensor's height while keeping aspect ratio the same
     pub fn change_height(&mut self, height: f64) {
-        *self = Self::from_height(height, self.get_aspect_ratio())
+        *self = Self::from_height(height, self.get_aspect_ratio());
+    }
+
+    /// Change sensor's aspect ratio while keeping sensor height
+    /// constant. Reflects the aspect ratio change through the
+    /// sensor's width
+    pub fn change_aspect_ratio(&mut self, aspect_ratio: f64) {
+        *self = Self::from_height(self.get_height(), aspect_ratio);
     }
 }
 
@@ -342,7 +351,7 @@ impl Camera {
     /// UVs are defined as (0.0, 0.0) at center, (1.0, 1.0) as top
     /// right corner and (-1.0, -1.0) as bottom left corner of the
     /// sensor.
-    pub fn get_raycast_direction_uv(&self, uv: glm::DVec2) -> Option<glm::DVec3> {
+    pub fn get_raycast_direction_uv(&self, uv: &glm::DVec2) -> Option<glm::DVec3> {
         let sensor = self.get_sensor()?;
 
         let camera_plane_center = self.position
@@ -357,5 +366,31 @@ impl Camera {
         let point_on_sensor = camera_plane_center + uv[0] * horizontal + uv[1] * vertical;
 
         Some((point_on_sensor - self.position).normalize())
+    }
+
+    /// Get ray given the UVs on the camera sensor.
+    ///
+    /// See [`Camera::get_raycast_direction_uv()`] for more details,
+    /// this function only makes it easy to get the [`Ray`] directly.
+    pub fn get_ray(&self, uv: &glm::DVec2) -> Option<Ray> {
+        Some(Ray::new(
+            self.get_position(),
+            self.get_raycast_direction_uv(uv)?,
+        ))
+    }
+
+    /// Set the camera's position.
+    pub fn set_position(&mut self, position: glm::DVec3) {
+        self.position = position;
+    }
+
+    /// Set the camera's focal length
+    ///
+    /// # Panics
+    ///
+    /// Panics if camera sensor is not set.
+    pub fn set_focal_length(&mut self, focal_length: f64) {
+        self.fov = util::focal_length_to_fov(focal_length, self.get_sensor().unwrap().get_height())
+            .to_degrees();
     }
 }
