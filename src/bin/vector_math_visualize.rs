@@ -71,6 +71,7 @@ fn main() {
         -90.0,
         0.0,
         45.0,
+        None,
     );
 
     let imm = Rc::new(RefCell::new(GPUImmediate::new()));
@@ -388,7 +389,8 @@ fn quick_test_handle_event(
                     *camera.get_world_up(),
                     90.0,
                     0.0,
-                    camera.get_zoom(),
+                    camera.get_fov(),
+                    camera.get_sensor_no_ref(),
                 )
             } else if modifier.contains(glfw::Modifiers::Alt) {
                 *camera = RasterizeCamera::new(
@@ -396,7 +398,8 @@ fn quick_test_handle_event(
                     *camera.get_world_up(),
                     -90.0,
                     0.0,
-                    camera.get_zoom(),
+                    camera.get_fov(),
+                    camera.get_sensor_no_ref(),
                 )
             }
         }
@@ -407,7 +410,8 @@ fn quick_test_handle_event(
                     *camera.get_world_up(),
                     0.0,
                     0.0,
-                    camera.get_zoom(),
+                    camera.get_fov(),
+                    camera.get_sensor_no_ref(),
                 )
             } else if modifier.contains(glfw::Modifiers::Alt) {
                 *camera = RasterizeCamera::new(
@@ -415,7 +419,8 @@ fn quick_test_handle_event(
                     *camera.get_world_up(),
                     180.0,
                     0.0,
-                    camera.get_zoom(),
+                    camera.get_fov(),
+                    camera.get_sensor_no_ref(),
                 )
             }
         }
@@ -426,7 +431,8 @@ fn quick_test_handle_event(
                     *camera.get_world_up(),
                     -90.0,
                     90.0,
-                    camera.get_zoom(),
+                    camera.get_fov(),
+                    camera.get_sensor_no_ref(),
                 )
             } else if modifier.contains(glfw::Modifiers::Alt) {
                 *camera = RasterizeCamera::new(
@@ -434,7 +440,8 @@ fn quick_test_handle_event(
                     *camera.get_world_up(),
                     -90.0,
                     -90.0,
-                    camera.get_zoom(),
+                    camera.get_fov(),
+                    camera.get_sensor_no_ref(),
                 )
             }
         }
@@ -454,7 +461,8 @@ fn quick_test_handle_event(
                 *camera.get_world_up(),
                 camera.get_yaw(),
                 camera.get_pitch(),
-                camera.get_zoom(),
+                camera.get_fov(),
+                camera.get_sensor_no_ref(),
             );
         }
 

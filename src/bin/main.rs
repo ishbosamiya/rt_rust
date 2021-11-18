@@ -555,6 +555,7 @@ fn main_gui(
         -90.0,
         0.0,
         45.0,
+        None,
     );
 
     let imm = Rc::new(RefCell::new(GPUImmediate::new()));
@@ -1213,7 +1214,7 @@ fn main_gui(
                         ));
                         ui.label(format!("yaw: {:.2}", camera.get_yaw()));
                         ui.label(format!("pitch: {:.2}", camera.get_pitch()));
-                        ui.label(format!("zoom: {:.2}", camera.get_zoom()));
+                        ui.label(format!("zoom: {:.2}", camera.get_fov()));
                         ui.label(format!("near_plane: {:.2}", camera.get_near_plane()));
                         ui.label(format!("far_plane: {:.2}", camera.get_far_plane()));
 
@@ -1516,7 +1517,8 @@ fn handle_window_event(
                     *camera.get_world_up(),
                     90.0,
                     0.0,
-                    camera.get_zoom(),
+                    camera.get_fov(),
+                    camera.get_sensor_no_ref(),
                 )
             } else if modifier.contains(glfw::Modifiers::Alt) {
                 *camera = RasterizeCamera::new(
@@ -1524,7 +1526,8 @@ fn handle_window_event(
                     *camera.get_world_up(),
                     -90.0,
                     0.0,
-                    camera.get_zoom(),
+                    camera.get_fov(),
+                    camera.get_sensor_no_ref(),
                 )
             }
         }
@@ -1535,7 +1538,8 @@ fn handle_window_event(
                     *camera.get_world_up(),
                     0.0,
                     0.0,
-                    camera.get_zoom(),
+                    camera.get_fov(),
+                    camera.get_sensor_no_ref(),
                 )
             } else if modifier.contains(glfw::Modifiers::Alt) {
                 *camera = RasterizeCamera::new(
@@ -1543,7 +1547,8 @@ fn handle_window_event(
                     *camera.get_world_up(),
                     180.0,
                     0.0,
-                    camera.get_zoom(),
+                    camera.get_fov(),
+                    camera.get_sensor_no_ref(),
                 )
             }
         }
@@ -1554,7 +1559,8 @@ fn handle_window_event(
                     *camera.get_world_up(),
                     -90.0,
                     90.0,
-                    camera.get_zoom(),
+                    camera.get_fov(),
+                    camera.get_sensor_no_ref(),
                 )
             } else if modifier.contains(glfw::Modifiers::Alt) {
                 *camera = RasterizeCamera::new(
@@ -1562,7 +1568,8 @@ fn handle_window_event(
                     *camera.get_world_up(),
                     -90.0,
                     -90.0,
-                    camera.get_zoom(),
+                    camera.get_fov(),
+                    camera.get_sensor_no_ref(),
                 )
             }
         }
@@ -1577,6 +1584,7 @@ fn handle_window_event(
                     -90.0,
                     0.0,
                     fov.to_degrees(),
+                    camera.get_sensor_no_ref(),
                 );
             }
         }
@@ -1596,7 +1604,8 @@ fn handle_window_event(
                 *camera.get_world_up(),
                 camera.get_yaw(),
                 camera.get_pitch(),
-                camera.get_zoom(),
+                camera.get_fov(),
+                camera.get_sensor_no_ref(),
             );
         }
 

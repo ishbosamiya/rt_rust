@@ -30,3 +30,11 @@ pub fn vec3_apply_model_matrix(v: &glm::DVec3, model: &glm::DMat4) -> glm::DVec3
 pub fn normal_apply_model_matrix(normal: &glm::DVec3, model: &glm::DMat4) -> glm::DVec3 {
     vec3_apply_model_matrix(normal, &glm::inverse_transpose(*model))
 }
+
+pub fn focal_length_to_fov(focal_length: f64, camera_sensor_size: f64) -> f64 {
+    2.0 * (camera_sensor_size / (2.0 * focal_length)).atan()
+}
+
+pub fn fov_to_focal_length(fov: f64, camera_sensor_size: f64) -> f64 {
+    camera_sensor_size / (2.0 * (fov / 2.0).tan())
+}

@@ -10,6 +10,7 @@ use crate::{
         shader,
         texture::TextureRGBAFloat,
     },
+    util,
 };
 
 use serde::{Deserialize, Serialize};
@@ -139,12 +140,12 @@ impl Camera {
 
     /// horizontal fov in radians
     pub fn get_fov_hor(&self) -> f64 {
-        focal_length_to_fov(self.get_focal_length(), self.get_sensor_width())
+        util::focal_length_to_fov(self.get_focal_length(), self.get_sensor_width())
     }
 
     /// vertical fov in radians
     pub fn get_fov_ver(&self) -> f64 {
-        focal_length_to_fov(self.get_focal_length(), self.get_sensor_height())
+        util::focal_length_to_fov(self.get_focal_length(), self.get_sensor_height())
     }
 }
 
@@ -356,8 +357,4 @@ fn draw_triangle(
     imm.vertex_3f(pos_attr, p2[0], p2[1], p2[2]);
     imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
     imm.vertex_3f(pos_attr, p3[0], p3[1], p3[2]);
-}
-
-fn focal_length_to_fov(focal_length: f64, camera_sensor_size: f64) -> f64 {
-    2.0 * (camera_sensor_size / (2.0 * focal_length)).atan()
 }
