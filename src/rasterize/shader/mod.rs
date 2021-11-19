@@ -94,7 +94,8 @@ impl Shader {
         unsafe {
             let mut success: gl::types::GLint = -10;
             gl::GetShaderiv(vertex_shader, gl::COMPILE_STATUS, &mut success);
-            if success != gl::TRUE.into() {
+            let gl_true: gl::types::GLint = gl::TRUE.into();
+            if success != gl_true {
                 eprintln!("vertex didn't compile");
 
                 let log = get_shader_error_log(vertex_shader);
@@ -117,7 +118,8 @@ impl Shader {
         unsafe {
             let mut success: gl::types::GLint = -10;
             gl::GetShaderiv(fragment_shader, gl::COMPILE_STATUS, &mut success);
-            if success != gl::TRUE.into() {
+            let gl_true: gl::types::GLint = gl::TRUE.into();
+            if success != gl_true {
                 eprintln!("fragment didn't compile");
 
                 let log = get_shader_error_log(fragment_shader);
@@ -135,7 +137,8 @@ impl Shader {
         unsafe {
             let mut success: gl::types::GLint = -10;
             gl::GetProgramiv(shader_program, gl::LINK_STATUS, &mut success);
-            if success != gl::TRUE.into() {
+            let gl_true: gl::types::GLint = gl::TRUE.into();
+            if success != gl_true {
                 eprintln!("program not linked");
                 return Err(ShaderError::ProgramLinker);
             }
