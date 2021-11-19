@@ -128,9 +128,9 @@ fn main() {
         .unwrap_or_else(default_image_height);
 
     let path_trace_camera = Arc::new(RwLock::new({
-        let camera_focal_length = 12.0;
-        let camera_sensor_width = 2.0;
-        let camera_position = glm::vec3(0.0, 0.0, 10.0);
+        let camera_focal_length = 50.0;
+        let camera_sensor_width = 36.0;
+        let camera_position = glm::vec3(0.0, 0.0, 3.0);
         let aspect_ratio = image_width as f64 / image_height as f64;
         let camera_sensor_height = camera_sensor_width / aspect_ratio;
         let mut camera = Camera::new(
@@ -863,7 +863,7 @@ fn main_gui(
                                         .get_focal_length()
                                         .unwrap();
                                     ui.add(
-                                        egui::Slider::new(&mut camera_focal_length, 0.0..=15.0)
+                                        egui::Slider::new(&mut camera_focal_length, 0.0..=100.0)
                                             .text("Camera Focal Length"),
                                     );
                                     camera_focal_length
