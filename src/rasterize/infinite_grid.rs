@@ -49,11 +49,12 @@ impl Default for InfiniteGrid {
 
 pub struct InfiniteGridDrawData {
     imm: Rc<RefCell<GPUImmediate>>,
+    color: glm::DVec4,
 }
 
 impl InfiniteGridDrawData {
-    pub fn new(imm: Rc<RefCell<GPUImmediate>>) -> Self {
-        Self { imm }
+    pub fn new(imm: Rc<RefCell<GPUImmediate>>, color: glm::DVec4) -> Self {
+        Self { imm, color }
     }
 }
 
@@ -74,6 +75,8 @@ impl Drawable for InfiniteGrid {
             .unwrap();
 
         infinite_grid_shader.use_shader();
+
+        infinite_grid_shader.set_vec4("grid_color\0", &glm::convert(extra_data.color));
 
         let format = imm.get_cleared_vertex_format();
         let pos_attr = format.add_attribute(

@@ -2,6 +2,8 @@
 
 #version 330 core
 
+uniform vec4 grid_color;
+
 in vec3 from_vert_near_point;
 in vec3 from_vert_far_point;
 in mat4 frag_projection;
@@ -16,7 +18,8 @@ vec4 grid(vec3 frag_pos_3d, float scale) {
 	float line = min(grid.x, grid.y);
 	float minimumz = min(derivative.y, 1);
 	float minimumx = min(derivative.x, 1);
-	vec4 color = vec4(0.2, 0.2, 0.2, 1.0 - min(line, 1.0));
+	vec4 color = vec4(1.0, 1.0, 1.0, 1.0 - min(line, 1.0));
+	color *= grid_color;
 	// z axis
 	if(frag_pos_3d.x > -0.1 * minimumx && frag_pos_3d.x < 0.1 * minimumx) {
 		color.z = 1.0;

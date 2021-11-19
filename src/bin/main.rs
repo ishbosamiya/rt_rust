@@ -532,6 +532,7 @@ fn main_gui(
     let mut open_rendered_image_window = false;
     let mut use_environment_map_as_background = false;
     let mut background_color = glm::vec4(0.051, 0.051, 0.051, 1.0);
+    let mut infinite_grid_color = glm::vec4(0.15, 0.15, 0.15, 1.0);
     let mut should_cast_scene_ray = false;
     let mut try_select_object = false;
     let mut image_width = arguments
@@ -817,6 +818,12 @@ fn main_gui(
                                 ui,
                                 "Background Color",
                                 &mut background_color,
+                            );
+
+                            ui::color_edit_button_dvec4(
+                                ui,
+                                "Infinite Grid Color",
+                                &mut infinite_grid_color,
                             );
 
                             ui.separator();
@@ -1434,7 +1441,10 @@ fn main_gui(
 
             // drawing the infinite grid
             infinite_grid
-                .draw(&mut InfiniteGridDrawData::new(imm.clone()))
+                .draw(&mut InfiniteGridDrawData::new(
+                    imm.clone(),
+                    infinite_grid_color,
+                ))
                 .unwrap();
 
             // Draw GUI

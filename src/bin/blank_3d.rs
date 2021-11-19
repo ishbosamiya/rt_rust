@@ -256,7 +256,10 @@ fn main() {
 
             // drawing the infinite grid
             infinite_grid
-                .draw(&mut InfiniteGridDrawData::new(imm.clone()))
+                .draw(&mut InfiniteGridDrawData::new(
+                    imm.clone(),
+                    glm::vec4(0.2, 0.2, 0.2, 1.0),
+                ))
                 .unwrap();
 
             // Draw GUI
