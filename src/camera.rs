@@ -105,11 +105,11 @@ impl Sensor {
         *self = Self::from_height(height, self.get_aspect_ratio());
     }
 
-    /// Change sensor's aspect ratio while keeping sensor height
+    /// Change sensor's aspect ratio while keeping sensor width
     /// constant. Reflects the aspect ratio change through the
-    /// sensor's width
+    /// sensor's height
     pub fn change_aspect_ratio(&mut self, aspect_ratio: f64) {
-        *self = Self::from_height(self.get_height(), aspect_ratio);
+        *self = Self::from_width(self.get_width(), aspect_ratio);
     }
 }
 
