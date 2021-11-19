@@ -524,6 +524,7 @@ fn main_gui(
         environment.read().unwrap().get_hdr(),
     )));
 
+    let mut key_mods = glfw::Modifiers::empty();
     let mut use_top_panel = false;
     let mut use_bottom_panel = false;
     let mut use_left_panel = true;
@@ -573,6 +574,7 @@ fn main_gui(
             handle_window_event(
                 &event,
                 &mut window,
+                &mut key_mods,
                 &mut camera,
                 &path_trace_camera.read().unwrap(),
                 &mut should_cast_scene_ray,
@@ -720,7 +722,9 @@ fn main_gui(
             let bottom_panel_response = if use_bottom_panel {
                 let response = egui::TopBottomPanel::bottom("Bottom Panel")
                     .resizable(true)
-                    .show(egui.get_egui_ctx(), |_ui| {})
+                    .show(egui.get_egui_ctx(), |ui| {
+                        ui.label(format!("mods: {}", glfw_modifier_to_string(key_mods)));
+                    })
                     .response;
                 Some(response)
             } else {
@@ -1488,6 +1492,7 @@ fn vec_to_string<T: Scalar + std::fmt::Display, const R: usize>(vec: &glm::TVec<
 fn handle_window_event(
     event: &glfw::WindowEvent,
     window: &mut glfw::Window,
+    key_mods: &mut glfw::Modifiers,
     camera: &mut Camera,
     path_trace_camera: &Camera,
     should_cast_scene_ray: &mut bool,
@@ -1499,6 +1504,15 @@ fn handle_window_event(
     window_last_cursor: &mut (f64, f64),
 ) {
     let window_cursor = window.get_cursor_pos();
+
+    match event {
+        glfw::WindowEvent::Key(_, _, Action::Press, mods) => *key_mods |= *mods,
+        glfw::WindowEvent::Key(_, _, Action::Release, mods) => *key_mods &= !*mods,
+        glfw::WindowEvent::CharModifiers(_, mods) => *key_mods |= *mods,
+        glfw::WindowEvent::MouseButton(_, Action::Press, mods) => *key_mods |= *mods,
+        glfw::WindowEvent::MouseButton(_, Action::Release, mods) => *key_mods &= !*mods,
+        _ => {}
+    }
 
     match event {
         glfw::WindowEvent::Key(Key::Up, _, Action::Press, glfw::Modifiers::Alt) => {
@@ -1669,4 +1683,58 @@ fn handle_opengl_cleanup(texture_list: Arc<RwLock<TextureList>>) {
         .unwrap()
         .get_textures_mut()
         .for_each(|(_, texture)| texture.cleanup_opengl());
+}
+
+fn glfw_modifier_to_string(mods: glfw::Modifiers) -> String {
+    let res = if mods.contains(glfw::Modifiers::Shift) {
+        "Shift".to_string()
+    } else {
+        "".to_string()
+    };
+    let res = if mods.contains(glfw::Modifiers::Control) {
+        if !res.is_empty() {
+            format!("{} + Ctrl", res)
+        } else {
+            "Ctrl".to_string()
+        }
+    } else {
+        res
+    };
+    let res = if mods.contains(glfw::Modifiers::Alt) {
+        if !res.is_empty() {
+            format!("{} + Alt", res)
+        } else {
+            "Alt".to_string()
+        }
+    } else {
+        res
+    };
+    let res = if mods.contains(glfw::Modifiers::Super) {
+        if !res.is_empty() {
+            format!("{} + Super", res)
+        } else {
+            "Super".to_string()
+        }
+    } else {
+        res
+    };
+    let res = if mods.contains(glfw::Modifiers::CapsLock) {
+        if !res.is_empty() {
+            format!("{} + Caps Lock", res)
+        } else {
+            "Caps Lock".to_string()
+        }
+    } else {
+        res
+    };
+    let res = if mods.contains(glfw::Modifiers::NumLock) {
+        if !res.is_empty() {
+            format!("{} + Num Lock", res)
+        } else {
+            "Num Lock".to_string()
+        }
+    } else {
+        res
+    };
+    res
 }
