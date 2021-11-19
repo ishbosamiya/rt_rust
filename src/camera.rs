@@ -454,14 +454,28 @@ impl Drawable for Camera {
     fn draw(&self, extra_data: &mut Self::ExtraData) -> Result<(), Self::Error> {
         let sensor = self.get_sensor().ok_or(())?;
 
-        let camera_plane_center = self.position
-            + self.front
-                * self
-                    .get_focal_length()
-                    .expect("by this point focal length should always be available");
+        // Scale the camera so that the sensor width or height is 1m,
+        // the other side is dependent on aspect ratio. So the sensor
+        // shown (camera plane) is a constant size and the focal
+        // length changes to convey the required information.
+        //
+        // A camera with a sensor size (width) of 36mm and a focal
+        // length of 36mm will be 1m long and 1m wide in 3D space.
+        let focal_length = self
+            .get_focal_length()
+            .expect("by this point focal length should always be available");
+        // Equivalent focal length if the sensor was a 36mm sensor
+        // (crop factor correction).
+        let focal_length = focal_length * 36.0 / sensor.get_width();
+        // Focal length required in 3D space, for a focal length of
+        // 36mm it is 1m.
+        let focal_length = focal_length / 36.0;
+        let camera_plane_center = self.position + self.front * focal_length;
 
-        let horizontal = self.right * sensor.get_width() / 2.0;
-        let vertical = self.up * sensor.get_height() / 2.0;
+        // Sensor width of 1m.
+        let horizontal = self.right / 2.0;
+        // Sensor height dependent on sensor width.
+        let vertical = self.up / 2.0 / sensor.get_aspect_ratio();
 
         let camera_plane_top_left: glm::Vec3 =
             glm::convert(camera_plane_center + -1.0 * horizontal + 1.0 * vertical);
