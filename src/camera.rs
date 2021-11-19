@@ -405,6 +405,22 @@ impl Camera {
         self.fov = util::focal_length_to_fov(focal_length, self.get_sensor().unwrap().get_height())
             .to_degrees();
     }
+
+    pub fn set_yaw(&mut self, yaw: f64) {
+        self.yaw = yaw;
+        self.update_camera_vectors();
+    }
+
+    pub fn set_pitch(&mut self, pitch: f64) {
+        self.pitch = pitch;
+        self.update_camera_vectors();
+    }
+
+    pub fn set_yaw_and_pitch(&mut self, yaw: f64, pitch: f64) {
+        self.yaw = yaw;
+        self.pitch = pitch;
+        self.update_camera_vectors();
+    }
 }
 
 pub struct CameraDrawData {

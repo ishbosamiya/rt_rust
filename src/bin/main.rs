@@ -136,7 +136,7 @@ fn main() {
         let mut camera = Camera::new(
             camera_position,
             glm::vec3(0.0, 1.0, 0.0),
-            -90.0,
+            270.0,
             0.0,
             45.0,
             Some(Sensor::new(camera_sensor_width, camera_sensor_height)),
@@ -881,6 +881,25 @@ fn main_gui(
                                     camera_position
                                 };
 
+                                ui.label("Camera Rotation");
+                                let camera_yaw = {
+                                    let mut camera_yaw =
+                                        path_trace_camera.read().unwrap().get_yaw();
+                                    ui.add(
+                                        egui::Slider::new(&mut camera_yaw, 0.0..=360.0).text("yaw"),
+                                    );
+                                    camera_yaw
+                                };
+                                let camera_pitch = {
+                                    let mut camera_pitch =
+                                        path_trace_camera.read().unwrap().get_pitch();
+                                    ui.add(
+                                        egui::Slider::new(&mut camera_pitch, 0.0..=360.0)
+                                            .text("pitch"),
+                                    );
+                                    camera_pitch
+                                };
+
                                 if let Ok(mut path_trace_camera) = path_trace_camera.try_write() {
                                     let sensor =
                                         path_trace_camera.get_sensor_mut().as_mut().unwrap();
@@ -890,6 +909,7 @@ fn main_gui(
                                     );
                                     path_trace_camera.set_focal_length(camera_focal_length);
                                     path_trace_camera.set_position(camera_position);
+                                    path_trace_camera.set_yaw_and_pitch(camera_yaw, camera_pitch);
                                 }
                             });
 
@@ -1160,36 +1180,48 @@ fn main_gui(
             egui::Window::new("Camera Data")
                 .open(&mut false)
                 .collapsible(true)
+                .scroll(true)
                 .show(egui.get_egui_ctx(), |ui| {
-                    egui::ScrollArea::auto_sized().show(ui, |ui| {
-                        ui.label(format!(
-                            "position: {}",
-                            vec_to_string(&camera.get_position())
-                        ));
-                        ui.label(format!("front: {}", vec_to_string(&camera.get_front())));
-                        ui.label(format!("up: {}", vec_to_string(&camera.get_up())));
-                        ui.label(format!("right: {}", vec_to_string(&camera.get_right())));
-                        ui.label(format!(
-                            "world_up: {}",
-                            vec_to_string(camera.get_world_up())
-                        ));
-                        ui.label(format!("yaw: {:.2}", camera.get_yaw()));
-                        ui.label(format!("pitch: {:.2}", camera.get_pitch()));
-                        ui.label(format!("zoom: {:.2}", camera.get_fov()));
-                        ui.label(format!("near_plane: {:.2}", camera.get_near_plane()));
-                        ui.label(format!("far_plane: {:.2}", camera.get_far_plane()));
+                    // let camera = &camera;
+                    let camera = &path_trace_camera.read().unwrap();
+                    ui.label(format!(
+                        "position: {}",
+                        vec_to_string(&camera.get_position())
+                    ));
+                    ui.label(format!("front: {}", vec_to_string(&camera.get_front())));
+                    ui.label(format!("up: {}", vec_to_string(&camera.get_up())));
+                    ui.label(format!("right: {}", vec_to_string(&camera.get_right())));
+                    ui.label(format!(
+                        "world_up: {}",
+                        vec_to_string(camera.get_world_up())
+                    ));
+                    ui.label(format!("yaw: {:.2}", camera.get_yaw()));
+                    ui.label(format!("pitch: {:.2}", camera.get_pitch()));
+                    ui.label(format!("fov: {:.2}", camera.get_fov()));
+                    ui.label(format!("near_plane: {:.2}", camera.get_near_plane()));
+                    ui.label(format!("far_plane: {:.2}", camera.get_far_plane()));
 
-                        ui.separator();
+                    if let Some(sensor) = camera.get_sensor() {
+                        ui.label(format!("sensor width: {}", sensor.get_width()));
+                        ui.label(format!("sensor height: {}", sensor.get_height()));
+                        ui.label(format!(
+                            "sensor aspect ratio: {}",
+                            sensor.get_aspect_ratio()
+                        ));
+                    } else {
+                        ui.label("sensor not available");
+                    }
 
-                        ui.label(format!(
-                            "position: {}",
-                            vec_to_string(&camera.get_position().normalize())
-                        ));
-                        ui.label(format!(
-                            "front: {}",
-                            vec_to_string(&camera.get_front().normalize())
-                        ));
-                    });
+                    ui.separator();
+
+                    ui.label(format!(
+                        "position: {}",
+                        vec_to_string(&camera.get_position().normalize())
+                    ));
+                    ui.label(format!(
+                        "front: {}",
+                        vec_to_string(&camera.get_front().normalize())
+                    ));
                 });
         }
         // GUI Ends
