@@ -1,7 +1,7 @@
 use glm::Scalar;
 use ipc_channel::ipc;
 use rfd::FileDialog;
-use rt::camera::{Camera, Sensor};
+use rt::camera::{Camera, CameraDrawData, Sensor};
 use rt::image::{Image, PPM};
 use rt::inputs::InputArguments;
 use rt::meshio::MeshIO;
@@ -1388,17 +1388,17 @@ fn main_gui(
                 gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
             }
 
-            // TODO: drawing the camera
-            // path_trace_camera
-            //     .read()
-            //     .unwrap()
-            //     .draw(&mut PathTraceCameraDrawData::new(
-            //         imm.clone(),
-            //         Some(rendered_texture.clone()),
-            //         camera_image_alpha_value,
-            //         camera_use_depth_for_image,
-            //     ))
-            //     .unwrap();
+            // drawing the camera
+            path_trace_camera
+                .read()
+                .unwrap()
+                .draw(&mut CameraDrawData::new(
+                    imm.clone(),
+                    Some(rendered_texture.clone()),
+                    camera_image_alpha_value,
+                    camera_use_depth_for_image,
+                ))
+                .unwrap();
 
             // drawing the infinite grid
             infinite_grid

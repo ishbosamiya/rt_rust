@@ -1,6 +1,18 @@
+use std::{cell::RefCell, rc::Rc};
+
 use serde::{Deserialize, Serialize};
 
-use crate::{glm, path_trace::ray::Ray, util};
+use crate::{
+    glm,
+    path_trace::ray::Ray,
+    rasterize::{
+        drawable::Drawable,
+        gpu_immediate::{GPUImmediate, GPUPrimType, GPUVertCompType, GPUVertFetchMode},
+        gpu_utils, shader,
+        texture::TextureRGBAFloat,
+    },
+    util,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Camera {
@@ -393,4 +405,225 @@ impl Camera {
         self.fov = util::focal_length_to_fov(focal_length, self.get_sensor().unwrap().get_height())
             .to_degrees();
     }
+}
+
+pub struct CameraDrawData {
+    imm: Rc<RefCell<GPUImmediate>>,
+    image: Option<Rc<RefCell<TextureRGBAFloat>>>,
+    alpha_value: f64,
+    use_depth_for_image: bool,
+}
+
+impl CameraDrawData {
+    pub fn new(
+        imm: Rc<RefCell<GPUImmediate>>,
+        image: Option<Rc<RefCell<TextureRGBAFloat>>>,
+        alpha_value: f64,
+        use_depth_for_image: bool,
+    ) -> Self {
+        Self {
+            imm,
+            image,
+            alpha_value,
+            use_depth_for_image,
+        }
+    }
+}
+
+impl Drawable for Camera {
+    type ExtraData = CameraDrawData;
+
+    type Error = ();
+
+    fn draw(&self, extra_data: &mut Self::ExtraData) -> Result<(), Self::Error> {
+        let sensor = self.get_sensor().ok_or(())?;
+
+        let camera_plane_center = self.position
+            + self.front
+                * self
+                    .get_focal_length()
+                    .expect("by this point focal length should always be available");
+
+        let horizontal = self.right * sensor.get_width() / 2.0;
+        let vertical = self.up * sensor.get_height() / 2.0;
+
+        let camera_plane_top_left: glm::Vec3 =
+            glm::convert(camera_plane_center + -1.0 * horizontal + 1.0 * vertical);
+        let camera_plane_top_right: glm::Vec3 =
+            glm::convert(camera_plane_center + 1.0 * horizontal + 1.0 * vertical);
+        let camera_plane_bottom_left: glm::Vec3 =
+            glm::convert(camera_plane_center + -1.0 * horizontal + -1.0 * vertical);
+        let camera_plane_bottom_right: glm::Vec3 =
+            glm::convert(camera_plane_center + 1.0 * horizontal + -1.0 * vertical);
+        let origin: glm::Vec3 = glm::convert(self.get_position());
+        let vertical: glm::Vec3 = glm::convert(vertical);
+
+        let imm = &mut extra_data.imm.borrow_mut();
+        let smooth_color_3d_shader = shader::builtins::get_smooth_color_3d_shader()
+            .as_ref()
+            .unwrap();
+        let color: glm::Vec4 = glm::vec4(0.0, 0.0, 0.0, 1.0);
+        smooth_color_3d_shader.use_shader();
+        smooth_color_3d_shader.set_mat4("model\0", &glm::identity());
+
+        let format = imm.get_cleared_vertex_format();
+        let pos_attr = format.add_attribute(
+            "in_pos\0".to_string(),
+            GPUVertCompType::F32,
+            3,
+            GPUVertFetchMode::Float,
+        );
+        let color_attr = format.add_attribute(
+            "in_color\0".to_string(),
+            GPUVertCompType::F32,
+            4,
+            GPUVertFetchMode::Float,
+        );
+
+        imm.begin(GPUPrimType::Lines, 16, smooth_color_3d_shader);
+
+        // from origin to the plane
+        draw_line(
+            imm,
+            &origin,
+            &camera_plane_top_left,
+            pos_attr,
+            color_attr,
+            &color,
+        );
+        draw_line(
+            imm,
+            &origin,
+            &camera_plane_top_right,
+            pos_attr,
+            color_attr,
+            &color,
+        );
+        draw_line(
+            imm,
+            &origin,
+            &camera_plane_bottom_left,
+            pos_attr,
+            color_attr,
+            &color,
+        );
+        draw_line(
+            imm,
+            &origin,
+            &camera_plane_bottom_right,
+            pos_attr,
+            color_attr,
+            &color,
+        );
+
+        // the plane
+        draw_line(
+            imm,
+            &camera_plane_top_left,
+            &camera_plane_top_right,
+            pos_attr,
+            color_attr,
+            &color,
+        );
+        draw_line(
+            imm,
+            &camera_plane_top_right,
+            &camera_plane_bottom_right,
+            pos_attr,
+            color_attr,
+            &color,
+        );
+        draw_line(
+            imm,
+            &camera_plane_bottom_right,
+            &camera_plane_bottom_left,
+            pos_attr,
+            color_attr,
+            &color,
+        );
+        draw_line(
+            imm,
+            &camera_plane_bottom_left,
+            &camera_plane_top_left,
+            pos_attr,
+            color_attr,
+            &color,
+        );
+
+        imm.end();
+
+        // triangle at the top
+        imm.begin(GPUPrimType::Tris, 3, smooth_color_3d_shader);
+
+        draw_triangle(
+            imm,
+            &camera_plane_top_left,
+            &camera_plane_top_right,
+            &((camera_plane_top_left + camera_plane_top_right) / 2.0 + vertical),
+            pos_attr,
+            color_attr,
+            &color,
+        );
+
+        imm.end();
+
+        // draw image in the camera plane
+        if let Some(image) = &extra_data.image {
+            if !extra_data.use_depth_for_image {
+                unsafe {
+                    gl::Disable(gl::DEPTH_TEST);
+                }
+            }
+
+            let scale_x = (camera_plane_top_left - camera_plane_top_right).norm() as _;
+            let scale_z = (camera_plane_top_left - camera_plane_bottom_left).norm() as _;
+            gpu_utils::draw_plane_with_image(
+                &camera_plane_center,
+                &glm::vec3(scale_x, 1.0, scale_z),
+                &-(camera_plane_center - self.get_position()).normalize(),
+                &mut image.borrow_mut(),
+                extra_data.alpha_value,
+                imm,
+            );
+
+            if !extra_data.use_depth_for_image {
+                unsafe {
+                    gl::Enable(gl::DEPTH_TEST);
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
+fn draw_line(
+    imm: &mut GPUImmediate,
+    p1: &glm::Vec3,
+    p2: &glm::Vec3,
+    pos_attr: usize,
+    color_attr: usize,
+    color: &glm::Vec4,
+) {
+    imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+    imm.vertex_3f(pos_attr, p1[0], p1[1], p1[2]);
+    imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+    imm.vertex_3f(pos_attr, p2[0], p2[1], p2[2]);
+}
+
+fn draw_triangle(
+    imm: &mut GPUImmediate,
+    p1: &glm::Vec3,
+    p2: &glm::Vec3,
+    p3: &glm::Vec3,
+    pos_attr: usize,
+    color_attr: usize,
+    color: &glm::Vec4,
+) {
+    imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+    imm.vertex_3f(pos_attr, p1[0], p1[1], p1[2]);
+    imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+    imm.vertex_3f(pos_attr, p2[0], p2[1], p2[2]);
+    imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+    imm.vertex_3f(pos_attr, p3[0], p3[1], p3[2]);
 }
