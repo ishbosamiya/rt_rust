@@ -46,13 +46,84 @@ use rt::rasterize::infinite_grid::{InfiniteGrid, InfiniteGridDrawData};
 use rt::rasterize::shader;
 
 #[derive(Debug, Serialize, Deserialize)]
+struct OldPathTraceCamera {
+    sensor_height: f64,
+    sensor_width: f64,
+    aspect_ratio: f64,
+    focal_length: f64,
+    origin: glm::DVec3,
+
+    horizontal: glm::DVec3,
+    vertical: glm::DVec3,
+    camera_plane_center: glm::DVec3,
+}
+
+impl From<OldPathTraceCamera> for Camera {
+    fn from(cam: OldPathTraceCamera) -> Self {
+        let mut camera = Camera::new(
+            cam.origin,
+            glm::vec3(0.0, 1.0, 0.0),
+            -90.0,
+            0.0,
+            45.0,
+            Some(Sensor::new(cam.sensor_width, cam.sensor_height)),
+        );
+        camera.set_focal_length(cam.focal_length);
+        camera
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+enum CameraIO {
+    V0(OldPathTraceCamera),
+    V1(Camera),
+}
+
+impl From<CameraIO> for Camera {
+    fn from(io: CameraIO) -> Self {
+        match io {
+            CameraIO::V0(cam) => cam.into(),
+            CameraIO::V1(cam) => cam,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(from = "FileShadow")]
 struct File {
     scene: Arc<RwLock<Scene>>,
     shader_list: Arc<RwLock<ShaderList>>,
     path_trace_camera: Arc<RwLock<Camera>>,
 
+    environment: Arc<RwLock<Environment>>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct FileShadow {
+    scene: Arc<RwLock<Scene>>,
+    shader_list: Arc<RwLock<ShaderList>>,
+    path_trace_camera: Arc<RwLock<CameraIO>>,
+
     #[serde(default = "default_environment")]
     environment: Arc<RwLock<Environment>>,
+}
+
+impl From<FileShadow> for File {
+    fn from(file: FileShadow) -> Self {
+        Self {
+            scene: file.scene,
+            shader_list: file.shader_list,
+            path_trace_camera: Arc::new(RwLock::new(
+                Arc::try_unwrap(file.path_trace_camera)
+                    .unwrap()
+                    .into_inner()
+                    .unwrap()
+                    .into(),
+            )),
+            environment: file.environment,
+        }
+    }
 }
 
 fn default_environment() -> Arc<RwLock<Environment>> {
