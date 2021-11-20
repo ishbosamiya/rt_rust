@@ -2,7 +2,7 @@ use glm::Scalar;
 use ipc_channel::ipc;
 use rfd::FileDialog;
 use rt::camera::{Camera, CameraDrawData, Sensor};
-use rt::image::{Image, PPM};
+use rt::image::Image;
 use rt::inputs::InputArguments;
 use rt::meshio::MeshIO;
 use rt::object::objects::Mesh as MeshObject;
@@ -548,7 +548,6 @@ fn main_gui(
     let mut samples_per_pixel = arguments
         .get_samples()
         .unwrap_or_else(default_samples_per_pixel);
-    let mut save_image_location = "test.ppm".to_string();
     let mut ray_traversal_info: Vec<TraversalInfo> = Vec::new();
     let mut ray_to_shoot = (3, 3);
     let mut ray_pixel_start = (
@@ -980,29 +979,28 @@ fn main_gui(
                                 }
                             });
 
-                            ui.horizontal(|ui| {
-                                ui.label("Save Location");
-                                ui.text_edit_singleline(&mut save_image_location);
-                            });
-
-                            if ui.button("Save Ray Traced Image PPM").clicked() {
-                                let image =
-                                    Image::from_texture_rgba_float(&rendered_texture.borrow());
-                                PPM::new(&image)
-                                    .write_to_file(&save_image_location)
-                                    .unwrap();
-                            }
-
-                            if ui.button("Save Ray Traced Image All Data").clicked() {
+                            if ui.button("Save Ray Traced Image").clicked() {
                                 if let Some(path) = FileDialog::new()
                                     .add_filter("image", &["image"])
+                                    .add_filter("png", &["png"])
+                                    .add_filter("jpg", &["jpg", "jpeg"])
+                                    .add_filter("tiff", &["tiff"])
                                     .add_filter("Any", &["*"])
                                     .set_directory(".")
                                     .save_file()
                                 {
                                     let image: &Image = &rendered_image.read().unwrap();
-                                    let file = serde_json::to_string(image).unwrap();
-                                    std::fs::write(path, file).unwrap();
+                                    if let Some(extension) = path.extension() {
+                                        if extension == "image" {
+                                            let file = serde_json::to_string(image).unwrap();
+                                            std::fs::write(path, file).unwrap();
+                                        } else {
+                                            save_image(image, true, path);
+                                        }
+                                    } else {
+                                        let file = serde_json::to_string(image).unwrap();
+                                        std::fs::write(path, file).unwrap();
+                                    }
                                 }
                             }
 
@@ -1737,4 +1735,44 @@ fn glfw_modifier_to_string(mods: glfw::Modifiers) -> String {
         res
     };
     res
+}
+
+fn save_image<P>(image: &Image, linear_to_srgb: bool, output_path: P)
+where
+    P: AsRef<std::path::Path>,
+{
+    let image = image::ImageBuffer::from_fn(
+        image.width().try_into().unwrap(),
+        image.height().try_into().unwrap(),
+        |i, j| {
+            let pixel = image.get_pixel(i.try_into().unwrap(), j.try_into().unwrap());
+            let pixel = [pixel[0] as f32, pixel[1] as f32, pixel[2] as f32];
+
+            let pixel = if linear_to_srgb {
+                [
+                    egui::color::gamma_from_linear(pixel[0]),
+                    egui::color::gamma_from_linear(pixel[1]),
+                    egui::color::gamma_from_linear(pixel[2]),
+                ]
+            } else {
+                pixel
+            };
+
+            let pixel = [
+                (pixel[0] * 255.0).round(),
+                (pixel[1] * 255.0).round(),
+                (pixel[2] * 255.0).round(),
+                255.0,
+            ];
+
+            image::Rgba([
+                pixel[0] as u8,
+                pixel[1] as u8,
+                pixel[2] as u8,
+                pixel[3] as u8,
+            ])
+        },
+    );
+
+    image.save(output_path).unwrap();
 }
