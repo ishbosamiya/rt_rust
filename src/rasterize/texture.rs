@@ -61,9 +61,14 @@ impl TextureRGBAFloat {
         P: AsRef<std::path::Path>,
     {
         let file = std::fs::File::open(path).ok()?;
-        let image_reader = image::io::Reader::new(std::io::BufReader::new(file))
-            .with_guessed_format()
-            .ok()?;
+        Self::load_from_reader(std::io::BufReader::new(file))
+    }
+
+    pub fn load_from_reader<R>(reader: R) -> Option<Self>
+    where
+        R: std::io::BufRead + std::io::Seek,
+    {
+        let image_reader = image::io::Reader::new(reader).with_guessed_format().ok()?;
         let image = image_reader.decode().ok()?;
         Some(TextureRGBAFloat::from_pixels(
             image.width().try_into().unwrap(),
