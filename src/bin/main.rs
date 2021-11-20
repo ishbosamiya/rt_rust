@@ -577,10 +577,14 @@ fn main_gui(
     let mut end_ray_depth: usize = trace_max_depth;
     let mut start_ray_depth: usize = 1;
 
+    let icon_viewport_render_shading = include_bytes!("../../icons/viewport_render_shading.png");
+    let icon_viewport_solid_shading = include_bytes!("../../icons/viewport_solid_shading.png");
     let mut icon_viewport_render_shading =
-        TextureRGBAFloat::load_from_disk("./icons/viewport_render_shading.png").unwrap();
+        TextureRGBAFloat::load_from_reader(std::io::Cursor::new(icon_viewport_render_shading))
+            .unwrap();
     let mut icon_viewport_solid_shading =
-        TextureRGBAFloat::load_from_disk("./icons/viewport_solid_shading.png").unwrap();
+        TextureRGBAFloat::load_from_reader(std::io::Cursor::new(icon_viewport_solid_shading))
+            .unwrap();
 
     while !window.should_close() {
         glfw.poll_events();
