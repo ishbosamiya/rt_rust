@@ -553,6 +553,7 @@ fn main() {
             return;
         }
 
+        let start_instant = std::time::Instant::now();
         let mut path_trace_handle = command.spawn().expect("Error in spawing");
 
         // Fixes a bug where the child has some error before sending
@@ -610,6 +611,24 @@ fn main() {
                             "RT File: {} failed with exit status: {}",
                             file.rt_path.to_str().unwrap(),
                             status
+                        );
+                    }
+
+                    let time_taken = start_instant.elapsed().as_secs_f64();
+                    if time_taken / 60.0 < 1.0 {
+                        println!("Finished in {:.3}s", time_taken);
+                    } else if time_taken / 60.0 / 60.0 < 1.0 {
+                        println!(
+                            "Finished in {:.0}m {:.2}s",
+                            time_taken / 60.0,
+                            time_taken % 60.0
+                        );
+                    } else {
+                        println!(
+                            "Finished in {:.0}h {:.0}m {:.2}s",
+                            time_taken / 60.0,
+                            (time_taken / 60.0) % 60.0,
+                            ((time_taken / 60.0) % 60.0 / 60.0) % 60.0,
                         );
                     }
 
