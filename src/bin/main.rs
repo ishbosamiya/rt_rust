@@ -577,6 +577,11 @@ fn main_gui(
     let mut end_ray_depth: usize = trace_max_depth;
     let mut start_ray_depth: usize = 1;
 
+    let mut icon_viewport_render_shading =
+        TextureRGBAFloat::load_from_disk("./icons/viewport_render_shading.png").unwrap();
+    let mut icon_viewport_solid_shading =
+        TextureRGBAFloat::load_from_disk("./icons/viewport_solid_shading.png").unwrap();
+
     while !window.should_close() {
         glfw.poll_events();
 
@@ -1227,6 +1232,40 @@ fn main_gui(
                     glm::vec2(viewport_top_left_x, viewport_top_left_y),
                 )
             };
+
+            egui::CentralPanel::default()
+                .frame(egui::Frame::none().fill(egui::Color32::TRANSPARENT))
+                .show(egui.get_egui_ctx(), |ui| {
+                    egui::TopBottomPanel::top("viewport top panel").show_inside(ui, |ui| {
+                        ui.horizontal(|ui| {
+                            let response = ui.image(
+                                egui::TextureId::User(
+                                    icon_viewport_solid_shading.get_gl_tex().into(),
+                                ),
+                                [ui.available_height(), ui.available_height()],
+                            );
+                            if ui
+                                .interact(response.rect, response.id, egui::Sense::click())
+                                .clicked()
+                            {
+                                println!("TODO: solid shading clicked");
+                            }
+
+                            let response = ui.image(
+                                egui::TextureId::User(
+                                    icon_viewport_render_shading.get_gl_tex().into(),
+                                ),
+                                [ui.available_height(), ui.available_height()],
+                            );
+                            if ui
+                                .interact(response.rect, response.id, egui::Sense::click())
+                                .clicked()
+                            {
+                                println!("TODO: render shading clicked");
+                            }
+                        });
+                    });
+                });
 
             egui::Window::new("Rendered Image Window")
                 .open(&mut open_rendered_image_window)
