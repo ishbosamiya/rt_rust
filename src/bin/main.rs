@@ -532,7 +532,7 @@ fn main_gui(
     )));
 
     let mut key_mods = glfw::Modifiers::empty();
-    let mut use_top_panel = false;
+    let mut use_top_panel = true;
     let mut use_bottom_panel = false;
     let mut use_left_panel = true;
     let mut use_right_panel = true;
@@ -652,7 +652,47 @@ fn main_gui(
             let top_panel_response = if use_top_panel {
                 let response = egui::TopBottomPanel::top("Top Panel")
                     .resizable(true)
-                    .show(egui.get_egui_ctx(), |_ui| {})
+                    .show(egui.get_egui_ctx(), |ui| {
+                        egui::menu::bar(ui, |ui| {
+                            egui::menu::menu(ui, "File", |ui| {
+                                if ui.button("Open").clicked() {
+                                    if let Some(path) = FileDialog::new()
+                                        .add_filter("RT", &["rt"])
+                                        .add_filter("Any", &["*"])
+                                        .set_directory(".")
+                                        .pick_file()
+                                    {
+                                        file::load_rt_file(
+                                            path,
+                                            scene.clone(),
+                                            shader_list.clone(),
+                                            path_trace_camera.clone(),
+                                            environment.clone(),
+                                        );
+                                    }
+                                }
+
+                                if ui.button("Save As").clicked() {
+                                    let file = File::new(
+                                        scene.clone(),
+                                        shader_list.clone(),
+                                        path_trace_camera.clone(),
+                                        environment.clone(),
+                                    );
+                                    let file_serialized = serde_json::to_string(&file).unwrap();
+                                    if let Some(path) = FileDialog::new()
+                                        .add_filter("RT", &["rt"])
+                                        .add_filter("Any", &["*"])
+                                        .set_directory(".")
+                                        .set_file_name("untitled.rt")
+                                        .save_file()
+                                    {
+                                        std::fs::write(path, file_serialized).unwrap();
+                                    }
+                                }
+                            });
+                        });
+                    })
                     .response;
                 Some(response)
             } else {
@@ -761,41 +801,6 @@ fn main_gui(
                                 "Time Left (in secs) {:.2}",
                                 path_trace_progress.read().unwrap().get_remaining_time()
                             ));
-
-                            if ui.button("Save File").clicked() {
-                                let file = File::new(
-                                    scene.clone(),
-                                    shader_list.clone(),
-                                    path_trace_camera.clone(),
-                                    environment.clone(),
-                                );
-                                let file_serialized = serde_json::to_string(&file).unwrap();
-                                if let Some(path) = FileDialog::new()
-                                    .add_filter("RT", &["rt"])
-                                    .add_filter("Any", &["*"])
-                                    .set_directory(".")
-                                    .set_file_name("untitled.rt")
-                                    .save_file()
-                                {
-                                    std::fs::write(path, file_serialized).unwrap();
-                                }
-                            }
-                            if ui.button("Load File").clicked() {
-                                if let Some(path) = FileDialog::new()
-                                    .add_filter("RT", &["rt"])
-                                    .add_filter("Any", &["*"])
-                                    .set_directory(".")
-                                    .pick_file()
-                                {
-                                    file::load_rt_file(
-                                        path,
-                                        scene.clone(),
-                                        shader_list.clone(),
-                                        path_trace_camera.clone(),
-                                        environment.clone(),
-                                    );
-                                }
-                            }
 
                             if ui.button("Load OBJ file to scene").clicked() {
                                 if let Some(path) = FileDialog::new()
