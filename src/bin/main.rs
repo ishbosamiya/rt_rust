@@ -23,7 +23,7 @@ use rt::scene::{Scene, SceneDrawData};
 use rt::transform::Transform;
 use rt::ui::DrawUI;
 use rt::viewport::Viewport;
-use rt::{file, glm, ui, UiData};
+use rt::{file, glm, ui, util, UiData};
 
 use std::cell::RefCell;
 use std::convert::TryInto;
@@ -429,6 +429,11 @@ fn main_headless(
         .unwrap();
 
     ray_trace_main_thread_handle.join().unwrap();
+
+    println!(
+        "Finished in {}",
+        util::duration_to_string(path_trace_progress.read().unwrap().get_elapsed_duration())
+    );
 
     let image: &Image = &rendered_image.read().unwrap();
     let file = serde_json::to_string(image).unwrap();

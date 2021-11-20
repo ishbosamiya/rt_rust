@@ -38,13 +38,17 @@ impl Progress {
         self.finished_time = Some(self.instant.elapsed());
     }
 
-    pub fn get_elapsed_time(&self) -> f64 {
+    pub fn get_elapsed_duration(&self) -> Duration {
         if let Some(finished_time) = self.finished_time {
             // if progress has finished, return finished time
-            finished_time.as_secs_f64()
+            finished_time
         } else {
-            self.instant.elapsed().as_secs_f64()
+            self.instant.elapsed()
         }
+    }
+
+    pub fn get_elapsed_time(&self) -> f64 {
+        self.get_elapsed_duration().as_secs_f64()
     }
 
     pub fn get_remaining_time(&self) -> f64 {

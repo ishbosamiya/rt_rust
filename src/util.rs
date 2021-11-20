@@ -38,3 +38,19 @@ pub fn focal_length_to_fov(focal_length: f64, camera_sensor_size: f64) -> f64 {
 pub fn fov_to_focal_length(fov: f64, camera_sensor_size: f64) -> f64 {
     camera_sensor_size / (2.0 * (fov / 2.0).tan())
 }
+
+pub fn duration_to_string(duration: std::time::Duration) -> String {
+    let time_taken = duration.as_secs_f64();
+    if time_taken / 60.0 < 1.0 {
+        format!("{:.3}s", time_taken)
+    } else if time_taken / 60.0 / 60.0 < 1.0 {
+        format!("{:.0}m {:.2}s", time_taken / 60.0, time_taken % 60.0)
+    } else {
+        format!(
+            "{:.0}h {:.0}m {:.2}s",
+            time_taken / 60.0,
+            (time_taken / 60.0) % 60.0,
+            ((time_taken / 60.0) % 60.0 / 60.0) % 60.0,
+        )
+    }
+}
