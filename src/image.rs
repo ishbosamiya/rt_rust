@@ -1,6 +1,3 @@
-use std::fs::File;
-use std::io::prelude::*;
-
 use image::Pixel;
 use serde::{Deserialize, Serialize};
 
@@ -160,46 +157,5 @@ impl Slab {
 
     pub fn get_pixels(&self) -> &Vec<Vec<glm::DVec3>> {
         &self.pixels
-    }
-}
-
-pub struct PPM<'a> {
-    image: &'a Image,
-}
-
-impl PPM<'_> {
-    pub fn new(image: &Image) -> PPM {
-        PPM { image }
-    }
-
-    pub fn write_to_file<P: AsRef<std::path::Path>>(&self, path: P) -> std::io::Result<()> {
-        let mut string_data = String::new();
-
-        let header = "P3\n";
-        string_data.push_str(header);
-
-        let sizing = format!("{} {}\n", self.image.width(), self.image.height());
-        string_data.push_str(&sizing);
-
-        let max_val = "255\n";
-        string_data.push_str(max_val);
-
-        for i in self.image.get_pixels().chunks(self.image.width()) {
-            for j in i {
-                let j = glm::clamp(j, 0.0, 1.0);
-                string_data.push_str(&((j[0] * 255.0) as i64 % 256).to_string());
-                string_data.push(' ');
-                string_data.push_str(&((j[1] * 255.0) as i64 % 256).to_string());
-                string_data.push(' ');
-                string_data.push_str(&((j[2] * 255.0) as i64 % 256).to_string());
-                string_data.push(' ');
-            }
-            string_data.push('\n');
-        }
-
-        let mut fout = File::create(path).unwrap();
-        fout.write_all(string_data.as_bytes())?;
-
-        Ok(())
     }
 }
