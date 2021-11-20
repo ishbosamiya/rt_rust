@@ -672,6 +672,8 @@ fn main_gui(
                                     }
                                 }
 
+                                ui.separator();
+
                                 if ui.button("Save As").clicked() {
                                     let file = File::new(
                                         scene.clone(),
@@ -688,6 +690,30 @@ fn main_gui(
                                         .save_file()
                                     {
                                         std::fs::write(path, file_serialized).unwrap();
+                                    }
+                                }
+
+                                ui.separator();
+
+                                if ui.button("Import OBJ").clicked() {
+                                    if let Some(path) = FileDialog::new()
+                                        .add_filter("OBJ", &["obj"])
+                                        .add_filter("Any", &["*"])
+                                        .set_directory(".")
+                                        .pick_file()
+                                    {
+                                        load_obj_file(path).drain(0..).for_each(|object| {
+                                            scene.write().unwrap().add_object(Box::new(object));
+                                        });
+                                        // update scene bvh
+                                        {
+                                            let mut scene = scene.write().unwrap();
+                                            scene.apply_model_matrices();
+
+                                            scene.build_bvh(0.01);
+
+                                            scene.unapply_model_matrices();
+                                        }
                                     }
                                 }
                             });
@@ -801,28 +827,6 @@ fn main_gui(
                                 "Time Left (in secs) {:.2}",
                                 path_trace_progress.read().unwrap().get_remaining_time()
                             ));
-
-                            if ui.button("Load OBJ file to scene").clicked() {
-                                if let Some(path) = FileDialog::new()
-                                    .add_filter("OBJ", &["obj"])
-                                    .add_filter("Any", &["*"])
-                                    .set_directory(".")
-                                    .pick_file()
-                                {
-                                    load_obj_file(path).drain(0..).for_each(|object| {
-                                        scene.write().unwrap().add_object(Box::new(object));
-                                    });
-                                    // update scene bvh
-                                    {
-                                        let mut scene = scene.write().unwrap();
-                                        scene.apply_model_matrices();
-
-                                        scene.build_bvh(0.01);
-
-                                        scene.unapply_model_matrices();
-                                    }
-                                }
-                            }
 
                             ui.checkbox(
                                 &mut use_environment_map_as_background,
