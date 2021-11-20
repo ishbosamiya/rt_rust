@@ -690,6 +690,18 @@ fn main_gui(
                                     }
                                 }
 
+                                if ui.button("Revert").clicked() {
+                                    if let Some(path) = file_open_path.as_ref() {
+                                        file::load_rt_file(
+                                            path,
+                                            scene.clone(),
+                                            shader_list.clone(),
+                                            path_trace_camera.clone(),
+                                            environment.clone(),
+                                        );
+                                    }
+                                }
+
                                 ui.separator();
 
                                 let save_as = || {
