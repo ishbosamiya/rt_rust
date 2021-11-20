@@ -2,6 +2,7 @@ pub mod bvh;
 pub mod camera;
 pub mod file;
 pub mod fps;
+pub mod icons;
 pub mod image;
 pub mod inputs;
 pub mod math;

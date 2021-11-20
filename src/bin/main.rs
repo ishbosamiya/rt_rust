@@ -23,7 +23,7 @@ use rt::scene::{Scene, SceneDrawData};
 use rt::transform::Transform;
 use rt::ui::DrawUI;
 use rt::viewport::Viewport;
-use rt::{file, glm, ui, util, UiData};
+use rt::{file, glm, icons, ui, util, UiData};
 
 use std::cell::RefCell;
 use std::convert::TryInto;
@@ -576,15 +576,6 @@ fn main_gui(
     let mut selected_shader: Option<ShaderID> = None;
     let mut end_ray_depth: usize = trace_max_depth;
     let mut start_ray_depth: usize = 1;
-
-    let icon_viewport_render_shading = include_bytes!("../../icons/viewport_render_shading.png");
-    let icon_viewport_solid_shading = include_bytes!("../../icons/viewport_solid_shading.png");
-    let mut icon_viewport_render_shading =
-        TextureRGBAFloat::load_from_reader(std::io::Cursor::new(icon_viewport_render_shading))
-            .unwrap();
-    let mut icon_viewport_solid_shading =
-        TextureRGBAFloat::load_from_reader(std::io::Cursor::new(icon_viewport_solid_shading))
-            .unwrap();
 
     while !window.should_close() {
         glfw.poll_events();
@@ -1244,7 +1235,7 @@ fn main_gui(
                         ui.horizontal(|ui| {
                             let response = ui.image(
                                 egui::TextureId::User(
-                                    icon_viewport_solid_shading.get_gl_tex().into(),
+                                    icons::get_viewport_solid_shading_icon_id().into(),
                                 ),
                                 [ui.available_height(), ui.available_height()],
                             );
@@ -1257,7 +1248,7 @@ fn main_gui(
 
                             let response = ui.image(
                                 egui::TextureId::User(
-                                    icon_viewport_render_shading.get_gl_tex().into(),
+                                    icons::get_viewport_rendered_shading_icon_id().into(),
                                 ),
                                 [ui.available_height(), ui.available_height()],
                             );
