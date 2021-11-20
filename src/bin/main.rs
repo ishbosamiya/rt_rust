@@ -1233,30 +1233,28 @@ fn main_gui(
                 .show(egui.get_egui_ctx(), |ui| {
                     egui::TopBottomPanel::top("viewport top panel").show_inside(ui, |ui| {
                         ui.horizontal(|ui| {
-                            let response = ui.image(
-                                egui::TextureId::User(
-                                    icons::get_viewport_solid_shading_icon_id().into(),
-                                ),
-                                [ui.available_height(), ui.available_height()],
-                            );
                             if ui
-                                .interact(response.rect, response.id, egui::Sense::click())
+                                .add(egui::ImageButton::new(
+                                    egui::TextureId::User(
+                                        icons::get_viewport_solid_shading_icon_id().into(),
+                                    ),
+                                    [ui.available_height(), ui.available_height()],
+                                ))
                                 .clicked()
                             {
                                 println!("TODO: solid shading clicked");
                             }
 
-                            let response = ui.image(
-                                egui::TextureId::User(
-                                    icons::get_viewport_rendered_shading_icon_id().into(),
-                                ),
-                                [ui.available_height(), ui.available_height()],
-                            );
                             if ui
-                                .interact(response.rect, response.id, egui::Sense::click())
+                                .add(egui::ImageButton::new(
+                                    egui::TextureId::User(
+                                        icons::get_viewport_rendered_shading_icon_id().into(),
+                                    ),
+                                    [ui.available_height(), ui.available_height()],
+                                ))
                                 .clicked()
                             {
-                                println!("TODO: render shading clicked");
+                                println!("TODO: rendered shading clicked");
                             }
                         });
                     });
