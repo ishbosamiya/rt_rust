@@ -7,10 +7,12 @@ use ipc_channel::ipc;
 use is_executable::IsExecutable;
 use nalgebra_glm as glm;
 use serde::{Deserialize, Serialize};
-use std::ffi::OsStr;
-use std::process::{self, exit};
 
+use rt::util;
+
+use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
+use std::process::{self, exit};
 use std::sync::atomic::{self, AtomicBool};
 use std::sync::Arc;
 use std::time::Duration;
@@ -614,23 +616,10 @@ fn main() {
                         );
                     }
 
-                    let time_taken = start_instant.elapsed().as_secs_f64();
-                    if time_taken / 60.0 < 1.0 {
-                        println!("Finished in {:.3}s", time_taken);
-                    } else if time_taken / 60.0 / 60.0 < 1.0 {
-                        println!(
-                            "Finished in {:.0}m {:.2}s",
-                            time_taken / 60.0,
-                            time_taken % 60.0
-                        );
-                    } else {
-                        println!(
-                            "Finished in {:.0}h {:.0}m {:.2}s",
-                            time_taken / 60.0,
-                            (time_taken / 60.0) % 60.0,
-                            ((time_taken / 60.0) % 60.0 / 60.0) % 60.0,
-                        );
-                    }
+                    println!(
+                        "Finished in {}",
+                        util::duration_to_string(start_instant.elapsed())
+                    );
 
                     true
                 }
