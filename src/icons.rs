@@ -18,10 +18,16 @@ macro_rules! define_icon {
                 };
             }
 
-            pub fn [<get_ $name _icon>]() -> Arc<RwLock<TextureRGBAFloat>> {
+            #[doc = "Get texture of the icon " $name:upper]
+            ///
+            /// # Safety
+            ///
+            #[doc = "It is advisable to get the (OpenGL) id using [`" [<get_ $name _icon_id>] "`] which is generally what is required. Making the access to the texture itself harder is to ensure unnecessary deadlocks do not occur and to encourage the user to use the (OpenGL) id instead."]
+            pub unsafe fn [<get_ $name _icon>]() -> Arc<RwLock<TextureRGBAFloat>> {
                 [<$name:upper>].clone()
             }
 
+            #[doc = "Get (OpenGL) id of the texture of the icon " $name:upper]
             pub fn [<get_ $name _icon_id>]() -> gl::types::GLuint {
                 [<$name:upper>].write().unwrap().get_gl_tex()
             }
