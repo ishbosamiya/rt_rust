@@ -9,6 +9,7 @@ pub mod utils;
 use std::sync::{Arc, RwLock};
 
 use super::texture_list::TextureList;
+use crate::egui;
 
 pub struct BSDFUiData {
     texture_list: Arc<RwLock<TextureList>>,

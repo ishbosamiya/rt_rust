@@ -3,8 +3,7 @@ use std::collections::{hash_map, HashMap};
 use rfd::FileDialog;
 use serde::{Deserialize, Serialize};
 
-use crate::UiData;
-use crate::{rasterize::texture::TextureRGBAFloat, ui::DrawUI};
+use crate::{egui, rasterize::texture::TextureRGBAFloat, ui::DrawUI, UiData};
 
 /// A unique identifier given to each `Texture` during its
 /// initialization.

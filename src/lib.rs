@@ -19,6 +19,7 @@ pub mod ui;
 pub mod util;
 pub mod viewport;
 
+pub(crate) use egui_glfw::egui;
 pub use nalgebra_glm as glm;
 
 use camera::Camera;

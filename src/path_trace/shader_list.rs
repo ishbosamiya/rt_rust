@@ -3,7 +3,7 @@ use std::{
     fmt::Debug,
 };
 
-use crate::{glm, path_trace::bsdfs::BSDFUiData, ui};
+use crate::{egui, glm, path_trace::bsdfs::BSDFUiData, ui};
 use crate::{ui::DrawUI, UiData};
 
 use super::bsdf::BSDF;

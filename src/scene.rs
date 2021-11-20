@@ -6,6 +6,7 @@ use std::sync::{Arc, RwLock};
 use crate::bvh::BVHTree;
 #[cfg(not(feature = "scene_no_bvh"))]
 use crate::bvh::{RayHitData, RayHitOptionalData};
+use crate::egui;
 #[cfg(not(feature = "scene_no_bvh"))]
 use crate::glm;
 use crate::object::{DrawError, Object, ObjectDrawData, ObjectID};

@@ -32,8 +32,10 @@ use std::sync::atomic::{self, AtomicBool};
 use std::sync::{mpsc, Arc, RwLock};
 use std::thread;
 
-use egui::{FontDefinitions, FontFamily, TextStyle};
-use egui_glfw::EguiBackend;
+use egui_glfw::{
+    egui::{self, FontDefinitions, FontFamily, TextStyle},
+    EguiBackend,
+};
 use glfw::{Action, Context, Key};
 use rand::seq::IteratorRandom;
 

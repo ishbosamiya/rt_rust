@@ -1,7 +1,9 @@
 use std::{cell::RefCell, convert::TryInto, rc::Rc};
 
-use egui::{FontDefinitions, FontFamily, TextStyle};
-use egui_glfw::EguiBackend;
+use egui_glfw::{
+    egui::{self, FontDefinitions, FontFamily, TextStyle},
+    EguiBackend,
+};
 use glfw::{Action, Context, Key};
 
 use rt::{

@@ -5,6 +5,7 @@ use super::super::bsdf::{SampleData, SamplingTypes, BSDF};
 use super::super::intersectable::IntersectInfo;
 use super::utils::{ColorPicker, ColorPickerUiData};
 use super::BSDFUiData;
+use crate::egui;
 use crate::glm;
 use crate::path_trace::medium::{Medium, Mediums};
 use crate::path_trace::texture_list::TextureList;

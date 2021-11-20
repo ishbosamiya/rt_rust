@@ -1,5 +1,5 @@
 use crate::ui::DrawUI;
-use crate::{glm, UiData};
+use crate::{egui, glm, UiData};
 
 use serde::{Deserialize, Serialize};
 

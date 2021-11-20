@@ -1,5 +1,4 @@
-use egui;
-
+use crate::egui;
 use crate::glm;
 
 pub trait DrawUI {

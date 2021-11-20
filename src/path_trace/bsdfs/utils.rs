@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::path_trace::texture_list::{TextureID, TextureList};
 use crate::ui::DrawUI;
-use crate::{glm, math, ui};
+use crate::{egui, glm, math, ui};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ColorPicker {
