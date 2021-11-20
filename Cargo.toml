@@ -10,8 +10,6 @@ default-run = "main"
 [dependencies]
 nalgebra-glm = { version = "0.13", features = ["serde-serialize"] }
 rand = "0.8"
-crossbeam-channel = "0.5"
-crossbeam = "0.8"
 lazy_static = "1.4"
 gl = "0.14"
 paste = "1.0"
@@ -31,16 +29,6 @@ clap = "2.33"
 pbr = "1.0"
 ipc-channel = "0.15"
 ctrlc = { version = "3.2", features = ["termination"] }
-
-[dev-dependencies]
-criterion = { version = "0.3.4", features = ["html_reports"]}
-
-[[bench]]
-name = "ray_collision_bench"
-harness = false
-
-[profile.bench]
-debug = true
 
 [profile.release]
 debug = true
