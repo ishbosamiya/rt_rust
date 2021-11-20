@@ -27,6 +27,7 @@ use rt::{file, glm, ui, util, UiData};
 
 use std::cell::RefCell;
 use std::convert::TryInto;
+use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::atomic::{self, AtomicBool};
 use std::sync::{mpsc, Arc, RwLock};
@@ -39,7 +40,6 @@ use egui_glfw::{
 use glfw::{Action, Context, Key};
 use rand::seq::IteratorRandom;
 
-use rt::file::File;
 use rt::fps::FPS;
 use rt::mesh::MeshUseShader;
 use rt::rasterize::drawable::Drawable;
@@ -180,14 +180,18 @@ fn main() {
 
     let environment = Arc::new(RwLock::new(Environment::default()));
 
+    let mut file_open_path = None;
+
     if let Some(path) = arguments.get_rt_file() {
         file::load_rt_file(
-            path,
+            &path,
             scene.clone(),
             shader_list.clone(),
             path_trace_camera.clone(),
             environment.clone(),
         );
+
+        file_open_path = Some(path.clone());
     }
 
     // set environment map from the given path overriding the
@@ -348,6 +352,7 @@ fn main() {
             ray_trace_main_thread_handle,
             ray_trace_thread_sender,
             arguments,
+            file_open_path,
             sigint_triggered,
         );
     }
@@ -458,6 +463,7 @@ fn main_gui(
     ray_trace_main_thread_handle: thread::JoinHandle<()>,
     ray_trace_thread_sender: mpsc::Sender<RayTraceMessage>,
     arguments: InputArguments,
+    mut file_open_path: Option<PathBuf>,
     sigint_triggered: Arc<AtomicBool>,
 ) {
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
@@ -597,6 +603,16 @@ fn main_gui(
             break;
         }
 
+        // set window title
+        if let Some(path) = file_open_path.as_ref() {
+            window.set_title(&format!(
+                "RT Rust ({})",
+                path.canonicalize().unwrap().to_str().unwrap()
+            ));
+        } else {
+            window.set_title("RT Rust");
+        }
+
         rendered_texture
             .borrow_mut()
             .update_from_image(&rendered_image.read().unwrap());
@@ -663,25 +679,20 @@ fn main_gui(
                                         .pick_file()
                                     {
                                         file::load_rt_file(
-                                            path,
+                                            &path,
                                             scene.clone(),
                                             shader_list.clone(),
                                             path_trace_camera.clone(),
                                             environment.clone(),
                                         );
+
+                                        file_open_path = Some(path);
                                     }
                                 }
 
                                 ui.separator();
 
-                                if ui.button("Save As").clicked() {
-                                    let file = File::new(
-                                        scene.clone(),
-                                        shader_list.clone(),
-                                        path_trace_camera.clone(),
-                                        environment.clone(),
-                                    );
-                                    let file_serialized = serde_json::to_string(&file).unwrap();
+                                let save_as = || {
                                     if let Some(path) = FileDialog::new()
                                         .add_filter("RT", &["rt"])
                                         .add_filter("Any", &["*"])
@@ -689,8 +700,32 @@ fn main_gui(
                                         .set_file_name("untitled.rt")
                                         .save_file()
                                     {
-                                        std::fs::write(path, file_serialized).unwrap();
+                                        file::save_rt_file(
+                                            path,
+                                            scene.clone(),
+                                            shader_list.clone(),
+                                            path_trace_camera.clone(),
+                                            environment.clone(),
+                                        );
                                     }
+                                };
+
+                                if ui.button("Save").clicked() {
+                                    if let Some(path) = file_open_path.as_ref() {
+                                        file::save_rt_file(
+                                            path,
+                                            scene.clone(),
+                                            shader_list.clone(),
+                                            path_trace_camera.clone(),
+                                            environment.clone(),
+                                        );
+                                    } else {
+                                        save_as();
+                                    }
+                                }
+
+                                if ui.button("Save As").clicked() {
+                                    save_as();
                                 }
 
                                 ui.separator();

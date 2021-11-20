@@ -135,3 +135,17 @@ pub fn load_rt_file<P>(
         .into_inner()
         .unwrap();
 }
+
+pub fn save_rt_file<P>(
+    path: P,
+    scene: Arc<RwLock<Scene>>,
+    shader_list: Arc<RwLock<ShaderList>>,
+    path_trace_camera: Arc<RwLock<Camera>>,
+    environment: Arc<RwLock<Environment>>,
+) where
+    P: AsRef<std::path::Path>,
+{
+    let file = File::new(scene, shader_list, path_trace_camera, environment);
+    let file_serialized = serde_json::to_string(&file).unwrap();
+    std::fs::write(path, file_serialized).unwrap();
+}
