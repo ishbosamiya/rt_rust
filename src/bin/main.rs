@@ -763,6 +763,15 @@ fn main_gui(
                                         }
                                     }
                                 }
+
+                                ui.separator();
+
+                                if ui.button("Load Texture").clicked() {
+                                    texture_list
+                                        .write()
+                                        .unwrap()
+                                        .load_texture_with_file_dialog();
+                                }
                             });
                         });
                     })

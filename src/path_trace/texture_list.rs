@@ -26,6 +26,28 @@ impl TextureList {
         }
     }
 
+    /// Load texture from disk given the path to the texture
+    pub fn load_texture<P>(&mut self, path: P)
+    where
+        P: AsRef<std::path::Path>,
+    {
+        self.add_texture(TextureRGBAFloat::load_from_disk(path).unwrap());
+    }
+
+    /// Load texture from disk with file dialog to choose the texture
+    pub fn load_texture_with_file_dialog(&mut self) {
+        if let Some(path) = FileDialog::new()
+            .add_filter("png", &["png"])
+            .add_filter("jpg", &["jpg", "jpeg"])
+            .add_filter("tiff", &["tiff"])
+            .add_filter("Any", &["*"])
+            .set_directory(".")
+            .pick_file()
+        {
+            self.load_texture(path);
+        }
+    }
+
     pub fn get_textures(&self) -> hash_map::Iter<'_, TextureID, TextureRGBAFloat> {
         self.textures.iter()
     }
@@ -114,16 +136,7 @@ impl DrawUI for TextureList {
             }
 
             if ui.button("Load Texture").clicked() {
-                if let Some(path) = FileDialog::new()
-                    .add_filter("png", &["png"])
-                    .add_filter("jpg", &["jpg", "jpeg"])
-                    .add_filter("tiff", &["tiff"])
-                    .add_filter("Any", &["*"])
-                    .set_directory(".")
-                    .pick_file()
-                {
-                    self.add_texture(TextureRGBAFloat::load_from_disk(path).unwrap());
-                }
+                self.load_texture_with_file_dialog();
             }
         });
     }
