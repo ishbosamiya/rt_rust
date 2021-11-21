@@ -49,10 +49,18 @@ lazy_static! {
 }
 
 pub struct RayTraceParams {
+    /// width of the ray trace render
     width: usize,
+    /// height of the ray trace render
     height: usize,
+    /// max depth the trace can traverse
     trace_max_depth: usize,
+    /// number of samples (rays traced) per pixel
     samples_per_pixel: usize,
+    /// camera used for ray tracing
+    camera: Arc<RwLock<Camera>>,
+    /// image to which the render (can be progressive) is updated
+    rendered_image: Arc<RwLock<Image>>,
 }
 
 impl RayTraceParams {
@@ -61,12 +69,16 @@ impl RayTraceParams {
         height: usize,
         trace_max_depth: usize,
         samples_per_pixel: usize,
+        camera: Arc<RwLock<Camera>>,
+        rendered_image: Arc<RwLock<Image>>,
     ) -> Self {
         Self {
             width,
             height,
             trace_max_depth,
             samples_per_pixel,
+            camera,
+            rendered_image,
         }
     }
 
@@ -89,6 +101,16 @@ impl RayTraceParams {
     pub fn get_samples_per_pixel(&self) -> usize {
         self.samples_per_pixel
     }
+
+    /// Get ray trace params's camera.
+    pub fn get_camera(&self) -> Arc<RwLock<Camera>> {
+        self.camera.clone()
+    }
+
+    /// Get ray trace params's rendered image.
+    pub fn get_rendered_image(&self) -> Arc<RwLock<Image>> {
+        self.rendered_image.clone()
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -97,16 +119,17 @@ fn ray_trace_scene(
     scene: Arc<RwLock<Scene>>,
     shader_list: Arc<RwLock<ShaderList>>,
     texture_list: Arc<RwLock<TextureList>>,
-    camera: Arc<RwLock<Camera>>,
     environment: Arc<RwLock<Environment>>,
-    rendered_image: Arc<RwLock<Image>>,
     progress: Arc<RwLock<Progress>>,
     stop_render: Arc<RwLock<bool>>,
 ) {
     let mut image = Image::new(ray_trace_params.get_width(), ray_trace_params.get_height());
     progress.write().unwrap().reset();
 
-    let camera = camera.read().unwrap();
+    // make a clone of the camera since storing a read lock would
+    // prevent the camera from changing in another thread and asking
+    // for a lock often is expensive.
+    let camera = ray_trace_params.camera.read().unwrap().clone();
 
     let progress_previous_update = Arc::new(RwLock::new(Instant::now()));
     let total_number_of_samples = ray_trace_params.get_samples_per_pixel()
@@ -189,7 +212,7 @@ fn ray_trace_scene(
             });
 
         {
-            let mut rendered_image = rendered_image.write().unwrap();
+            let mut rendered_image = ray_trace_params.rendered_image.write().unwrap();
             *rendered_image = image.clone();
             rendered_image
                 .get_pixels_mut()
@@ -235,9 +258,7 @@ pub fn ray_trace_main(
     scene: Arc<RwLock<Scene>>,
     shader_list: Arc<RwLock<ShaderList>>,
     texture_list: Arc<RwLock<TextureList>>,
-    camera: Arc<RwLock<Camera>>,
     environment: Arc<RwLock<Environment>>,
-    rendered_image: Arc<RwLock<Image>>,
     progress: Arc<RwLock<Progress>>,
     message_receiver: Receiver<RayTraceMessage>,
 ) {
@@ -254,9 +275,7 @@ pub fn ray_trace_main(
                 let scene = scene.clone();
                 let shader_list = shader_list.clone();
                 let texture_list = texture_list.clone();
-                let camera = camera.clone();
                 let environment = environment.clone();
-                let rendered_image = rendered_image.clone();
                 let progress = progress.clone();
                 let stop_render = stop_render.clone();
                 render_thread_handle = Some(thread::spawn(move || {
@@ -265,9 +284,7 @@ pub fn ray_trace_main(
                         scene,
                         shader_list,
                         texture_list,
-                        camera,
                         environment,
-                        rendered_image,
                         progress,
                         stop_render,
                     );
