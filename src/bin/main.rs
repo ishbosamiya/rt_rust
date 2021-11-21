@@ -331,7 +331,10 @@ fn main() {
         main_headless(
             ray_trace_main_thread_handle,
             ray_trace_thread_sender,
-            path_trace_camera,
+            Arc::try_unwrap(path_trace_camera)
+                .unwrap()
+                .into_inner()
+                .unwrap(),
             rendered_image,
             path_trace_progress,
             arguments,
@@ -358,7 +361,7 @@ fn main() {
 fn main_headless(
     ray_trace_main_thread_handle: thread::JoinHandle<()>,
     ray_trace_thread_sender: mpsc::Sender<RayTraceMessage>,
-    path_trace_camera: Arc<RwLock<Camera>>,
+    path_trace_camera: Camera,
     rendered_image: Arc<RwLock<Image>>,
     path_trace_progress: Arc<RwLock<Progress>>,
     arguments: InputArguments,
@@ -383,7 +386,7 @@ fn main_headless(
             image_height,
             trace_max_depth,
             samples_per_pixel,
-            path_trace_camera.clone(),
+            path_trace_camera,
             rendered_image.clone(),
         )))
         .unwrap();
@@ -1046,7 +1049,7 @@ fn main_gui(
                                             image_height,
                                             trace_max_depth,
                                             samples_per_pixel,
-                                            path_trace_camera.clone(),
+                                            path_trace_camera.read().unwrap().clone(),
                                             rendered_image.clone(),
                                         )))
                                         .unwrap();

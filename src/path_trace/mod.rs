@@ -58,7 +58,16 @@ pub struct RayTraceParams {
     /// number of samples (rays traced) per pixel
     samples_per_pixel: usize,
     /// camera used for ray tracing
-    camera: Arc<RwLock<Camera>>,
+    ///
+    /// Side note: it might at first seem like a good idea to have the
+    /// Camera wrapped in a Arc and RwLock but this has downsides that
+    /// that the camera must either be read locked for a long duration
+    /// making edits to the camera not easy if not impossible or read
+    /// locks must be done often enough that that becomes an expensive
+    /// operation. It is better store a clone of the camera since
+    /// changes to the camera should anyway not be propagated while
+    /// tracing the scene.
+    camera: Camera,
     /// image to which the render (can be progressive) is updated
     rendered_image: Arc<RwLock<Image>>,
 }
@@ -69,7 +78,7 @@ impl RayTraceParams {
         height: usize,
         trace_max_depth: usize,
         samples_per_pixel: usize,
-        camera: Arc<RwLock<Camera>>,
+        camera: Camera,
         rendered_image: Arc<RwLock<Image>>,
     ) -> Self {
         Self {
@@ -102,9 +111,9 @@ impl RayTraceParams {
         self.samples_per_pixel
     }
 
-    /// Get ray trace params's camera.
-    pub fn get_camera(&self) -> Arc<RwLock<Camera>> {
-        self.camera.clone()
+    /// Get a reference to ray trace params's camera.
+    pub fn get_camera(&self) -> &Camera {
+        &self.camera
     }
 
     /// Get ray trace params's rendered image.
@@ -126,10 +135,7 @@ fn ray_trace_scene(
     let mut image = Image::new(ray_trace_params.get_width(), ray_trace_params.get_height());
     progress.write().unwrap().reset();
 
-    // make a clone of the camera since storing a read lock would
-    // prevent the camera from changing in another thread and asking
-    // for a lock often is expensive.
-    let camera = ray_trace_params.camera.read().unwrap().clone();
+    let camera = ray_trace_params.get_camera();
 
     let progress_previous_update = Arc::new(RwLock::new(Instant::now()));
     let total_number_of_samples = ray_trace_params.get_samples_per_pixel()
@@ -198,7 +204,7 @@ fn ray_trace_scene(
 
                     let (color, _traversal_info) = trace_ray(
                         &ray,
-                        &camera,
+                        camera,
                         &scene,
                         ray_trace_params.get_trace_max_depth(),
                         &shader_list,
