@@ -772,6 +772,10 @@ fn main_gui(
                                         .unwrap()
                                         .load_texture_with_file_dialog();
                                 }
+
+                                if ui.button("Load Environment Image").clicked() {
+                                    environment.write().unwrap().load_hdr_file_dialog();
+                                }
                             });
                         });
                     })

@@ -31,6 +31,32 @@ impl Environment {
         }
     }
 
+    /// Load hdr from disk given the path to the hdr
+    pub fn load_hdr<P>(&mut self, path: P)
+    where
+        P: AsRef<std::path::Path>,
+    {
+        let hdr = image::codecs::hdr::HdrDecoder::new(std::io::BufReader::new(
+            std::fs::File::open(path).unwrap(),
+        ))
+        .unwrap();
+        let width = hdr.metadata().width as _;
+        let height = hdr.metadata().height as _;
+        self.hdr = Image::from_vec_rgb_f32(&hdr.read_image_hdr().unwrap(), width, height);
+    }
+
+    /// Load hdr from disk with file dialog to choose the hdr image
+    pub fn load_hdr_file_dialog(&mut self) {
+        if let Some(path) = FileDialog::new()
+            .add_filter("HDR", &["hdr"])
+            .add_filter("Any", &["*"])
+            .set_directory(".")
+            .pick_file()
+        {
+            self.load_hdr(path);
+        }
+    }
+
     /// Get a reference to the environment's hdr.
     pub fn get_hdr(&self) -> &Image {
         &self.hdr
@@ -71,20 +97,7 @@ impl DrawUI for Environment {
         ui.add(egui::Slider::new(&mut self.strength, 0.0..=5.0).text("Environment Strength"));
 
         if ui.button("Load Environment Image").clicked() {
-            if let Some(path) = FileDialog::new()
-                .add_filter("HDR", &["hdr"])
-                .add_filter("Any", &["*"])
-                .set_directory(".")
-                .pick_file()
-            {
-                let hdr = image::codecs::hdr::HdrDecoder::new(std::io::BufReader::new(
-                    std::fs::File::open(path).unwrap(),
-                ))
-                .unwrap();
-                let width = hdr.metadata().width as _;
-                let height = hdr.metadata().height as _;
-                self.hdr = Image::from_vec_rgb_f32(&hdr.read_image_hdr().unwrap(), width, height);
-            }
+            self.load_hdr_file_dialog();
         }
 
         ui.collapsing("Environment Transform", |ui| {
