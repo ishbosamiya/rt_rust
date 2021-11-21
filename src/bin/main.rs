@@ -1232,30 +1232,42 @@ fn main_gui(
                 .frame(egui::Frame::none().fill(egui::Color32::TRANSPARENT))
                 .show(egui.get_egui_ctx(), |ui| {
                     egui::TopBottomPanel::top("viewport top panel").show_inside(ui, |ui| {
-                        ui.horizontal(|ui| {
-                            if ui
-                                .add(egui::ImageButton::new(
-                                    egui::TextureId::User(
-                                        icons::get_viewport_solid_shading_icon_id().into(),
-                                    ),
-                                    [ui.available_height(), ui.available_height()],
-                                ))
-                                .clicked()
-                            {
-                                println!("TODO: solid shading clicked");
-                            }
+                        ui.with_layout(ui.layout().with_cross_align(egui::Align::RIGHT), |ui| {
+                            ui.horizontal(|ui| {
+                                // ordering is from right to left
+                                {
+                                    if ui
+                                        .add(egui::ImageButton::new(
+                                            egui::TextureId::User(
+                                                icons::get_viewport_rendered_shading_icon_id()
+                                                    .into(),
+                                            ),
+                                            [ui.available_height(), ui.available_height()],
+                                        ))
+                                        .clicked()
+                                    {
+                                        println!("TODO: rendered shading clicked");
+                                    }
 
-                            if ui
-                                .add(egui::ImageButton::new(
-                                    egui::TextureId::User(
-                                        icons::get_viewport_rendered_shading_icon_id().into(),
-                                    ),
-                                    [ui.available_height(), ui.available_height()],
-                                ))
-                                .clicked()
-                            {
-                                println!("TODO: rendered shading clicked");
-                            }
+                                    if ui
+                                        .add(egui::ImageButton::new(
+                                            egui::TextureId::User(
+                                                icons::get_viewport_solid_shading_icon_id().into(),
+                                            ),
+                                            [ui.available_height(), ui.available_height()],
+                                        ))
+                                        .clicked()
+                                    {
+                                        println!("TODO: solid shading clicked");
+                                    }
+                                }
+
+                                ui.with_layout(egui::Layout::left_to_right(), |_ui| {
+                                    // Any UI elements that go on the
+                                    // left side, left to right
+                                    // ordering
+                                });
+                            });
                         });
                     });
                 });
