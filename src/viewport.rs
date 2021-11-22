@@ -5,6 +5,7 @@ use crate::glm;
 /// Viewport of the window in which the 2D/3D scene is
 /// rendered. Locations in the viewport are considering top left is
 /// (0.0, 0.0) and bottom right is (width, height)
+#[derive(Debug, Clone)]
 pub struct Viewport {
     /// dimentions (width, height) of viewport
     dimensions: glm::TVec2<isize>,

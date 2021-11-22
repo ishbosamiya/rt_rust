@@ -8,6 +8,7 @@ pub mod shader_list;
 pub mod shaders;
 pub mod texture_list;
 pub mod traversal_info;
+pub mod viewport_renderer;
 
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
