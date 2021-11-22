@@ -1038,14 +1038,23 @@ fn main_gui(
                             if image_height == 0 {
                                 image_height = 1;
                             }
-                            ui.add(
+                            let trace_max_depth_response = ui.add(
                                 egui::Slider::new(&mut trace_max_depth, 1..=10)
                                     .text("Trace Max Depth"),
                             );
-                            ui.add(
+                            if trace_max_depth_response.changed() {
+                                restart_viewport_rendered_shading = true;
+                            }
+                            let samples_per_pixel_response = ui.add(
                                 egui::Slider::new(&mut samples_per_pixel, 1..=10)
                                     .text("Samples Per Pixel"),
                             );
+                            if samples_per_pixel_response.changed() {
+                                if samples_per_pixel == 0 {
+                                    samples_per_pixel = 1;
+                                }
+                                restart_viewport_rendered_shading = true;
+                            }
 
                             ui.horizontal(|ui| {
                                 if ui.button("Ray Trace Scene").clicked() {
