@@ -27,7 +27,7 @@ vec3 get_ray_direction(in vec3 ray_origin)
 
 vec2 direction_to_equirectangular_range(in vec3 dir, in vec4 range) {
     float u = (atan(-dir[2], dir[0]) - range[1]) / range[0];
-    float v = (acos(-dir[1] / length(dir)) - range[3]) / range[2];
+    float v = (acos(dir[1] / length(dir)) - range[3]) / range[2];
 
     return vec2(u, v);
 }

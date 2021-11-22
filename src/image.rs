@@ -11,7 +11,9 @@ pub struct Image {
     /// update.
     id: usize,
 
+    /// pixels of the image stored from top left row wise
     pixels: Vec<glm::DVec3>,
+
     width: usize,
     height: usize,
 }
@@ -34,12 +36,19 @@ impl Image {
     }
 
     pub fn from_texture_rgba_float(tex: &TextureRGBAFloat) -> Image {
+        // must flip the image row wise, since Image has the pixels
+        // starting at top left row wise but TextureRGBAFloat has
+        // pixels starting at bottom left row wise
         Self {
             id: rand::random(),
             pixels: tex
                 .get_pixels()
-                .iter()
-                .map(|pixel| glm::vec3(pixel[0].into(), pixel[1].into(), pixel[2].into()))
+                .chunks(tex.get_width())
+                .rev()
+                .flat_map(|row| {
+                    row.iter()
+                        .map(|pixel| glm::vec3(pixel[0].into(), pixel[1].into(), pixel[2].into()))
+                })
                 .collect(),
             width: tex.get_width(),
             height: tex.get_height(),

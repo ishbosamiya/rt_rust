@@ -610,7 +610,7 @@ impl Drawable for Camera {
             gpu_utils::draw_plane_with_image(
                 &camera_plane_center,
                 &glm::vec3(scale_x, 1.0, scale_z),
-                &-(camera_plane_center - self.get_position()).normalize(),
+                &(camera_plane_center - self.get_position()).normalize(),
                 &mut image.borrow_mut(),
                 extra_data.alpha_value,
                 imm,

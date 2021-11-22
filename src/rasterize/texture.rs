@@ -13,6 +13,8 @@ pub struct TextureRGBAFloat {
 
     width: usize,
     height: usize,
+
+    /// pixels of the image stored from bottom left row wise
     pixels: Vec<glm::Vec4>,
 
     #[serde(skip_serializing)]
@@ -48,8 +50,13 @@ impl TextureRGBAFloat {
             tex.width(),
             tex.height(),
             tex.get_pixels()
-                .iter()
-                .map(|pixel| glm::vec4(pixel[0] as f32, pixel[1] as f32, pixel[2] as f32, 1.0))
+                .chunks(tex.width())
+                .rev()
+                .flat_map(|row| {
+                    row.iter().map(|pixel| {
+                        glm::vec4(pixel[0] as f32, pixel[1] as f32, pixel[2] as f32, 1.0)
+                    })
+                })
                 .collect(),
         );
         res.id = tex.get_id();
@@ -75,14 +82,17 @@ impl TextureRGBAFloat {
             image.height().try_into().unwrap(),
             image
                 .to_rgba16()
-                .pixels()
-                .map(|pixel| {
-                    glm::vec4(
-                        pixel[0] as f32 / u16::MAX as f32,
-                        pixel[1] as f32 / u16::MAX as f32,
-                        pixel[2] as f32 / u16::MAX as f32,
-                        pixel[3] as f32 / u16::MAX as f32,
-                    )
+                .rows()
+                .rev()
+                .flat_map(|row| {
+                    row.map(|pixel| {
+                        glm::vec4(
+                            pixel[0] as f32 / u16::MAX as f32,
+                            pixel[1] as f32 / u16::MAX as f32,
+                            pixel[2] as f32 / u16::MAX as f32,
+                            pixel[3] as f32 / u16::MAX as f32,
+                        )
+                    })
                 })
                 .collect(),
         ))
@@ -257,7 +267,7 @@ impl TextureRGBAFloat {
 
         self.get_pixel(
             (uv[0] * self.width as f64) as _,
-            self.height - (uv[1] * self.height as f64) as usize - 1,
+            (uv[1] * self.height as f64) as _,
         )
     }
 
