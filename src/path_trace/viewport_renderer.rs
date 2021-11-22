@@ -6,7 +6,7 @@ use std::{
 };
 
 use crate::{
-    camera::Camera,
+    camera::{self, Camera},
     image::Image,
     progress::Progress,
     rasterize::{
@@ -80,23 +80,18 @@ impl ViewportRenderer {
             rendered_image.clone(),
         ));
 
-        message_sender
-            .send(ViewportRenderMessage::Restart(RenderData::new(
-                target_viewport,
-                trace_max_depth,
-                samples_per_pixel,
-                camera,
-            )))
-            .unwrap();
-
-        Self {
+        let res = Self {
             message_sender,
             thread_handle,
             path_trace_progress,
             ray_trace_thread_sender,
             rendered_image,
             rendered_texture,
-        }
+        };
+
+        res.restart_render(target_viewport, trace_max_depth, samples_per_pixel, camera);
+
+        res
     }
 
     fn stop_job(
@@ -252,8 +247,12 @@ impl ViewportRenderer {
         target_viewport: Viewport,
         trace_max_depth: usize,
         samples_per_pixel: usize,
-        camera: Camera,
+        mut camera: Camera,
     ) {
+        *camera.get_sensor_mut() = Some(camera::Sensor::new(
+            target_viewport.get_width() as _,
+            target_viewport.get_height() as _,
+        ));
         self.message_sender
             .send(ViewportRenderMessage::Restart(RenderData::new(
                 target_viewport,

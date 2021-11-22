@@ -15,6 +15,7 @@ use rt::path_trace::ray::Ray;
 use rt::path_trace::shader_list::{ShaderID, ShaderList};
 use rt::path_trace::texture_list::TextureList;
 use rt::path_trace::traversal_info::{TraversalInfo, TraversalInfoDrawData};
+use rt::path_trace::viewport_renderer::{ViewportRenderer, ViewportRendererDrawData};
 use rt::path_trace::{self, RayTraceMessage, RayTraceParams};
 use rt::progress::Progress;
 use rt::rasterize::gpu_utils::{self, draw_plane_with_image};
@@ -548,6 +549,7 @@ fn main_gui(
     let mut use_left_panel = true;
     let mut use_right_panel = true;
 
+    let mut viewport_rendered_shading: Option<ViewportRenderer> = None;
     let mut open_rendered_image_window = false;
     let mut use_environment_map_as_background = false;
     let mut background_color = glm::vec4(0.051, 0.051, 0.051, 1.0);
@@ -1255,7 +1257,15 @@ fn main_gui(
                                         ))
                                         .clicked()
                                     {
-                                        println!("TODO: rendered shading clicked");
+                                        viewport_rendered_shading = Some(ViewportRenderer::new(
+                                            scene_viewport.clone(),
+                                            trace_max_depth,
+                                            samples_per_pixel,
+                                            camera.clone(),
+                                            path_trace_progress.clone(),
+                                            ray_trace_thread_sender.clone(),
+                                        ));
+                                        println!("rendered shading clicked");
                                     }
 
                                     if ui
@@ -1267,7 +1277,8 @@ fn main_gui(
                                         ))
                                         .clicked()
                                     {
-                                        println!("TODO: solid shading clicked");
+                                        viewport_rendered_shading = None;
+                                        println!("solid shading clicked");
                                     }
                                 }
 
@@ -1543,6 +1554,12 @@ fn main_gui(
             unsafe {
                 gl::Enable(gl::BLEND);
                 gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
+            }
+
+            if let Some(viewport_renderer) = viewport_rendered_shading.as_ref() {
+                viewport_renderer
+                    .draw(&mut ViewportRendererDrawData::new(imm.clone()))
+                    .unwrap();
             }
 
             // drawing the camera
