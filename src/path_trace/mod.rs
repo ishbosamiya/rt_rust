@@ -131,13 +131,14 @@ fn ray_trace_scene(
     environment: Arc<RwLock<Environment>>,
     progress: Arc<RwLock<Progress>>,
     stop_render: Arc<RwLock<bool>>,
+    stop_render_immediate: Arc<RwLock<bool>>,
 ) {
     let mut image = Image::new(ray_trace_params.get_width(), ray_trace_params.get_height());
     progress.write().unwrap().reset();
 
     let camera = ray_trace_params.get_camera();
 
-    let progress_previous_update = Arc::new(RwLock::new(Instant::now()));
+    let update_often = Arc::new(RwLock::new(Instant::now()));
     let total_number_of_samples = ray_trace_params.get_samples_per_pixel()
         * ray_trace_params.get_width()
         * ray_trace_params.get_height();
@@ -159,32 +160,37 @@ fn ray_trace_scene(
         let environment: &Environment = &environment.read().unwrap();
         let environment = environment.into();
         let image_width = image.width();
-        image
+        let maybe_exit = image
             .get_pixels_mut()
             .par_iter_mut()
             .chunks(image_width)
             .enumerate()
-            .for_each(|(j, mut row)| {
-                row.par_iter_mut().enumerate().for_each(|(i, pixel)| {
+            .try_for_each(|(j, mut row)| {
+                row.par_iter_mut().enumerate().try_for_each(|(i, pixel)| {
                     let processed_pixels = processed_pixels.fetch_add(1, Ordering::SeqCst);
 
-                    if progress_previous_update
-                        .read()
-                        .unwrap()
-                        .elapsed()
-                        .as_secs_f64()
-                        > 0.03
                     {
-                        let calculated_progress = (processed_samples
-                            * ray_trace_params.get_width()
-                            * ray_trace_params.get_height()
-                            + processed_pixels)
-                            as f64
-                            / total_number_of_samples as f64;
+                        if update_often.read().unwrap().elapsed().as_secs_f64() > 0.03 {
+                            // calculate and set progress
+                            {
+                                let calculated_progress = (processed_samples
+                                    * ray_trace_params.get_width()
+                                    * ray_trace_params.get_height()
+                                    + processed_pixels)
+                                    as f64
+                                    / total_number_of_samples as f64;
 
-                        progress.write().unwrap().set_progress(calculated_progress);
+                                progress.write().unwrap().set_progress(calculated_progress);
+                            }
 
-                        *progress_previous_update.write().unwrap() = Instant::now();
+                            // check if render must be stopped immediately
+                            if *stop_render_immediate.read().unwrap() {
+                                progress.write().unwrap().stop_progress();
+                                return None;
+                            }
+
+                            *update_often.write().unwrap() = Instant::now();
+                        }
                     }
 
                     let j = ray_trace_params.get_height() - j - 1;
@@ -214,8 +220,17 @@ fn ray_trace_scene(
                     );
 
                     **pixel += color;
-                });
+
+                    Some(())
+                })?;
+                Some(())
             });
+
+        // little bit confusing, but the loops return None if early
+        // exit must be done
+        if maybe_exit.is_none() {
+            return;
+        }
 
         {
             let mut rendered_image = ray_trace_params.rendered_image.write().unwrap();
@@ -241,7 +256,8 @@ fn ray_trace_scene(
 
 pub enum RayTraceMessage {
     StartRender(RayTraceParams),
-    StopRender,
+    FinishSampleAndStopRender,
+    StopRenderImmediately,
     KillThread,
     FinishAndKillThread,
 }
@@ -269,6 +285,7 @@ pub fn ray_trace_main(
     message_receiver: Receiver<RayTraceMessage>,
 ) {
     let stop_render = Arc::new(RwLock::new(false));
+    let stop_render_immediate = Arc::new(RwLock::new(false));
     let mut render_thread_handle: Option<JoinHandle<()>> = None;
 
     loop {
@@ -276,7 +293,7 @@ pub fn ray_trace_main(
         match message {
             RayTraceMessage::StartRender(params) => {
                 // stop any previously running ray traces
-                ray_trace_stop_render(stop_render.clone(), render_thread_handle);
+                ray_trace_stop_render(stop_render_immediate.clone(), render_thread_handle);
 
                 let scene = scene.clone();
                 let shader_list = shader_list.clone();
@@ -284,6 +301,7 @@ pub fn ray_trace_main(
                 let environment = environment.clone();
                 let progress = progress.clone();
                 let stop_render = stop_render.clone();
+                let stop_render_immediate = stop_render_immediate.clone();
                 render_thread_handle = Some(thread::spawn(move || {
                     ray_trace_scene(
                         params,
@@ -293,12 +311,17 @@ pub fn ray_trace_main(
                         environment,
                         progress,
                         stop_render,
+                        stop_render_immediate,
                     );
                 }));
             }
-            RayTraceMessage::StopRender => {
+            RayTraceMessage::FinishSampleAndStopRender => {
                 render_thread_handle =
                     ray_trace_stop_render(stop_render.clone(), render_thread_handle);
+            }
+            RayTraceMessage::StopRenderImmediately => {
+                render_thread_handle =
+                    ray_trace_stop_render(stop_render_immediate.clone(), render_thread_handle);
             }
             RayTraceMessage::KillThread => {
                 break;

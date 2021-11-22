@@ -416,7 +416,7 @@ fn main_headless(
         if sigint_triggered.load(atomic::Ordering::SeqCst) {
             println!("waiting to finish current sample");
             ray_trace_thread_sender
-                .send(RayTraceMessage::StopRender)
+                .send(RayTraceMessage::FinishSampleAndStopRender)
                 .unwrap();
             break;
         }
@@ -1057,7 +1057,7 @@ fn main_gui(
 
                                 if ui.button("Stop Render").clicked() {
                                     ray_trace_thread_sender
-                                        .send(RayTraceMessage::StopRender)
+                                        .send(RayTraceMessage::FinishSampleAndStopRender)
                                         .unwrap();
                                 }
                             });
