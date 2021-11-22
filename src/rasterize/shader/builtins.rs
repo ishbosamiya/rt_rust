@@ -75,6 +75,12 @@ load_builtin_shader_easy!(
     "../../../shaders/environment_shader.frag"
 );
 
+load_builtin_shader_easy!(
+    screen_texture;
+    "../../../shaders/screen_texture.vert";
+    "../../../shaders/screen_texture.frag"
+);
+
 pub fn display_uniform_and_attribute_info() {
     {
         let directional_light_shader = get_directional_light_shader().as_ref().unwrap();
@@ -143,6 +149,16 @@ pub fn display_uniform_and_attribute_info() {
             "environment_shader: uniforms: {:?} attributes: {:?}",
             environment_shader.get_uniforms(),
             environment_shader.get_attributes(),
+        );
+    }
+
+    {
+        let screen_texture_shader = get_screen_texture_shader().as_ref().unwrap();
+
+        println!(
+            "screen_texture_shader: uniforms: {:?} attributes: {:?}",
+            screen_texture_shader.get_uniforms(),
+            screen_texture_shader.get_attributes(),
         );
     }
 }
@@ -221,5 +237,11 @@ pub fn setup_shaders(camera: &Camera, window_width: usize, window_height: usize)
         environment_shader.set_mat4("projection\0", projection_matrix);
         environment_shader.set_mat4("view\0", view_matrix);
         environment_shader.set_mat4("model\0", &glm::identity());
+    }
+
+    {
+        let screen_texture_shader = get_screen_texture_shader().as_ref().unwrap();
+
+        screen_texture_shader.use_shader();
     }
 }
