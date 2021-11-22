@@ -80,6 +80,35 @@ pub fn draw_screen_quad(imm: &mut GPUImmediate, shader: &Shader) {
     imm.end();
 }
 
+/// Draws a quad covering the screen with UVs. Caller must ensure shader is
+/// active.
+pub fn draw_screen_quad_with_uvs(imm: &mut GPUImmediate, shader: &Shader) {
+    let format = imm.get_cleared_vertex_format();
+    let pos_attr = format.add_attribute(
+        "in_pos\0".to_string(),
+        GPUVertCompType::F32,
+        3,
+        GPUVertFetchMode::Float,
+    );
+    let uv_attr = format.add_attribute(
+        "in_uv\0".to_string(),
+        GPUVertCompType::F32,
+        2,
+        GPUVertFetchMode::Float,
+    );
+
+    imm.begin(GPUPrimType::Tris, 6, shader);
+
+    get_screen_plane_vert_list_f32()
+        .iter()
+        .for_each(|(pos, uv)| {
+            imm.attr_2f(uv_attr, uv[0], uv[1]);
+            imm.vertex_3f(pos_attr, pos[0], pos[1], pos[2]);
+        });
+
+    imm.end();
+}
+
 /// Draws a plane with specified transformation.
 pub fn draw_plane_with_image(
     pos: &glm::DVec3,
