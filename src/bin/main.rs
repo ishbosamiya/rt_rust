@@ -550,6 +550,7 @@ fn main_gui(
     let mut use_right_panel = true;
 
     let mut viewport_rendered_shading: Option<ViewportRenderer> = None;
+    let mut restart_viewport_rendered_shading = false;
     let mut open_rendered_image_window = false;
     let mut use_environment_map_as_background = false;
     let mut background_color = glm::vec4(0.051, 0.051, 0.051, 1.0);
@@ -584,6 +585,8 @@ fn main_gui(
     let mut end_ray_depth: usize = trace_max_depth;
     let mut start_ray_depth: usize = 1;
 
+    let mut previous_frame_scene_viewport = None;
+
     while !window.should_close() {
         glfw.poll_events();
 
@@ -602,6 +605,7 @@ fn main_gui(
                 &mut use_bottom_panel,
                 &mut use_left_panel,
                 &mut use_right_panel,
+                &mut restart_viewport_rendered_shading,
                 &mut window_last_cursor,
             );
         });
@@ -1239,6 +1243,24 @@ fn main_gui(
                 )
             };
 
+            if let Some(previous_frame_scene_viewport) = previous_frame_scene_viewport {
+                if previous_frame_scene_viewport != scene_viewport {
+                    restart_viewport_rendered_shading = true;
+                }
+            }
+
+            if restart_viewport_rendered_shading {
+                if let Some(viewport_rendered_shading) = viewport_rendered_shading.as_ref() {
+                    viewport_rendered_shading.restart_render(
+                        scene_viewport.clone(),
+                        trace_max_depth,
+                        samples_per_pixel,
+                        camera.clone(),
+                    );
+                }
+                restart_viewport_rendered_shading = false;
+            }
+
             egui::CentralPanel::default()
                 .frame(egui::Frame::none().fill(egui::Color32::TRANSPARENT))
                 .show(egui.get_egui_ctx(), |ui| {
@@ -1594,11 +1616,18 @@ fn main_gui(
             }
         }
 
+        previous_frame_scene_viewport = Some(scene_viewport);
+
         // Swap front and back buffers
         window.swap_buffers();
     }
 
     handle_opengl_cleanup(texture_list);
+
+    // turn off viewport rendered shading so cleanup happens
+    // correctly, must be cleaned up before ray trace main thread is
+    // killed
+    drop(viewport_rendered_shading);
 
     // wait for all child threads to join
     ray_trace_thread_sender
@@ -1632,6 +1661,7 @@ fn handle_window_event(
     use_bottom_panel: &mut bool,
     use_left_panel: &mut bool,
     use_right_panel: &mut bool,
+    restart_viewport_rendered_shading: &mut bool,
     window_last_cursor: &mut (f64, f64),
 ) {
     let window_cursor = window.get_cursor_pos();
@@ -1678,6 +1708,7 @@ fn handle_window_event(
                     camera.get_sensor_no_ref(),
                 )
             }
+            *restart_viewport_rendered_shading = true;
         }
         glfw::WindowEvent::Key(Key::Num3 | Key::Kp3, _, Action::Press, modifier) => {
             if modifier.contains(glfw::Modifiers::Control | glfw::Modifiers::Alt) {
@@ -1699,6 +1730,7 @@ fn handle_window_event(
                     camera.get_sensor_no_ref(),
                 )
             }
+            *restart_viewport_rendered_shading = true;
         }
         glfw::WindowEvent::Key(Key::Num7 | Key::Kp7, _, Action::Press, modifier) => {
             if modifier.contains(glfw::Modifiers::Control | glfw::Modifiers::Alt) {
@@ -1720,11 +1752,13 @@ fn handle_window_event(
                     camera.get_sensor_no_ref(),
                 )
             }
+            *restart_viewport_rendered_shading = true;
         }
         glfw::WindowEvent::Key(Key::Num0 | Key::Kp0, _, Action::Press, modifier) => {
             if modifier.contains(glfw::Modifiers::Alt) {
                 *camera = path_trace_camera.clone();
             }
+            *restart_viewport_rendered_shading = true;
         }
         glfw::WindowEvent::Key(Key::C, _, Action::Press, glfw::Modifiers::Shift) => {
             let angle = camera.get_front().xz().angle(&-camera.get_position().xz());
@@ -1745,13 +1779,16 @@ fn handle_window_event(
                 camera.get_fov(),
                 camera.get_sensor_no_ref(),
             );
+            *restart_viewport_rendered_shading = true;
         }
 
         glfw::WindowEvent::FramebufferSize(width, height) => unsafe {
             gl::Viewport(0, 0, *width, *height);
+            *restart_viewport_rendered_shading = true;
         },
         glfw::WindowEvent::Scroll(_, scroll_y) => {
             camera.zoom(*scroll_y);
+            *restart_viewport_rendered_shading = true;
         }
         _ => {}
     };
@@ -1785,6 +1822,7 @@ fn handle_window_event(
                 false,
             );
         }
+        *restart_viewport_rendered_shading = true;
     }
 
     if window.get_mouse_button(glfw::MouseButtonLeft) == glfw::Action::Press

@@ -52,8 +52,6 @@ enum ViewportRenderMessage {
 pub struct ViewportRenderer {
     message_sender: mpsc::Sender<ViewportRenderMessage>,
     thread_handle: Option<JoinHandle<()>>,
-    path_trace_progress: Arc<RwLock<Progress>>,
-    ray_trace_thread_sender: mpsc::Sender<RayTraceMessage>,
     rendered_image: Arc<RwLock<Image>>,
     rendered_texture: Rc<RefCell<TextureRGBAFloat>>,
 }
@@ -75,16 +73,14 @@ impl ViewportRenderer {
 
         let thread_handle = Some(Self::spawn_thread(
             message_receiver,
-            path_trace_progress.clone(),
-            ray_trace_thread_sender.clone(),
+            path_trace_progress,
+            ray_trace_thread_sender,
             rendered_image.clone(),
         ));
 
         let res = Self {
             message_sender,
             thread_handle,
-            path_trace_progress,
-            ray_trace_thread_sender,
             rendered_image,
             rendered_texture,
         };
