@@ -18,6 +18,7 @@ use crate::{
 
 use super::{RayTraceMessage, RayTraceParams};
 
+#[derive(Debug)]
 struct RenderData {
     target_viewport: Viewport,
     trace_max_depth: usize,
@@ -43,6 +44,7 @@ impl RenderData {
     }
 }
 
+#[derive(Debug)]
 enum ViewportRenderMessage {
     Restart(RenderData),
     Stop,
@@ -208,7 +210,17 @@ impl ViewportRenderer {
         let mut thread_handle: Option<JoinHandle<()>> = None;
 
         std::thread::spawn(move || loop {
-            let message = message_receiver.recv().unwrap();
+            let get_latest_message = || {
+                let message = message_receiver.recv().unwrap();
+                // TODO: it might make sense to go over all the list
+                // of messages and stop in case KillThread is
+                // found. As of right now KillThread should be last
+                // message received but it may not be necessary in the
+                // future which can lead to problems.
+                message_receiver.try_iter().last().unwrap_or(message)
+            };
+            let message = get_latest_message();
+
             match message {
                 ViewportRenderMessage::Restart(render_data) => {
                     thread_handle = Self::stop_job(stop_render.clone(), thread_handle);
@@ -229,6 +241,18 @@ impl ViewportRenderer {
                     break;
                 }
             }
+
+            // Sleep for some time before continuing the loop to try
+            // to receive messages. This is to ensure that the
+            // messages received are bundled which allows for only the
+            // latest message to be processed. A restart message is
+            // expensive compared to the rest, since it needs some
+            // setup to be done and cannot be stopped during its
+            // setup. Without waiting for messages to be bundled,
+            // there can be multiple restart messages and each will be
+            // processed even though it is not required. Better to
+            // wait for some time before continuing the loop.
+            std::thread::sleep(std::time::Duration::from_millis(150));
         })
     }
 
