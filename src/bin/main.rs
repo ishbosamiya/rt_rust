@@ -1296,7 +1296,6 @@ fn main_gui(
                                             path_trace_progress.clone(),
                                             ray_trace_thread_sender.clone(),
                                         ));
-                                        println!("rendered shading clicked");
                                     }
 
                                     if ui
@@ -1309,7 +1308,6 @@ fn main_gui(
                                         .clicked()
                                     {
                                         viewport_rendered_shading = None;
-                                        println!("solid shading clicked");
                                     }
                                 }
 

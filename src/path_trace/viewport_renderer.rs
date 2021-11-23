@@ -169,8 +169,6 @@ impl ViewportRenderer {
                                 dimensions
                             };
 
-                        println!("next render with dimensions: {:?}", dimensions);
-
                         // in the last run, do required number of samples per pixel
                         let samples_per_pixel = if do_next_render {
                             samples_per_pixel
