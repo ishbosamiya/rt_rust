@@ -29,7 +29,13 @@ pbr = "1.0"
 ipc-channel = "0.15"
 ctrlc = { version = "3.2", features = ["termination"] }
 
+[dev-dependencies]
+criterion = "0.3"
+
 [profile.release]
+debug = true
+
+[profile.bench]
 debug = true
 
 [workspace]
@@ -49,6 +55,10 @@ name = "blank_3d"
 
 [[bin]]
 name = "vector_math_visualize"
+
+[[bench]]
+name = "ray_trace_benchmark"
+harness = false
 
 [patch.crates-io]
 generational-arena = { git = "ssh://git@github.com/JOE1994/generational-arena.git", branch = 'fix_bug' }
