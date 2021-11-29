@@ -1,8 +1,19 @@
-use crate::glm;
+use crate::camera::{self, Camera};
+use crate::image::Image;
+use crate::path_trace::bsdfs::utils::ColorPicker;
+use crate::path_trace::environment::Environment;
+use crate::path_trace::shader_list::ShaderList;
+use crate::path_trace::texture_list::TextureList;
+use crate::path_trace::RayTraceParams;
+use crate::rasterize::texture::TextureRGBAFloat;
+use crate::scene::Scene;
+use crate::transform::Transform;
+use crate::{file, glm, path_trace};
 use clap::{value_t, values_t};
 use clap::{App, Arg};
 use itertools::Itertools;
 use std::path::PathBuf;
+use std::sync::{Arc, RwLock};
 
 #[derive(Debug)]
 pub struct InputArguments {
@@ -32,8 +43,8 @@ pub struct InputArguments {
 
 // Function to return test args processed using clap via cli
 impl InputArguments {
-    pub fn read() -> Self {
-        let app = App::new("Config-exec")
+    fn get_app() -> App<'static, 'static> {
+        App::new("Config-exec")
             .version("1.0")
             .about("Test Command Line Arguements")
             .author("Nobody")
@@ -186,15 +197,16 @@ impl InputArguments {
                     .use_delimiter(true)
                     .require_delimiter(true),
             )
-            .get_matches();
+    }
 
-        let res = InputArguments {
-            run_headless: app.is_present("headless"),
-            num_threads: value_t!(app, "threads", usize).ok(),
-            width: value_t!(app, "width", usize).ok(),
-            height: value_t!(app, "height", usize).ok(),
-            sample_count: value_t!(app, "samples", usize).ok(),
-            environment_map: value_t!(app, "environment", PathBuf).ok().map(|path| {
+    fn from_matches(matches: clap::ArgMatches) -> Self {
+        InputArguments {
+            run_headless: matches.is_present("headless"),
+            num_threads: value_t!(matches, "threads", usize).ok(),
+            width: value_t!(matches, "width", usize).ok(),
+            height: value_t!(matches, "height", usize).ok(),
+            sample_count: value_t!(matches, "samples", usize).ok(),
+            environment_map: value_t!(matches, "environment", PathBuf).ok().map(|path| {
                 if path.is_file() {
                     path
                 } else {
@@ -204,27 +216,27 @@ impl InputArguments {
                     );
                 }
             }),
-            input_path: value_t!(app, "rt-file", PathBuf).ok(),
-            output_path: value_t!(app, "output", PathBuf).ok(),
-            trace_max_depth: value_t!(app, "trace-max-depth", usize).ok(),
-            environment_strength: value_t!(app, "environment-strength", f64).ok(),
-            textures: values_t!(app, "textures", PathBuf).map_or(vec![], |textures| textures),
-            environment_location: values_t!(app, "environment-location", f64)
+            input_path: value_t!(matches, "rt-file", PathBuf).ok(),
+            output_path: value_t!(matches, "output", PathBuf).ok(),
+            trace_max_depth: value_t!(matches, "trace-max-depth", usize).ok(),
+            environment_strength: value_t!(matches, "environment-strength", f64).ok(),
+            textures: values_t!(matches, "textures", PathBuf).map_or(vec![], |textures| textures),
+            environment_location: values_t!(matches, "environment-location", f64)
                 .ok()
                 .map(|location| glm::vec3(location[0], location[1], location[2])),
-            environment_rotation: values_t!(app, "environment-rotation", f64)
+            environment_rotation: values_t!(matches, "environment-rotation", f64)
                 .ok()
                 .map(|rotation| glm::vec3(rotation[0], rotation[1], rotation[2])),
-            environment_scale: values_t!(app, "environment-scale", f64)
+            environment_scale: values_t!(matches, "environment-scale", f64)
                 .ok()
                 .map(|scale| glm::vec3(scale[0], scale[1], scale[2])),
             path_trace_progress_server_name: value_t!(
-                app,
+                matches,
                 "path-trace-progress-server-name",
                 String
             )
             .ok(),
-            shader_texture: app
+            shader_texture: matches
                 .values_of("shader-texture")
                 .map_or(vec![], |shader_texture| {
                     shader_texture
@@ -232,8 +244,9 @@ impl InputArguments {
                         .map(|(shader, texture)| (shader.to_string(), texture.parse().unwrap()))
                         .collect()
                 }),
-            obj_files: values_t!(app, "obj-files", PathBuf).map_or(vec![], |obj_files| obj_files),
-            object_shader: app
+            obj_files: values_t!(matches, "obj-files", PathBuf)
+                .map_or(vec![], |obj_files| obj_files),
+            object_shader: matches
                 .values_of("object-shader")
                 .map_or(vec![], |object_shader| {
                     object_shader
@@ -241,9 +254,20 @@ impl InputArguments {
                         .map(|(object, shader)| (object.to_string(), shader.to_string()))
                         .collect()
                 }),
-        };
+        }
+    }
 
-        dbg!(res)
+    /// read the input arguments from the command line arguments
+    pub fn read_cli() -> Self {
+        dbg!(Self::from_matches(Self::get_app().get_matches()))
+    }
+
+    pub fn read_string(args: String) -> Self {
+        dbg!(Self::from_matches(
+            Self::get_app()
+                .setting(clap::AppSettings::NoBinaryName)
+                .get_matches_from(args.split(' ')),
+        ))
     }
 
     pub fn get_run_headless(&self) -> bool {
@@ -320,5 +344,216 @@ impl InputArguments {
     /// Get a reference to the input arguments's object shader.
     pub fn get_object_shader(&self) -> &[(String, String)] {
         self.object_shader.as_slice()
+    }
+
+    /// generates most of the necessary render info from the input
+    /// arguments
+    ///
+    /// returns the camera, scene, shader list, texture list and the
+    /// environment required for rendering
+    #[allow(clippy::type_complexity)]
+    pub fn generate_render_info(
+        &self,
+    ) -> (
+        RayTraceParams,
+        Arc<RwLock<Scene>>,
+        Arc<RwLock<ShaderList>>,
+        Arc<RwLock<TextureList>>,
+        Arc<RwLock<Environment>>,
+    ) {
+        let image_width = self
+            .get_image_width()
+            .unwrap_or_else(crate::default_image_width);
+        let image_height = self
+            .get_image_height()
+            .unwrap_or_else(crate::default_image_height);
+
+        let path_trace_camera = Arc::new(RwLock::new({
+            let camera_focal_length = 50.0;
+            let camera_sensor_width = 36.0;
+            let camera_position = glm::vec3(0.0, 0.0, 3.0);
+            let aspect_ratio = image_width as f64 / image_height as f64;
+            let camera_sensor_height = camera_sensor_width / aspect_ratio;
+            let mut camera = Camera::new(
+                camera_position,
+                glm::vec3(0.0, 1.0, 0.0),
+                270.0,
+                0.0,
+                45.0,
+                Some(camera::Sensor::new(
+                    camera_sensor_width,
+                    camera_sensor_height,
+                )),
+            );
+            camera.set_focal_length(camera_focal_length);
+            camera
+        }));
+
+        let scene = Arc::new(RwLock::new({
+            let mut scene = Scene::new();
+            scene.build_bvh(0.01);
+            scene
+        }));
+
+        let shader_list = Arc::new(RwLock::new({
+            let mut shader_list = ShaderList::new();
+
+            shader_list.add_shader(Box::new(path_trace::shaders::Lambert::new(
+                path_trace::bsdfs::lambert::Lambert::default(),
+            )));
+            shader_list.add_shader(Box::new(path_trace::shaders::Lambert::new(
+                path_trace::bsdfs::lambert::Lambert::new(glm::vec3(1.0, 0.0, 0.0)),
+            )));
+            shader_list.add_shader(Box::new(path_trace::shaders::Glossy::new(
+                path_trace::bsdfs::glossy::Glossy::default(),
+            )));
+            shader_list.add_shader(Box::new(path_trace::shaders::Emissive::new(
+                path_trace::bsdfs::emissive::Emissive::new(glm::vec3(1.0, 0.4, 1.0), 5.0),
+            )));
+
+            shader_list
+        }));
+
+        let texture_list = Arc::new(RwLock::new(TextureList::new()));
+
+        let environment = Arc::new(RwLock::new(Environment::default()));
+
+        if let Some(path) = self.get_rt_file() {
+            file::load_rt_file(
+                &path,
+                scene.clone(),
+                shader_list.clone(),
+                path_trace_camera.clone(),
+                environment.clone(),
+            );
+        }
+
+        // set environment map from the given path overriding the
+        // environment map stored in the rt file
+        if let Some(path) = self.get_environment_map() {
+            let hdr = image::codecs::hdr::HdrDecoder::new(std::io::BufReader::new(
+                std::fs::File::open(path).unwrap(),
+            ))
+            .unwrap();
+            let width = hdr.metadata().width as _;
+            let height = hdr.metadata().height as _;
+            let image = Image::from_vec_rgb_f32(&hdr.read_image_hdr().unwrap(), width, height);
+            *environment.write().unwrap() = Environment::new(
+                image,
+                self.get_environment_strength()
+                    .unwrap_or_else(crate::default_environment_strength),
+                Transform::new(
+                    self.get_environment_location()
+                        .map_or(glm::zero(), |location| *location),
+                    self.get_environment_rotation()
+                        .map_or(glm::zero(), |rotation| *rotation),
+                    self.get_environment_scale()
+                        .map_or(glm::vec3(1.0, 1.0, 1.0), |scale| *scale),
+                ),
+            );
+        }
+
+        // if image width or image height are present in the arguments,
+        // must overide image width and height and also the camera
+        if let Some((image_width, image_height)) =
+            self.get_image_width().zip(self.get_image_height())
+        {
+            path_trace_camera
+                .write()
+                .unwrap()
+                .get_sensor_mut()
+                .as_mut()
+                .unwrap()
+                .change_aspect_ratio(image_width as f64 / image_height as f64);
+        }
+
+        // add more textures to texture_list if provided in the arguments
+        self.get_textures().iter().for_each(|path| {
+            texture_list.write().unwrap().add_texture(
+                TextureRGBAFloat::load_from_disk(path).unwrap_or_else(|| {
+                    panic!(
+                        "could not load the texture from specified path: {}",
+                        path.to_str().unwrap()
+                    )
+                }),
+            );
+        });
+
+        // assign texture to shader
+        self.get_shader_texture()
+            .iter()
+            .for_each(|(shader_name, texture_index)| {
+                let texture_id = texture_list.read().unwrap().get_texture_ids()[*texture_index];
+                shader_list
+                    .write()
+                    .unwrap()
+                    .get_shaders_mut()
+                    .find(|shader| shader.get_shader_name() == shader_name)
+                    .unwrap_or_else(|| panic!("no shader found with shader name: {}", shader_name))
+                    .get_bsdf_mut()
+                    .set_base_color(ColorPicker::Texture(Some(texture_id)));
+            });
+
+        // add more objects to the scene (loading obj files)
+        {
+            self.get_obj_files().iter().for_each(|obj_file_path| {
+                crate::load_obj_file(obj_file_path)
+                    .drain(0..)
+                    .for_each(|object| {
+                        scene.write().unwrap().add_object(Box::new(object));
+                    });
+            });
+
+            // update scene bvh
+            {
+                let mut scene = scene.write().unwrap();
+                scene.apply_model_matrices();
+
+                scene.build_bvh(0.01);
+
+                scene.unapply_model_matrices();
+            }
+        }
+
+        // assign shader to the object
+        {
+            let mut scene = scene.write().unwrap();
+            let shader_list = shader_list.read().unwrap();
+            self.get_object_shader()
+                .iter()
+                .for_each(|(object_name, shader_name)| {
+                    let object = scene
+                        .get_objects_mut()
+                        .find(|object| object.get_object_name() == object_name)
+                        .unwrap_or_else(|| panic!("No object with name {} was found", object_name));
+
+                    let shader = shader_list
+                        .get_shaders()
+                        .find(|shader| shader.get_shader_name() == shader_name)
+                        .unwrap_or_else(|| panic!("No shader with name {} was found", shader_name));
+
+                    object.set_path_trace_shader_id(shader.get_shader_id());
+                });
+        }
+
+        (
+            RayTraceParams::new(
+                image_width,
+                image_height,
+                self.get_trace_max_depth()
+                    .unwrap_or_else(crate::default_trace_max_depth),
+                self.get_samples()
+                    .unwrap_or_else(crate::default_samples_per_pixel),
+                Arc::try_unwrap(path_trace_camera)
+                    .unwrap()
+                    .into_inner()
+                    .unwrap(),
+                Arc::new(RwLock::new(Image::new(1, 1))),
+            ),
+            scene,
+            shader_list,
+            texture_list,
+            environment,
+        )
     }
 }

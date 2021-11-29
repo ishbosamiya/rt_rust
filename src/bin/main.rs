@@ -114,9 +114,9 @@ fn main() {
         .expect("Error setting signal handler");
     }
 
-    let arguments = InputArguments::read();
 
     let run_headless = arguments.get_run_headless();
+    let arguments = InputArguments::read_cli();
 
     rayon::ThreadPoolBuilder::new()
         .num_threads(arguments.get_num_threads().unwrap_or(0))
