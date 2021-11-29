@@ -49,6 +49,7 @@ lazy_static! {
         self::shaders::Lambert::new(self::bsdfs::lambert::Lambert::new(glm::vec3(0.0, 0.0, 0.0)));
 }
 
+#[derive(Debug, Clone)]
 pub struct RayTraceParams {
     /// width of the ray trace render
     width: usize,
@@ -124,7 +125,7 @@ impl RayTraceParams {
 }
 
 #[allow(clippy::too_many_arguments)]
-fn ray_trace_scene(
+pub fn ray_trace_scene(
     ray_trace_params: RayTraceParams,
     scene: Arc<RwLock<Scene>>,
     shader_list: Arc<RwLock<ShaderList>>,
