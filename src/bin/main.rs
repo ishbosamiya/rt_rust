@@ -1,13 +1,9 @@
 use glm::Scalar;
 use ipc_channel::ipc;
 use rfd::FileDialog;
-use rt::camera::{Camera, CameraDrawData, Sensor};
+use rt::camera::{Camera, CameraDrawData};
 use rt::image::Image;
 use rt::inputs::InputArguments;
-use rt::meshio::MeshIO;
-use rt::object::objects::Mesh as MeshObject;
-use rt::object::Object;
-use rt::path_trace::bsdfs::utils::ColorPicker;
 use rt::path_trace::environment::Environment;
 use rt::path_trace::intersectable::Intersectable;
 use rt::path_trace::medium::Mediums;
@@ -21,7 +17,6 @@ use rt::progress::Progress;
 use rt::rasterize::gpu_utils::{self, draw_plane_with_image};
 use rt::rasterize::texture::TextureRGBAFloat;
 use rt::scene::{Scene, SceneDrawData};
-use rt::transform::Transform;
 use rt::ui::DrawUI;
 use rt::viewport::Viewport;
 use rt::{file, glm, icons, ui, util, UiData};
@@ -42,66 +37,10 @@ use glfw::{Action, Context, Key};
 use rand::seq::IteratorRandom;
 
 use rt::fps::FPS;
-use rt::mesh::MeshUseShader;
 use rt::rasterize::drawable::Drawable;
 use rt::rasterize::gpu_immediate::GPUImmediate;
 use rt::rasterize::infinite_grid::{InfiniteGrid, InfiniteGridDrawData};
 use rt::rasterize::shader;
-
-fn load_obj_file<P>(path: P) -> Vec<MeshObject>
-where
-    P: AsRef<std::path::Path>,
-{
-    // TODO: Handle errors throught the process
-
-    // read the file
-    let meshio = MeshIO::read(path).unwrap();
-    // split the meshio based on
-    // objects and create mesh(s) from
-    // meshio(s)
-    meshio
-        .split()
-        .drain(0..)
-        .map(|meshio| {
-            let mut mesh = rt::mesh::Mesh::read(&meshio).unwrap();
-            // build bvh for mesh
-            mesh.build_bvh(0.01);
-            // add mesh to scene
-            let mut object = MeshObject::new(
-                mesh,
-                MeshUseShader::DirectionalLight {
-                    color: glm::vec3(0.3, 0.2, 0.7),
-                },
-                None,
-            );
-            object.set_model_matrix(glm::identity());
-            if let Some(name) = meshio.object_names.first().unwrap() {
-                *object.get_object_name_mut() = name.to_string();
-            }
-            object
-        })
-        .collect()
-}
-
-fn default_image_width() -> usize {
-    200
-}
-
-fn default_image_height() -> usize {
-    200
-}
-
-fn default_samples_per_pixel() -> usize {
-    5
-}
-
-fn default_trace_max_depth() -> usize {
-    5
-}
-
-fn default_environment_strength() -> f64 {
-    1.0
-}
 
 fn main() {
     let sigint_triggered = Arc::new(AtomicBool::new(false));
@@ -114,8 +53,6 @@ fn main() {
         .expect("Error setting signal handler");
     }
 
-
-    let run_headless = arguments.get_run_headless();
     let arguments = InputArguments::read_cli();
 
     rayon::ThreadPoolBuilder::new()
@@ -123,190 +60,14 @@ fn main() {
         .build_global()
         .unwrap();
 
-    let image_width = arguments
-        .get_image_width()
-        .unwrap_or_else(default_image_width);
-    let image_height = arguments
-        .get_image_height()
-        .unwrap_or_else(default_image_height);
+    let (ray_trace_params, scene, shader_list, texture_list, environment) =
+        arguments.generate_render_info();
 
-    let path_trace_camera = Arc::new(RwLock::new({
-        let camera_focal_length = 50.0;
-        let camera_sensor_width = 36.0;
-        let camera_position = glm::vec3(0.0, 0.0, 3.0);
-        let aspect_ratio = image_width as f64 / image_height as f64;
-        let camera_sensor_height = camera_sensor_width / aspect_ratio;
-        let mut camera = Camera::new(
-            camera_position,
-            glm::vec3(0.0, 1.0, 0.0),
-            270.0,
-            0.0,
-            45.0,
-            Some(Sensor::new(camera_sensor_width, camera_sensor_height)),
-        );
-        camera.set_focal_length(camera_focal_length);
-        camera
-    }));
-
+    let run_headless = arguments.get_run_headless();
     let path_trace_progress = Arc::new(RwLock::new(Progress::new()));
-
-    let scene = Arc::new(RwLock::new({
-        let mut scene = Scene::new();
-        scene.build_bvh(0.01);
-        scene
-    }));
-
-    let shader_list = Arc::new(RwLock::new({
-        let mut shader_list = ShaderList::new();
-
-        shader_list.add_shader(Box::new(path_trace::shaders::Lambert::new(
-            path_trace::bsdfs::lambert::Lambert::default(),
-        )));
-        shader_list.add_shader(Box::new(path_trace::shaders::Lambert::new(
-            path_trace::bsdfs::lambert::Lambert::new(glm::vec3(1.0, 0.0, 0.0)),
-        )));
-        shader_list.add_shader(Box::new(path_trace::shaders::Glossy::new(
-            path_trace::bsdfs::glossy::Glossy::default(),
-        )));
-        shader_list.add_shader(Box::new(path_trace::shaders::Emissive::new(
-            path_trace::bsdfs::emissive::Emissive::new(glm::vec3(1.0, 0.4, 1.0), 5.0),
-        )));
-
-        shader_list
-    }));
-
-    let texture_list = Arc::new(RwLock::new(TextureList::new()));
-
-    let rendered_image = Arc::new(RwLock::new(Image::new(100, 100)));
-
-    let environment = Arc::new(RwLock::new(Environment::default()));
-
-    let mut file_open_path = None;
-
-    if let Some(path) = arguments.get_rt_file() {
-        file::load_rt_file(
-            &path,
-            scene.clone(),
-            shader_list.clone(),
-            path_trace_camera.clone(),
-            environment.clone(),
-        );
-
-        file_open_path = Some(path.clone());
-    }
-
-    // set environment map from the given path overriding the
-    // environment map stored in the rt file
-    if let Some(path) = arguments.get_environment_map() {
-        let hdr = image::codecs::hdr::HdrDecoder::new(std::io::BufReader::new(
-            std::fs::File::open(path).unwrap(),
-        ))
-        .unwrap();
-        let width = hdr.metadata().width as _;
-        let height = hdr.metadata().height as _;
-        let image = Image::from_vec_rgb_f32(&hdr.read_image_hdr().unwrap(), width, height);
-        *environment.write().unwrap() = Environment::new(
-            image,
-            arguments
-                .get_environment_strength()
-                .unwrap_or_else(default_environment_strength),
-            Transform::new(
-                arguments
-                    .get_environment_location()
-                    .map_or(glm::zero(), |location| *location),
-                arguments
-                    .get_environment_rotation()
-                    .map_or(glm::zero(), |rotation| *rotation),
-                arguments
-                    .get_environment_scale()
-                    .map_or(glm::vec3(1.0, 1.0, 1.0), |scale| *scale),
-            ),
-        );
-    }
-
-    // if image width or image height are present in the arguments,
-    // must overide image width and height and also the camera
-    if let Some((image_width, image_height)) = arguments
-        .get_image_width()
-        .zip(arguments.get_image_height())
-    {
-        path_trace_camera
-            .write()
-            .unwrap()
-            .get_sensor_mut()
-            .as_mut()
-            .unwrap()
-            .change_aspect_ratio(image_width as f64 / image_height as f64);
-    }
-
-    // add more textures to texture_list if provided in the arguments
-    arguments.get_textures().iter().for_each(|path| {
-        texture_list.write().unwrap().add_texture(
-            TextureRGBAFloat::load_from_disk(path).unwrap_or_else(|| {
-                panic!(
-                    "could not load the texture from specified path: {}",
-                    path.to_str().unwrap()
-                )
-            }),
-        );
-    });
-
-    // assign texture to shader
-    arguments
-        .get_shader_texture()
-        .iter()
-        .for_each(|(shader_name, texture_index)| {
-            let texture_id = texture_list.read().unwrap().get_texture_ids()[*texture_index];
-            shader_list
-                .write()
-                .unwrap()
-                .get_shaders_mut()
-                .find(|shader| shader.get_shader_name() == shader_name)
-                .unwrap_or_else(|| panic!("no shader found with shader name: {}", shader_name))
-                .get_bsdf_mut()
-                .set_base_color(ColorPicker::Texture(Some(texture_id)));
-        });
-
-    // add more objects to the scene (loading obj files)
-    {
-        arguments.get_obj_files().iter().for_each(|obj_file_path| {
-            load_obj_file(obj_file_path).drain(0..).for_each(|object| {
-                scene.write().unwrap().add_object(Box::new(object));
-            });
-        });
-
-        // update scene bvh
-        {
-            let mut scene = scene.write().unwrap();
-            scene.apply_model_matrices();
-
-            scene.build_bvh(0.01);
-
-            scene.unapply_model_matrices();
-        }
-    }
-
-    // assign shader to the object
-    {
-        let mut scene = scene.write().unwrap();
-        let shader_list = shader_list.read().unwrap();
-        arguments
-            .get_object_shader()
-            .iter()
-            .for_each(|(object_name, shader_name)| {
-                let object = scene
-                    .get_objects_mut()
-                    .find(|object| object.get_object_name() == object_name)
-                    .unwrap_or_else(|| panic!("No object with name {} was found", object_name));
-
-                let shader = shader_list
-                    .get_shaders()
-                    .find(|shader| shader.get_shader_name() == shader_name)
-                    .unwrap_or_else(|| panic!("No shader with name {} was found", shader_name));
-
-                object.set_path_trace_shader_id(shader.get_shader_id());
-            });
-    }
+    let file_open_path = arguments.get_rt_file().cloned();
+    let path_trace_camera = ray_trace_params.get_camera().clone();
+    let rendered_image = ray_trace_params.get_rendered_image();
 
     // Spawn the main ray tracing thread
     let (ray_trace_thread_sender, ray_trace_thread_receiver) = mpsc::channel();
@@ -332,10 +93,7 @@ fn main() {
         main_headless(
             ray_trace_main_thread_handle,
             ray_trace_thread_sender,
-            Arc::try_unwrap(path_trace_camera)
-                .unwrap()
-                .into_inner()
-                .unwrap(),
+            path_trace_camera,
             rendered_image,
             path_trace_progress,
             arguments,
@@ -346,7 +104,7 @@ fn main() {
             scene,
             shader_list,
             texture_list,
-            path_trace_camera,
+            Arc::new(RwLock::new(path_trace_camera)),
             environment,
             rendered_image,
             path_trace_progress,
@@ -370,16 +128,16 @@ fn main_headless(
 ) {
     let image_width = arguments
         .get_image_width()
-        .unwrap_or_else(default_image_width);
+        .unwrap_or_else(rt::default_image_width);
     let image_height = arguments
         .get_image_height()
-        .unwrap_or_else(default_image_height);
+        .unwrap_or_else(rt::default_image_height);
     let trace_max_depth = arguments
         .get_trace_max_depth()
-        .unwrap_or_else(default_trace_max_depth);
+        .unwrap_or_else(rt::default_trace_max_depth);
     let samples_per_pixel = arguments
         .get_samples()
-        .unwrap_or_else(default_samples_per_pixel);
+        .unwrap_or_else(rt::default_samples_per_pixel);
 
     ray_trace_thread_sender
         .send(RayTraceMessage::StartRender(RayTraceParams::new(
@@ -446,7 +204,7 @@ fn main_headless(
         util::duration_to_string(path_trace_progress.read().unwrap().get_elapsed_duration())
     );
 
-    save_image(
+    rt::save_image(
         &rendered_image.read().unwrap(),
         true,
         arguments.get_output_file().unwrap(),
@@ -559,16 +317,16 @@ fn main_gui(
     let mut try_select_object = false;
     let mut image_width = arguments
         .get_image_width()
-        .unwrap_or_else(default_image_width);
+        .unwrap_or_else(rt::default_image_width);
     let mut image_height = arguments
         .get_image_height()
-        .unwrap_or_else(default_image_height);
+        .unwrap_or_else(rt::default_image_height);
     let mut trace_max_depth = arguments
         .get_trace_max_depth()
-        .unwrap_or_else(default_trace_max_depth);
+        .unwrap_or_else(rt::default_trace_max_depth);
     let mut samples_per_pixel = arguments
         .get_samples()
-        .unwrap_or_else(default_samples_per_pixel);
+        .unwrap_or_else(rt::default_samples_per_pixel);
     let mut ray_traversal_info: Vec<TraversalInfo> = Vec::new();
     let mut ray_to_shoot = (3, 3);
     let mut ray_pixel_start = (
@@ -760,7 +518,7 @@ fn main_gui(
                                         .set_directory(".")
                                         .pick_file()
                                     {
-                                        load_obj_file(path).drain(0..).for_each(|object| {
+                                        rt::load_obj_file(path).drain(0..).for_each(|object| {
                                             scene.write().unwrap().add_object(Box::new(object));
                                         });
                                         // update scene bvh
@@ -1087,7 +845,7 @@ fn main_gui(
                                     .set_directory(".")
                                     .save_file()
                                 {
-                                    save_image(&rendered_image.read().unwrap(), true, path);
+                                    rt::save_image(&rendered_image.read().unwrap(), true, path);
                                 }
                             }
 
@@ -1913,67 +1671,4 @@ fn glfw_modifier_to_string(mods: glfw::Modifiers) -> String {
         res
     };
     res
-}
-
-/// Save image to disk, based on the extension picks the correct file format.
-///
-/// # Note
-///
-/// `linear_to_srgb` conversion is not done when saving to `image`
-/// file format (the custom file format)
-fn save_image<P>(image: &Image, linear_to_srgb: bool, path: P)
-where
-    P: AsRef<std::path::Path>,
-{
-    let save_to_generic_format = || {
-        let image = image::ImageBuffer::from_fn(
-            image.width().try_into().unwrap(),
-            image.height().try_into().unwrap(),
-            |i, j| {
-                let pixel = image.get_pixel(i.try_into().unwrap(), j.try_into().unwrap());
-                let pixel = [pixel[0] as f32, pixel[1] as f32, pixel[2] as f32];
-
-                let pixel = if linear_to_srgb {
-                    [
-                        egui::color::gamma_from_linear(pixel[0]),
-                        egui::color::gamma_from_linear(pixel[1]),
-                        egui::color::gamma_from_linear(pixel[2]),
-                    ]
-                } else {
-                    pixel
-                };
-
-                let pixel = [
-                    (pixel[0] * 255.0).round(),
-                    (pixel[1] * 255.0).round(),
-                    (pixel[2] * 255.0).round(),
-                    255.0,
-                ];
-
-                image::Rgba([
-                    pixel[0] as u8,
-                    pixel[1] as u8,
-                    pixel[2] as u8,
-                    pixel[3] as u8,
-                ])
-            },
-        );
-
-        image.save(&path).unwrap();
-    };
-
-    let save_to_custom_format = || {
-        let file = serde_json::to_string(image).unwrap();
-        std::fs::write(&path, file).unwrap();
-    };
-
-    if let Some(extension) = path.as_ref().extension() {
-        if extension == "image" {
-            save_to_custom_format();
-        } else {
-            save_to_generic_format();
-        }
-    } else {
-        save_to_custom_format();
-    }
 }
