@@ -60,5 +60,9 @@ name = "vector_math_visualize"
 name = "ray_trace_benchmark"
 harness = false
 
+[[bench]]
+name = "bvh_benchmark"
+harness = false
+
 [patch.crates-io]
 generational-arena = { git = "ssh://git@github.com/JOE1994/generational-arena.git", branch = 'fix_bug' }
