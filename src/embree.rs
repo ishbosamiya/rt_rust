@@ -148,14 +148,6 @@ impl Intersectable for Embree {
                     ray_hit.hit.v.into(),
                 ),
             );
-            info.set_normal(
-                ray,
-                &glm::vec3(
-                    ray_hit.hit.Ng_x as _,
-                    ray_hit.hit.Ng_y as _,
-                    ray_hit.hit.Ng_z as _,
-                ),
-            );
             let object_id = *self
                 .geometry_ids
                 .get(

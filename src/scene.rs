@@ -21,7 +21,7 @@ use crate::UiData;
 #[cfg(feature = "use_embree")]
 use crate::{
     embree::Embree,
-    object::{DataForUV, PrimitiveType},
+    object::{DataForInterpolation, PrimitiveType},
 };
 
 use itertools::Itertools;
@@ -331,12 +331,14 @@ impl Intersectable for Scene {
                     .map(|mut info| {
                         let object = &self.objects.get(&info.get_object_id().unwrap()).unwrap();
                         info.set_shader_id(object.get_path_trace_shader_id());
-                        info.set_uv(object.get_uv(&DataForUV::new(
+                        let data_for_interpolation = DataForInterpolation::new(
                             *info.get_primitive_index(),
                             PrimitiveType::Triangle,
                             *info.get_bary_coords(),
                             *info.get_point(),
-                        )));
+                        );
+                        info.set_uv(object.get_uv(&data_for_interpolation));
+                        info.set_normal(ray, &object.get_normal(&data_for_interpolation));
                         info
                     })
             }
