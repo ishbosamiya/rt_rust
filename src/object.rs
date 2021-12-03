@@ -151,6 +151,9 @@ pub trait Object:
 
     /// Get normal of the object with the given data
     fn get_normal(&self, data: &DataForInterpolation) -> glm::DVec3;
+
+    /// Must set any data that must be cached
+    fn set_cached_data(&mut self);
 }
 
 pub mod objects {
@@ -334,6 +337,10 @@ pub mod objects {
             fn get_normal(&self, data: &DataForInterpolation) -> glm::DVec3 {
                 (data.position - self.data.get_center()) / self.data.get_radius()
             }
+
+            fn set_cached_data(&mut self) {
+                // no caching for sphere
+            }
         }
     }
 
@@ -355,11 +362,29 @@ pub mod objects {
 
         use super::super::{DrawError, Object, ObjectDrawData, MESH_NAME_GEN};
 
+        use itertools::Itertools;
         use serde::{Deserialize, Serialize};
+
+        #[derive(Debug, Clone)]
+        struct Triangle {
+            i1: usize,
+            i2: usize,
+            i3: usize,
+        }
+
+        impl Triangle {
+            fn new(i1: usize, i2: usize, i3: usize) -> Self {
+                Self { i1, i2, i3 }
+            }
+        }
 
         #[derive(Debug, Clone, Serialize, Deserialize)]
         pub struct Mesh {
             data: MeshData,
+            /// precomputed triangulation of the mesh, valid only
+            /// until mesh structure remains the same
+            #[serde(skip)]
+            triangles: Option<Vec<Triangle>>,
             shader_id: Option<ShaderID>,
             object_id: Option<ObjectID>,
             #[serde(default = "default_object_name")]
@@ -385,6 +410,7 @@ pub mod objects {
             ) -> Self {
                 Self {
                     data,
+                    triangles: None,
                     shader_id: None,
                     object_id: None,
                     object_name: MESH_NAME_GEN.lock().unwrap().next().unwrap(),
@@ -495,83 +521,64 @@ pub mod objects {
             }
 
             fn get_uv(&self, data: &DataForInterpolation) -> glm::DVec2 {
-                let mut uvs = None;
                 match data.primitive_type {
                     PrimitiveType::Triangle => {
-                        // TODO: maybe cache the triangulated mesh so
-                        // it is faster to query, make it O(1) instead
-                        // of O(n)
-                        let mut num_triangles_processed = 0;
-                        for face in self.data.get_faces().iter() {
-                            let triangle_start_count = num_triangles_processed;
-                            num_triangles_processed += face.len() - 2;
-                            let primitive_index = data.primitive_index.unwrap();
-                            if primitive_index < num_triangles_processed {
-                                let v1_index = face[0];
-                                let v2_index = face[1 + primitive_index - triangle_start_count];
-                                let v3_index = face[2 + primitive_index - triangle_start_count];
+                        let triangle = &self.triangles.as_ref().expect("not cached yet")
+                            [data.primitive_index.unwrap()];
+                        let v1 = &self.data.get_vertices()[triangle.i1];
+                        let v2 = &self.data.get_vertices()[triangle.i2];
+                        let v3 = &self.data.get_vertices()[triangle.i3];
 
-                                let v1 = &self.data.get_vertices()[v1_index];
-                                let v2 = &self.data.get_vertices()[v2_index];
-                                let v3 = &self.data.get_vertices()[v3_index];
+                        let uv1 = v1.get_uv().as_ref().unwrap();
+                        let uv2 = v2.get_uv().as_ref().unwrap();
+                        let uv3 = v3.get_uv().as_ref().unwrap();
 
-                                let uv1 = v1.get_uv().as_ref().unwrap();
-                                let uv2 = v2.get_uv().as_ref().unwrap();
-                                let uv3 = v3.get_uv().as_ref().unwrap();
-
-                                uvs = Some(util::vec2_apply_bary_coord(
-                                    uv1,
-                                    uv2,
-                                    uv3,
-                                    &data.bary_coords,
-                                ));
-
-                                break;
-                            }
-                        }
+                        util::vec2_apply_bary_coord(uv1, uv2, uv3, &data.bary_coords)
                     }
                 }
-                uvs.unwrap()
             }
 
             fn get_normal(&self, data: &DataForInterpolation) -> glm::DVec3 {
-                let mut normals = None;
                 match data.primitive_type {
                     PrimitiveType::Triangle => {
-                        // TODO: maybe cache the triangulated mesh so
-                        // it is faster to query, make it O(1) instead
-                        // of O(n)
-                        let mut num_triangles_processed = 0;
-                        for face in self.data.get_faces().iter() {
-                            let triangle_start_count = num_triangles_processed;
-                            num_triangles_processed += face.len() - 2;
-                            let primitive_index = data.primitive_index.unwrap();
-                            if primitive_index < num_triangles_processed {
-                                let v1_index = face[0];
-                                let v2_index = face[1 + primitive_index - triangle_start_count];
-                                let v3_index = face[2 + primitive_index - triangle_start_count];
+                        let triangle = &self.triangles.as_ref().expect("not cached yet")
+                            [data.primitive_index.unwrap()];
+                        let v1 = &self.data.get_vertices()[triangle.i1];
+                        let v2 = &self.data.get_vertices()[triangle.i2];
+                        let v3 = &self.data.get_vertices()[triangle.i3];
 
-                                let v1 = &self.data.get_vertices()[v1_index];
-                                let v2 = &self.data.get_vertices()[v2_index];
-                                let v3 = &self.data.get_vertices()[v3_index];
+                        let normal1 = v1.get_normal().as_ref().unwrap();
+                        let normal2 = v2.get_normal().as_ref().unwrap();
+                        let normal3 = v3.get_normal().as_ref().unwrap();
 
-                                let normal1 = v1.get_normal().as_ref().unwrap();
-                                let normal2 = v2.get_normal().as_ref().unwrap();
-                                let normal3 = v3.get_normal().as_ref().unwrap();
-
-                                normals = Some(util::vec3_apply_bary_coord(
-                                    normal1,
-                                    normal2,
-                                    normal3,
-                                    &data.bary_coords,
-                                ));
-
-                                break;
-                            }
-                        }
+                        util::vec3_apply_bary_coord(normal1, normal2, normal3, &data.bary_coords)
                     }
                 }
-                normals.unwrap()
+            }
+
+            fn set_cached_data(&mut self) {
+                if self.triangles.is_none() {
+                    self.triangles = Some(
+                        self.data
+                            .get_faces()
+                            .iter()
+                            .flat_map(|face| {
+                                // TODO: need to find a better way to triangulate the
+                                // face
+
+                                // It doesn't make sense for a face to have only 2 verts
+                                assert!(face.len() > 2);
+
+                                let v1_index = face[0];
+                                face.iter().skip(1).tuple_windows().map(
+                                    move |(&v2_index, &v3_index)| {
+                                        Triangle::new(v1_index, v2_index, v3_index)
+                                    },
+                                )
+                            })
+                            .collect_vec(),
+                    );
+                }
             }
         }
     }
