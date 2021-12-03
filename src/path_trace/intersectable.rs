@@ -5,21 +5,25 @@ use crate::{glm, object::ObjectID};
 pub struct IntersectInfo {
     t: f64,
     point: glm::DVec3,
-    uv: glm::DVec2,
+    bary_coords: glm::DVec3,
+    primitive_index: Option<usize>,
     object_id: Option<ObjectID>,
     shader_id: Option<ShaderID>,
+    uv: Option<glm::DVec2>,
     normal: Option<glm::DVec3>,
     front_face: bool,
 }
 
 impl IntersectInfo {
-    pub fn new(t: f64, point: glm::DVec3, uv: glm::DVec2) -> Self {
+    pub fn new(t: f64, point: glm::DVec3, bary_coords: glm::DVec3) -> Self {
         Self {
             t,
             point,
-            uv,
+            bary_coords,
+            primitive_index: None,
             object_id: None,
             shader_id: None,
+            uv: None,
             normal: None,
             front_face: false,
         }
@@ -34,8 +38,13 @@ impl IntersectInfo {
     }
 
     /// Get a reference uv.
-    pub fn get_uv(&self) -> &glm::DVec2 {
+    pub fn get_uv(&self) -> &Option<glm::DVec2> {
         &self.uv
+    }
+
+    /// Set the intersect info's uv.
+    pub fn set_uv(&mut self, uv: glm::DVec2) {
+        self.uv = Some(uv);
     }
 
     pub fn set_object_id(&mut self, object_id: ObjectID) {
@@ -71,6 +80,21 @@ impl IntersectInfo {
         } else {
             self.normal = Some(*outward_normal);
         }
+    }
+
+    /// Get a reference to the intersect info's bary coords.
+    pub fn get_bary_coords(&self) -> &glm::DVec3 {
+        &self.bary_coords
+    }
+
+    /// Get a reference to the intersect info's primitive index.
+    pub fn get_primitive_index(&self) -> &Option<usize> {
+        &self.primitive_index
+    }
+
+    /// Set the intersect info's primitive index.
+    pub fn set_primitive_index(&mut self, primitive_index: usize) {
+        self.primitive_index = Some(primitive_index);
     }
 }
 

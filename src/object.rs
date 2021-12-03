@@ -82,6 +82,39 @@ impl ObjectDrawData {
     }
 }
 
+pub enum PrimitiveType {
+    Triangle,
+}
+
+/// Data required to fetch the UVs of the object at the point
+/// `position` on the object
+pub struct DataForUV {
+    /// Index of the primitive for which UVs must be calculated
+    primitive_index: Option<usize>,
+    primitive_type: PrimitiveType,
+    /// Barycentric coords of the point on the primitive
+    bary_coords: glm::DVec3,
+
+    /// Position on the object for which UVs must be calculated
+    position: glm::DVec3,
+}
+
+impl DataForUV {
+    pub fn new(
+        primitive_index: Option<usize>,
+        primitive_type: PrimitiveType,
+        bary_coords: glm::DVec3,
+        position: glm::DVec3,
+    ) -> Self {
+        Self {
+            primitive_index,
+            primitive_type,
+            bary_coords,
+            position,
+        }
+    }
+}
+
 #[typetag::serde(tag = "type")]
 pub trait Object:
     Debug + Intersectable + Drawable<ExtraData = ObjectDrawData, Error = DrawError> + Sync + Send
@@ -112,6 +145,9 @@ pub trait Object:
 
     #[cfg(feature = "use_embree")]
     fn add_object_to_embree(&self, embree: &mut Embree);
+
+    /// Get UV of the object with the given data
+    fn get_uv(&self, data: &DataForUV) -> glm::DVec2;
 }
 
 pub mod objects {
@@ -123,8 +159,9 @@ pub mod objects {
         use crate::embree::Embree;
         use crate::{
             glm,
-            object::ObjectID,
+            object::{DataForUV, ObjectID},
             path_trace::{
+                self,
                 intersectable::{IntersectInfo, Intersectable},
                 ray::Ray,
                 shader_list::ShaderID,
@@ -286,6 +323,10 @@ pub mod objects {
             fn add_object_to_embree(&self, embree: &mut Embree) {
                 embree.add_sphere(&self.data, self.get_object_id());
             }
+
+            fn get_uv(&self, data: &DataForUV) -> glm::DVec2 {
+                path_trace::direction_to_equirectangular(&(data.position - self.data.get_center()))
+            }
         }
     }
 
@@ -295,13 +336,14 @@ pub mod objects {
         use crate::{
             glm,
             mesh::{Mesh as MeshData, MeshBVHDrawData, MeshDrawData, MeshUseShader},
-            object::ObjectID,
+            object::{DataForUV, ObjectID, PrimitiveType},
             path_trace::{
                 intersectable::{IntersectInfo, Intersectable},
                 ray::Ray,
                 shader_list::ShaderID,
             },
             rasterize::{drawable::Drawable, shader},
+            util,
         };
 
         use super::super::{DrawError, Object, ObjectDrawData, MESH_NAME_GEN};
@@ -443,6 +485,46 @@ pub mod objects {
             #[cfg(feature = "use_embree")]
             fn add_object_to_embree(&self, embree: &mut Embree) {
                 embree.add_mesh(&self.data, self.get_object_id());
+            }
+
+            fn get_uv(&self, data: &DataForUV) -> glm::DVec2 {
+                let mut uvs = None;
+                match data.primitive_type {
+                    PrimitiveType::Triangle => {
+                        // TODO: maybe cache the triangulated mesh so
+                        // it is faster to query, make it O(1) instead
+                        // of O(n)
+                        let mut num_triangles_processed = 0;
+                        for face in self.data.get_faces().iter() {
+                            let triangle_start_count = num_triangles_processed;
+                            num_triangles_processed += face.len() - 2;
+                            let primitive_index = data.primitive_index.unwrap();
+                            if primitive_index < num_triangles_processed {
+                                let v1_index = face[0];
+                                let v2_index = face[1 + primitive_index - triangle_start_count];
+                                let v3_index = face[2 + primitive_index - triangle_start_count];
+
+                                let v1 = &self.data.get_vertices()[v1_index];
+                                let v2 = &self.data.get_vertices()[v2_index];
+                                let v3 = &self.data.get_vertices()[v3_index];
+
+                                let uv1 = v1.get_uv().as_ref().unwrap();
+                                let uv2 = v2.get_uv().as_ref().unwrap();
+                                let uv3 = v3.get_uv().as_ref().unwrap();
+
+                                uvs = Some(util::vec2_apply_bary_coord(
+                                    uv1,
+                                    uv2,
+                                    uv3,
+                                    &data.bary_coords,
+                                ));
+
+                                break;
+                            }
+                        }
+                    }
+                }
+                uvs.unwrap()
             }
         }
     }

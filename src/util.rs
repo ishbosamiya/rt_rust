@@ -54,3 +54,21 @@ pub fn duration_to_string(duration: std::time::Duration) -> String {
         )
     }
 }
+
+pub fn vec3_apply_bary_coord(
+    v1: &glm::DVec3,
+    v2: &glm::DVec3,
+    v3: &glm::DVec3,
+    bary_coord: &glm::DVec3,
+) -> glm::DVec3 {
+    v1 * bary_coord[0] + v2 * bary_coord[1] + v3 * bary_coord[2]
+}
+
+pub fn vec2_apply_bary_coord(
+    v1: &glm::DVec2,
+    v2: &glm::DVec2,
+    v3: &glm::DVec2,
+    bary_coord: &glm::DVec3,
+) -> glm::DVec2 {
+    v1 * bary_coord[0] + v2 * bary_coord[1] + v3 * bary_coord[2]
+}

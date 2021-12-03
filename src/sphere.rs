@@ -1,12 +1,12 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use crate::glm;
 use crate::path_trace::intersectable::{IntersectInfo, Intersectable};
 use crate::path_trace::ray::Ray;
 use crate::rasterize::gpu_utils::draw_smooth_sphere_at;
 use crate::rasterize::{drawable::Drawable, gpu_immediate::GPUImmediate};
 use crate::util::vec3_apply_model_matrix;
-use crate::{glm, path_trace};
 
 use serde::{Deserialize, Serialize};
 
@@ -60,7 +60,10 @@ impl Intersectable for Sphere {
         let mut info = IntersectInfo::new(
             t,
             intersect_point,
-            path_trace::direction_to_equirectangular(&(intersect_point - self.get_center())),
+            // TODO: need to figure out if barycentric coords exist
+            // for spheres, right now just storing normalized position
+            // with respect to the center
+            (intersect_point - self.get_center()).normalize(),
         );
         info.set_normal(ray, &outward_normal);
 

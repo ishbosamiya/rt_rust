@@ -59,7 +59,12 @@ impl BSDF for Emissive {
         intersect_info: &IntersectInfo,
         texture_list: &TextureList,
     ) -> Option<glm::DVec3> {
-        Some(self.power * self.color.get_color(intersect_info.get_uv(), texture_list))
+        Some(
+            self.power
+                * self
+                    .color
+                    .get_color(intersect_info.get_uv().as_ref().unwrap(), texture_list),
+        )
     }
 
     fn get_bsdf_name(&self) -> &str {

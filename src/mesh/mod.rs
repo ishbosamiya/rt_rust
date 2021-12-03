@@ -11,7 +11,7 @@ use std::{fmt::Display, rc::Rc};
 use crate::bvh::{RayHitData, RayHitOptionalData};
 use crate::path_trace::intersectable::{IntersectInfo, Intersectable};
 use crate::path_trace::ray::Ray;
-use crate::util::{normal_apply_model_matrix, vec3_apply_model_matrix};
+use crate::util::{self, normal_apply_model_matrix, vec3_apply_model_matrix};
 use crate::{
     bvh::{BVHDrawData, BVHTree},
     glm,
@@ -514,6 +514,7 @@ impl Intersectable for Mesh {
             #[derive(Debug, Clone, Copy)]
             struct MeshRayCastData {
                 uv: glm::DVec2,
+                bary_coords: glm::DVec3,
             }
 
             let mesh_ray_cast_callback =
@@ -542,11 +543,12 @@ impl Intersectable for Mesh {
                                 let n3 = v3.get_normal().as_ref().unwrap();
                                 let mut hit_data = RayHitData::new(dist);
                                 hit_data.normal =
-                                    Some(vec3_apply_bary_coord(n1, n2, n3, &bary_coords));
+                                    Some(util::vec3_apply_bary_coord(n1, n2, n3, &bary_coords));
                                 hit_data
                                     .set_data(RayHitOptionalData::new(face_index, ray.at(dist)));
                                 hit_data.set_extra_data(MeshRayCastData {
-                                    uv: vec2_apply_bary_coord(uv1, uv2, uv3, &bary_coords),
+                                    uv: util::vec2_apply_bary_coord(uv1, uv2, uv3, &bary_coords),
+                                    bary_coords,
                                 });
                                 return Some(hit_data);
                             }
@@ -567,29 +569,12 @@ impl Intersectable for Mesh {
                     let mut intersect_info = IntersectInfo::new(
                         hit_data.dist,
                         hit_data.data.unwrap().co,
-                        hit_data.extra_data.unwrap().uv,
+                        hit_data.extra_data.unwrap().bary_coords,
                     );
+                    intersect_info.set_uv(hit_data.extra_data.unwrap().uv);
                     intersect_info.set_normal(ray, &hit_data.normal.unwrap());
                     intersect_info
                 })
         }
     }
-}
-
-fn vec3_apply_bary_coord(
-    v1: &glm::DVec3,
-    v2: &glm::DVec3,
-    v3: &glm::DVec3,
-    bary_coord: &glm::DVec3,
-) -> glm::DVec3 {
-    v1 * bary_coord[0] + v2 * bary_coord[1] + v3 * bary_coord[2]
-}
-
-fn vec2_apply_bary_coord(
-    v1: &glm::DVec2,
-    v2: &glm::DVec2,
-    v3: &glm::DVec2,
-    bary_coord: &glm::DVec3,
-) -> glm::DVec2 {
-    v1 * bary_coord[0] + v2 * bary_coord[1] + v3 * bary_coord[2]
 }

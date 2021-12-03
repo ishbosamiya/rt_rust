@@ -139,7 +139,15 @@ impl Intersectable for Embree {
             None
         } else {
             let t = ray_hit.ray.tfar as f64;
-            let mut info = IntersectInfo::new(t, ray.at(t), glm::zero());
+            let mut info = IntersectInfo::new(
+                t,
+                ray.at(t),
+                glm::vec3(
+                    (1.0 - ray_hit.hit.u - ray_hit.hit.v).into(),
+                    ray_hit.hit.u.into(),
+                    ray_hit.hit.v.into(),
+                ),
+            );
             info.set_normal(
                 ray,
                 &glm::vec3(
@@ -159,6 +167,7 @@ impl Intersectable for Embree {
                 )
                 .unwrap();
             info.set_object_id(object_id);
+            info.set_primitive_index(ray_hit.hit.primID.try_into().unwrap());
             Some(info)
         }
     }

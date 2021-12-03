@@ -7,8 +7,6 @@ use crate::bvh::BVHTree;
 #[cfg(all(not(feature = "scene_no_bvh"), not(feature = "use_embree")))]
 use crate::bvh::{RayHitData, RayHitOptionalData};
 use crate::egui;
-#[cfg(feature = "use_embree")]
-use crate::embree::Embree;
 #[cfg(not(feature = "scene_no_bvh"))]
 use crate::glm;
 use crate::object::{DrawError, Object, ObjectDrawData, ObjectID};
@@ -20,6 +18,11 @@ use crate::rasterize::drawable::Drawable;
 use crate::rasterize::gpu_immediate::GPUImmediate;
 use crate::ui::DrawUI;
 use crate::UiData;
+#[cfg(feature = "use_embree")]
+use crate::{
+    embree::Embree,
+    object::{DataForUV, PrimitiveType},
+};
 
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -326,10 +329,14 @@ impl Intersectable for Scene {
                     .expect("embree must be Some prior to this call")
                     .hit(ray, t_min, t_max)
                     .map(|mut info| {
-                        info.set_shader_id({
-                            let object = &self.objects.get(&info.get_object_id().unwrap()).unwrap();
-                            object.get_path_trace_shader_id()
-                        });
+                        let object = &self.objects.get(&info.get_object_id().unwrap()).unwrap();
+                        info.set_shader_id(object.get_path_trace_shader_id());
+                        info.set_uv(object.get_uv(&DataForUV::new(
+                            *info.get_primitive_index(),
+                            PrimitiveType::Triangle,
+                            *info.get_bary_coords(),
+                            *info.get_point(),
+                        )));
                         info
                     })
             }

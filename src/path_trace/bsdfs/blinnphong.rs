@@ -80,7 +80,7 @@ impl BSDF for Blinnphong {
         };
 
         self.color
-            .get_color(intersect_info.get_uv(), texture_list)
+            .get_color(intersect_info.get_uv().as_ref().unwrap(), texture_list)
             .component_mul(&glm::vec3(val, val, val))
     }
 
