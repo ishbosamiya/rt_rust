@@ -4,9 +4,11 @@ use std::rc::Rc;
 use std::sync::{Arc, RwLock};
 
 use crate::bvh::BVHTree;
-#[cfg(not(feature = "scene_no_bvh"))]
+#[cfg(all(not(feature = "scene_no_bvh"), not(feature = "use_embree")))]
 use crate::bvh::{RayHitData, RayHitOptionalData};
 use crate::egui;
+#[cfg(feature = "use_embree")]
+use crate::embree::Embree;
 #[cfg(not(feature = "scene_no_bvh"))]
 use crate::glm;
 use crate::object::{DrawError, Object, ObjectDrawData, ObjectID};
@@ -32,7 +34,13 @@ pub struct Scene {
 
     /// BVH over all the objects in the scene. User must handle
     /// building/rebuilding the bvh before usage.
+    #[cfg(not(feature = "use_embree"))]
     bvh: Option<BVHTree<ObjectID>>,
+
+    /// Use embree to speed up BVH traversal if feature is enabled
+    #[cfg(feature = "use_embree")]
+    #[serde(skip)]
+    embree: Option<Embree>,
 
     /// true if model matrices are currently applied
     model_matrices_applied: bool,
@@ -76,7 +84,10 @@ impl From<SceneShadow> for Scene {
         Self {
             objects: scene_shadow.objects,
             object_ids,
+            #[cfg(not(feature = "use_embree"))]
             bvh: scene_shadow.bvh,
+            #[cfg(feature = "use_embree")]
+            embree: None,
             model_matrices_applied: scene_shadow.model_matrices_applied,
             selected_object: scene_shadow.selected_object,
         }
@@ -94,7 +105,10 @@ impl Scene {
         Self {
             objects: HashMap::new(),
             object_ids: Vec::new(),
+            #[cfg(not(feature = "use_embree"))]
             bvh: None,
+            #[cfg(feature = "use_embree")]
+            embree: None,
             model_matrices_applied: false,
             selected_object: None,
         }
@@ -105,7 +119,14 @@ impl Scene {
         object.set_object_id(object_id);
         self.objects.insert(object_id, object);
         self.object_ids.push(object_id);
-        self.bvh = None;
+        #[cfg(feature = "use_embree")]
+        {
+            self.embree = None;
+        }
+        #[cfg(not(feature = "use_embree"))]
+        {
+            self.bvh = None;
+        }
     }
 
     pub fn delete_object(&mut self, object_id: ObjectID) -> Option<Box<dyn Object>> {
@@ -119,7 +140,14 @@ impl Scene {
         );
         let object = self.objects.remove(&object_id);
         if object.is_some() {
-            self.bvh = None;
+            #[cfg(feature = "use_embree")]
+            {
+                self.embree = None;
+            }
+            #[cfg(not(feature = "use_embree"))]
+            {
+                self.bvh = None;
+            }
         }
         object
     }
@@ -163,28 +191,59 @@ impl Scene {
     }
 
     pub fn build_bvh(&mut self, epsilon: f64) {
-        let mut bvh = BVHTree::new(self.objects.len(), epsilon, 4, 8);
+        #[cfg(feature = "use_embree")]
+        {
+            let _epsilon = epsilon;
+            let mut embree = Embree::new();
+            self.objects.values().for_each(|object| {
+                embree.add_object(object.as_ref());
+            });
+            embree.commit_scene();
+            self.embree = Some(embree);
+        }
+        #[cfg(not(feature = "use_embree"))]
+        {
+            let mut bvh = BVHTree::new(self.objects.len(), epsilon, 4, 8);
 
-        self.get_objects().for_each(|object| {
-            let co = object.get_min_max_bounds();
-            let co = [co.0, co.1];
-            bvh.insert(object.get_object_id(), &co);
-        });
+            self.get_objects().for_each(|object| {
+                let co = object.get_min_max_bounds();
+                let co = [co.0, co.1];
+                bvh.insert(object.get_object_id(), &co);
+            });
 
-        bvh.balance();
+            bvh.balance();
 
-        self.bvh = Some(bvh);
+            self.bvh = Some(bvh);
+        }
     }
 
     pub fn rebuild_bvh_if_needed(&mut self, epsilon: f64) {
-        if self.bvh.is_none() {
-            self.build_bvh(epsilon);
+        #[cfg(feature = "use_embree")]
+        {
+            if self.embree.is_none() {
+                self.build_bvh(epsilon);
+            }
+        }
+
+        #[cfg(not(feature = "use_embree"))]
+        {
+            if self.bvh.is_none() {
+                self.build_bvh(epsilon);
+            }
         }
     }
 
     pub fn get_min_max_bounds(&self) -> (glm::DVec3, glm::DVec3) {
-        let bvh = self.bvh.as_ref().unwrap();
-        bvh.get_min_max_bounds()
+        #[cfg(feature = "use_embree")]
+        todo!("use embree for this");
+
+        #[cfg(not(feature = "use_embree"))]
+        {
+            let bvh = self.bvh.as_ref().unwrap();
+            let bounds = bvh.get_min_max_bounds();
+
+            bounds
+        }
 
         // TODO: need to use the model matrices
         // self.objects.iter().fold(
@@ -260,42 +319,52 @@ impl Intersectable for Scene {
 
         #[cfg(not(feature = "scene_no_bvh"))]
         {
-            assert!(self.bvh.is_some());
+            #[cfg(feature = "use_embree")]
+            {
+                self.embree
+                    .as_ref()
+                    .expect("embree must be Some prior to this call")
+                    .hit(ray, t_min, t_max)
+            }
+            #[cfg(not(feature = "use_embree"))]
+            {
+                assert!(self.bvh.is_some());
 
-            let scene_ray_cast_callback =
-                |(co, dir): (&glm::DVec3, &glm::DVec3), object_id: ObjectID| {
-                    debug_assert_eq!(ray.get_origin(), co);
-                    debug_assert_eq!(ray.get_direction(), dir);
+                let scene_ray_cast_callback =
+                    |(co, dir): (&glm::DVec3, &glm::DVec3), object_id: ObjectID| {
+                        debug_assert_eq!(ray.get_origin(), co);
+                        debug_assert_eq!(ray.get_direction(), dir);
 
-                    let object = &self.objects.get(&object_id).unwrap();
+                        let object = &self.objects.get(&object_id).unwrap();
 
-                    object.hit(ray, t_min, t_max).and_then(
-                        |info| -> Option<RayHitData<ObjectID, IntersectInfo>> {
-                            if info.get_t() > t_min && info.get_t() < t_max {
-                                let mut hit_data = RayHitData::new(info.get_t());
-                                hit_data.normal = *info.get_normal();
-                                hit_data.set_data(RayHitOptionalData::new(
-                                    object_id,
-                                    ray.at(info.get_t()),
-                                ));
-                                hit_data.set_extra_data(info);
-                                Some(hit_data)
-                            } else {
-                                None
-                            }
-                        },
+                        object.hit(ray, t_min, t_max).and_then(
+                            |info| -> Option<RayHitData<ObjectID, IntersectInfo>> {
+                                if info.get_t() > t_min && info.get_t() < t_max {
+                                    let mut hit_data = RayHitData::new(info.get_t());
+                                    hit_data.normal = *info.get_normal();
+                                    hit_data.set_data(RayHitOptionalData::new(
+                                        object_id,
+                                        ray.at(info.get_t()),
+                                    ));
+                                    hit_data.set_extra_data(info);
+                                    Some(hit_data)
+                                } else {
+                                    None
+                                }
+                            },
+                        )
+                    };
+
+                self.bvh
+                    .as_ref()
+                    .unwrap()
+                    .ray_cast(
+                        *ray.get_origin(),
+                        *ray.get_direction(),
+                        Some(&scene_ray_cast_callback),
                     )
-                };
-
-            self.bvh
-                .as_ref()
-                .unwrap()
-                .ray_cast(
-                    *ray.get_origin(),
-                    *ray.get_direction(),
-                    Some(&scene_ray_cast_callback),
-                )
-                .map(|hit_data| hit_data.extra_data.unwrap())
+                    .map(|hit_data| hit_data.extra_data.unwrap())
+            }
         }
     }
 }

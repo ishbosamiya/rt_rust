@@ -1,5 +1,7 @@
 pub mod bvh;
 pub mod camera;
+#[cfg(feature = "use_embree")]
+pub mod embree;
 pub mod file;
 pub mod fps;
 pub mod icons;

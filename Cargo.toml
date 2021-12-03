@@ -28,6 +28,7 @@ clap = "2.33"
 pbr = "1.0"
 ipc-channel = "0.15"
 ctrlc = { version = "3.2", features = ["termination"] }
+embree_rust = { git = "ssh://git@github.com/ishbosamiya/embree_rust.git" }
 
 [dev-dependencies]
 criterion = "0.3"
@@ -44,8 +45,10 @@ members = [
 ]
 
 [features]
+default = ["use_embree"]
 mesh_no_bvh = []
 scene_no_bvh = []
+use_embree = []
 
 [[bin]]
 name = "main"
@@ -66,3 +69,6 @@ harness = false
 
 [patch.crates-io]
 generational-arena = { git = "ssh://git@github.com/JOE1994/generational-arena.git", branch = 'fix_bug' }
+
+[patch."ssh://git@github.com/ishbosamiya/embree_rust.git"]
+embree_rust = { path = "../embree_rust" }

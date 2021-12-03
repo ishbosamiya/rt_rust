@@ -1,5 +1,7 @@
 use std::{cell::RefCell, fmt::Debug, rc::Rc, sync::Mutex};
 
+#[cfg(feature = "use_embree")]
+use crate::embree::Embree;
 use crate::{
     glm,
     mesh::MeshDrawError,
@@ -107,6 +109,9 @@ pub trait Object:
     fn get_object_name(&self) -> &str;
 
     fn get_min_max_bounds(&self) -> (glm::DVec3, glm::DVec3);
+
+    #[cfg(feature = "use_embree")]
+    fn add_object_to_embree(&self, embree: &mut Embree);
 }
 
 pub mod objects {
@@ -114,6 +119,8 @@ pub mod objects {
     pub use sphere::Sphere;
 
     mod sphere {
+        #[cfg(feature = "use_embree")]
+        use crate::embree::Embree;
         use crate::{
             glm,
             object::ObjectID,
@@ -274,10 +281,17 @@ pub mod objects {
                         ),
                 )
             }
+
+            #[cfg(feature = "use_embree")]
+            fn add_object_to_embree(&self, embree: &mut Embree) {
+                embree.add_sphere(&self.data, self.get_object_id());
+            }
         }
     }
 
     mod mesh {
+        #[cfg(feature = "use_embree")]
+        use crate::embree::Embree;
         use crate::{
             glm,
             mesh::{Mesh as MeshData, MeshBVHDrawData, MeshDrawData, MeshUseShader},
@@ -424,6 +438,11 @@ pub mod objects {
 
             fn get_min_max_bounds(&self) -> (glm::DVec3, glm::DVec3) {
                 self.data.get_min_max_bounds()
+            }
+
+            #[cfg(feature = "use_embree")]
+            fn add_object_to_embree(&self, embree: &mut Embree) {
+                embree.add_mesh(&self.data, self.get_object_id());
             }
         }
     }
