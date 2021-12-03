@@ -42,6 +42,17 @@ use rt::rasterize::gpu_immediate::GPUImmediate;
 use rt::rasterize::infinite_grid::{InfiniteGrid, InfiniteGridDrawData};
 use rt::rasterize::shader;
 
+fn print_active_feature_list() {
+    print!("active_features: ");
+    #[cfg(feature = "mesh_no_bvh")]
+    print!("mesh_no_bvh, ");
+    #[cfg(feature = "scene_no_bvh")]
+    print!("scene_no_bvh, ");
+    #[cfg(feature = "use_embree")]
+    print!("use_embree, ");
+    println!();
+}
+
 fn main() {
     let sigint_triggered = Arc::new(AtomicBool::new(false));
     {
@@ -52,6 +63,8 @@ fn main() {
         })
         .expect("Error setting signal handler");
     }
+
+    print_active_feature_list();
 
     let arguments = InputArguments::read_cli();
 
