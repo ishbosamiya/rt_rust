@@ -325,6 +325,13 @@ impl Intersectable for Scene {
                     .as_ref()
                     .expect("embree must be Some prior to this call")
                     .hit(ray, t_min, t_max)
+                    .map(|mut info| {
+                        info.set_shader_id({
+                            let object = &self.objects.get(&info.get_object_id().unwrap()).unwrap();
+                            object.get_path_trace_shader_id()
+                        });
+                        info
+                    })
             }
             #[cfg(not(feature = "use_embree"))]
             {

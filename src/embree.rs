@@ -148,6 +148,17 @@ impl Intersectable for Embree {
                     ray_hit.hit.Ng_z as _,
                 ),
             );
+            let object_id = *self
+                .geometry_ids
+                .get(
+                    self.embree
+                        .get_geometry_id_from_geometry_scene_id(&embree_rust::GeometrySceneID(
+                            ray_hit.hit.geomID,
+                        ))
+                        .unwrap(),
+                )
+                .unwrap();
+            info.set_object_id(object_id);
             Some(info)
         }
     }
