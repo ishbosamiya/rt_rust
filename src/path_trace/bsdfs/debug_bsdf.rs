@@ -76,26 +76,30 @@ fn hash_to_rgb(val: &impl Hash) -> glm::DVec3 {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DebugBSDF {
     info_type: IntersectInfoType,
+    /// Divide the intersect info t with this distance factor
+    distance_factor: f64,
 }
 
 impl Default for DebugBSDF {
     fn default() -> Self {
-        Self::new(IntersectInfoType::T)
+        Self::new(IntersectInfoType::T, 25.0)
     }
 }
 
 impl DebugBSDF {
-    pub fn new(info_type: IntersectInfoType) -> Self {
-        Self { info_type }
+    pub fn new(info_type: IntersectInfoType, distance_factor: f64) -> Self {
+        Self {
+            info_type,
+            distance_factor,
+        }
     }
 
     fn get_color(&self, intersect_info: &IntersectInfo) -> glm::DVec3 {
         match self.info_type {
-            IntersectInfoType::T => glm::vec3(
-                intersect_info.get_t(),
-                intersect_info.get_t(),
-                intersect_info.get_t(),
-            ),
+            IntersectInfoType::T => {
+                let val = intersect_info.get_t() / self.distance_factor;
+                glm::vec3(val, val, val)
+            }
             IntersectInfoType::Point => *intersect_info.get_point(),
             IntersectInfoType::BaryCoords => *intersect_info.get_bary_coords(),
             IntersectInfoType::PrimitiveIndex => hash_to_rgb(intersect_info.get_primitive_index()),
@@ -169,6 +173,13 @@ impl DrawUI for DebugBSDF {
             ui.label("Info Type: ");
             self.info_type.draw_ui_mut(ui, extra_data);
         });
+
+        if self.info_type == IntersectInfoType::T {
+            ui.add(
+                egui::Slider::new(&mut self.distance_factor, 0.00001..=25.0)
+                    .text("Distance Factor"),
+            );
+        }
     }
 }
 
