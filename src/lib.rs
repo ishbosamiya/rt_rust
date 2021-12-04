@@ -132,7 +132,7 @@ where
             let mut object = MeshObject::new(
                 mesh,
                 MeshUseShader::DirectionalLight {
-                    color: glm::vec3(0.3, 0.2, 0.7),
+                    color: util::srgb_to_linear(&glm::vec3(0.3, 0.2, 0.7)),
                 },
                 None,
             );

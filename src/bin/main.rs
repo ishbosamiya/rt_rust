@@ -270,6 +270,7 @@ fn main_gui(
         gl::Disable(gl::CULL_FACE);
         gl::Enable(gl::DEPTH_TEST);
         gl::Enable(gl::MULTISAMPLE);
+        gl::Enable(gl::FRAMEBUFFER_SRGB);
     }
 
     // setup the egui backend
@@ -324,8 +325,8 @@ fn main_gui(
     let mut restart_viewport_rendered_shading = false;
     let mut open_rendered_image_window = false;
     let mut use_environment_map_as_background = false;
-    let mut background_color = glm::vec4(0.051, 0.051, 0.051, 1.0);
-    let mut infinite_grid_color = glm::vec4(0.15, 0.15, 0.15, 1.0);
+    let mut background_color = util::srgb_to_linear(&glm::vec4(0.051, 0.051, 0.051, 1.0));
+    let mut infinite_grid_color = util::srgb_to_linear(&glm::vec4(0.15, 0.15, 0.15, 1.0));
     let mut should_cast_scene_ray = false;
     let mut try_select_object = false;
     let mut image_width = arguments
@@ -349,7 +350,7 @@ fn main_gui(
     let mut show_ray_traversal_info = true;
     let mut draw_normal_at_hit_points = true;
     let mut normals_size = 0.4;
-    let mut normals_color = glm::vec4(1.0, 1.0, 1.0, 1.0);
+    let mut normals_color = util::srgb_to_linear(&glm::vec4(1.0, 1.0, 1.0, 1.0));
     let mut camera_image_alpha_value = 0.0;
     let mut camera_use_depth_for_image = true;
     let mut selected_shader: Option<ShaderID> = None;
