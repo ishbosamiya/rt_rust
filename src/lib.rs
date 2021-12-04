@@ -127,9 +127,7 @@ where
         .split()
         .drain(0..)
         .map(|meshio| {
-            let mut mesh = crate::mesh::Mesh::read(&meshio).unwrap();
-            // build bvh for mesh
-            mesh.build_bvh(0.01);
+            let mesh = crate::mesh::Mesh::read(&meshio).unwrap();
             // add mesh to scene
             let mut object = MeshObject::new(
                 mesh,

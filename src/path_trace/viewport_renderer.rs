@@ -118,7 +118,10 @@ impl ViewportRenderer {
 
         std::thread::spawn(move || {
             let mut do_next_render = true;
+            #[cfg(not(feature = "use_embree"))]
             let starting_dimension = 32.0;
+            #[cfg(feature = "use_embree")]
+            let starting_dimension = 256.0;
             let size_multipler: f64 = 2.0;
             let viewport_width = render_data.target_viewport.get_width() as f64;
             let viewport_height = render_data.target_viewport.get_height() as f64;

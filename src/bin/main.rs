@@ -621,7 +621,6 @@ fn main_gui(
                             scene.read().unwrap().draw_ui(ui, &ui_data);
                             if let Ok(mut scene) = scene.try_write() {
                                 scene.draw_ui_mut(ui, &ui_data);
-                                scene.rebuild_bvh_if_needed(0.01);
                             } else {
                                 ui.label("Scene is currently in use, cannot edit the scene");
                             }

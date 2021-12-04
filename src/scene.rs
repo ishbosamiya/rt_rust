@@ -198,7 +198,8 @@ impl Scene {
         {
             let _epsilon = epsilon;
             let mut embree = Embree::new();
-            self.objects.values().for_each(|object| {
+            self.objects.values_mut().for_each(|object| {
+                object.set_cached_data();
                 embree.add_object(object.as_ref());
             });
             embree.commit_scene();
@@ -208,7 +209,8 @@ impl Scene {
         {
             let mut bvh = BVHTree::new(self.objects.len(), epsilon, 4, 8);
 
-            self.get_objects().for_each(|object| {
+            self.get_objects_mut().for_each(|object| {
+                object.rebuild_bvh_if_needed(epsilon);
                 let co = object.get_min_max_bounds();
                 let co = [co.0, co.1];
                 bvh.insert(object.get_object_id(), &co);
@@ -233,6 +235,9 @@ impl Scene {
             if self.bvh.is_none() {
                 self.build_bvh(epsilon);
             }
+            self.get_objects_mut().for_each(|object| {
+                object.rebuild_bvh_if_needed(epsilon);
+            });
         }
     }
 
