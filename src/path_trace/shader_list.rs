@@ -184,10 +184,13 @@ impl DrawUI for ShaderList {
                         shader.get_viewport_color_mut(),
                     );
 
-                    if ui.button("From BSDF").clicked() {
-                        *shader.get_viewport_color_mut() = shader
-                            .get_bsdf()
-                            .get_base_color(&extra_data.get_texture_list().read().unwrap());
+                    if let Some(base_color) = shader
+                        .get_bsdf()
+                        .get_base_color(&extra_data.get_texture_list().read().unwrap())
+                    {
+                        if ui.button("From BSDF").clicked() {
+                            *shader.get_viewport_color_mut() = base_color;
+                        }
                     }
                 });
 

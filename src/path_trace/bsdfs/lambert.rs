@@ -64,8 +64,8 @@ impl BSDF for Lambert {
         "Lambert"
     }
 
-    fn get_base_color(&self, texture_list: &TextureList) -> glm::DVec3 {
-        self.color.get_color(&glm::zero(), texture_list)
+    fn get_base_color(&self, texture_list: &TextureList) -> Option<glm::DVec3> {
+        Some(self.color.get_color(&glm::zero(), texture_list))
     }
 
     fn set_base_color(&mut self, color: ColorPicker) {

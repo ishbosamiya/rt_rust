@@ -103,7 +103,7 @@ pub trait BSDF: DrawUI<ExtraData = BSDFUiData> {
 
     fn get_bsdf_name(&self) -> &str;
 
-    fn get_base_color(&self, texture_list: &TextureList) -> glm::DVec3;
+    fn get_base_color(&self, texture_list: &TextureList) -> Option<glm::DVec3>;
 
     fn set_base_color(&mut self, color: ColorPicker);
 

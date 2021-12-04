@@ -1,4 +1,5 @@
 pub mod blinnphong;
+pub mod debug_bsdf;
 pub mod emissive;
 pub mod glass;
 pub mod glossy;

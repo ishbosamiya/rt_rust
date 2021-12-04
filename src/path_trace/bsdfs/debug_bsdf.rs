@@ -1,13 +1,13 @@
-// PAT
-// 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
+use std::collections::hash_map::DefaultHasher;
+use std::fmt::Display;
+use std::hash::{Hash, Hasher};
+
 use enumflags2::BitFlags;
 use serde::{Deserialize, Serialize};
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
 
 use super::super::bsdf::{SampleData, SamplingTypes, BSDF};
 use super::super::intersectable::IntersectInfo;
-use super::utils::{ColorPicker, ColorPickerUiData};
+use super::utils::ColorPicker;
 use super::BSDFUiData;
 use crate::egui;
 use crate::glm;
@@ -15,20 +15,62 @@ use crate::path_trace::medium::Mediums;
 use crate::path_trace::texture_list::TextureList;
 use crate::ui::DrawUI;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum IntersectInfoType {
     T,
     Point,
-    Bary_Coords,
-    Primitive_index,
-    ObjectId,
-    ShaderId,
+    BaryCoords,
+    PrimitiveIndex,
+    ObjectID,
+    ShaderID,
     UV,
     Normal,
-    Front_face,
+    FrontFace,
 }
 
-pub struct IntersectInfoTypeUI {
-    info_id: egui::Id,
+impl Display for IntersectInfoType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            IntersectInfoType::T => write!(f, "Ray Distance"),
+            IntersectInfoType::Point => write!(f, "Point"),
+            IntersectInfoType::BaryCoords => write!(f, "Barycentric Coords"),
+            IntersectInfoType::PrimitiveIndex => write!(f, "Primitive Index"),
+            IntersectInfoType::ObjectID => write!(f, "Object ID"),
+            IntersectInfoType::ShaderID => write!(f, "Shader ID"),
+            IntersectInfoType::UV => write!(f, "UV"),
+            IntersectInfoType::Normal => write!(f, "Normal"),
+            IntersectInfoType::FrontFace => write!(f, "Front Face"),
+        }
+    }
+}
+
+impl IntersectInfoType {
+    pub fn all() -> impl Iterator<Item = Self> {
+        use IntersectInfoType::*;
+        [
+            T,
+            Point,
+            BaryCoords,
+            PrimitiveIndex,
+            ObjectID,
+            ShaderID,
+            UV,
+            Normal,
+            FrontFace,
+        ]
+        .iter()
+        .copied()
+    }
+}
+
+fn hash_to_rgb(val: &impl Hash) -> glm::DVec3 {
+    let mut s = DefaultHasher::new();
+    val.hash(&mut s);
+    glm::convert(glm::make_vec3(&egui::color::rgb_from_hsv((
+        s.finish() as f32 / u64::MAX as f32,
+        0.9,
+        1.0,
+    ))))
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -38,15 +80,36 @@ pub struct DebugBSDF {
 
 impl Default for DebugBSDF {
     fn default() -> Self {
-        Self::new(glm::vec3(1.0, 1.0, 1.0), 1.0)
+        Self::new(IntersectInfoType::T)
     }
 }
 
 impl DebugBSDF {
-    pub fn new(color: glm::DVec3, power: f64) -> Self {
-        Self {
-            color: ColorPicker::Color(color),
-            power,
+    pub fn new(info_type: IntersectInfoType) -> Self {
+        Self { info_type }
+    }
+
+    fn get_color(&self, intersect_info: &IntersectInfo) -> glm::DVec3 {
+        match self.info_type {
+            IntersectInfoType::T => glm::vec3(
+                intersect_info.get_t(),
+                intersect_info.get_t(),
+                intersect_info.get_t(),
+            ),
+            IntersectInfoType::Point => *intersect_info.get_point(),
+            IntersectInfoType::BaryCoords => *intersect_info.get_bary_coords(),
+            IntersectInfoType::PrimitiveIndex => hash_to_rgb(intersect_info.get_primitive_index()),
+            IntersectInfoType::ObjectID => hash_to_rgb(&intersect_info.get_object_id()),
+            IntersectInfoType::ShaderID => hash_to_rgb(&intersect_info.get_shader_id()),
+            IntersectInfoType::UV => glm::vec2_to_vec3(intersect_info.get_uv().as_ref().unwrap()),
+            IntersectInfoType::Normal => intersect_info.get_normal().unwrap(),
+            IntersectInfoType::FrontFace => {
+                if intersect_info.get_front_face() {
+                    glm::vec3(0.0, 0.0, 1.0)
+                } else {
+                    glm::vec3(1.0, 0.0, 0.0)
+                }
+            }
         }
     }
 }
@@ -76,65 +139,21 @@ impl BSDF for DebugBSDF {
     fn emission(
         &self,
         intersect_info: &IntersectInfo,
-        texture_list: &TextureList,
+        _texture_list: &TextureList,
     ) -> Option<glm::DVec3> {
-        match self.info_type {
-            IntersectInfoType::T => Some(glm::vec3(
-                intersect_info.t,
-                intersect_info.t,
-                intersect_info.t,
-            )),
-            IntersectInfoType::Point => Some(intersect_info.get_point()),
-            IntersectInfoType::Bary_Coords => Some(intersect_info.get_bary_coords()),
-            IntersectInfoType::Primitive_index => {
-                // Add hash here
-                Some(glm::vec3(
-                    intersect_info.get_primitive_index().unwrap(),
-                    intersect_info.get_primitive_index().unwrap(),
-                    intersect_info.get_primitive_index().unwrap(),
-                ))
-            }
-            IntersectInfoType::ObjectID => {
-                // Add hash here
-                let mut s = DefaultHasher::new();
-                let t = intersect_info.get_object_id().unwrap();
-                t.hash(&mut s);
-                let hashed_val: u64 = s.finish();
-                let hashed_float = hashed_val.to_f64();
-                Some(intersect_info.point)
-            }
-            IntersectInfoType::ShaderID => {
-                // Add hash here
-                let mut s = DefaultHasher::new();
-                let t = intersect_info.get_object_id().unwrap();
-                t.hash(&mut s);
-                let hashed_val: u64 = s.finish();
-                let hashed_float = hashed_val.to_f64();
-                Some(intersect_info.point)
-            }
-            IntersectInfoType::UV => Some(glm::vec2_to_vec3(intersect_info.get_uv().unwrap())),
-            IntersectInfoType::Normal => Some(intersect_info.get_normal().unwrap()),
-            IntersectInfoType::Front_face => {
-                let fron_colour = if intersect_info.get_front_face() {
-                    glm::vec3(1.0, 0.0, 0.0)
-                } else {
-                    None
-                };
-                Some(fron_colour)
-            }
-        }
+        Some(self.get_color(intersect_info))
     }
 
     fn get_bsdf_name(&self) -> &str {
-        "DebugBSDF"
+        "Debug BSDF"
     }
 
-    fn get_base_color(&self, texture_list: &TextureList) -> glm::DVec3 {
-        self.color.get_color(&glm::zero(), texture_list)
+    fn get_base_color(&self, _texture_list: &TextureList) -> Option<glm::DVec3> {
+        None
     }
 
-    fn set_base_color(&mut self, color: ColorPicker) {
-        self.color = color;
+    fn set_base_color(&mut self, _color: ColorPicker) {
+        // no color to set
     }
 }
 
@@ -147,33 +166,26 @@ impl DrawUI for DebugBSDF {
 
     fn draw_ui_mut(&mut self, ui: &mut egui::Ui, extra_data: &Self::ExtraData) {
         ui.horizontal(|ui| {
-            ui.label("Debug Shader Picker");
-            self.IntersectInfoType
-                .draw_ui_mut(ui, &IntersectInfoType::new());
+            ui.label("Info Type: ");
+            self.info_type.draw_ui_mut(ui, extra_data);
         });
     }
 }
 
 impl DrawUI for IntersectInfoType {
-    type ExtraData = IntersectInfoTypeUI;
+    type ExtraData = BSDFUiData;
+
+    fn draw_ui(&self, _ui: &mut egui::Ui, _extra_data: &Self::ExtraData) {
+        unreachable!("no non mut draw ui for IntersectInfoType")
+    }
 
     fn draw_ui_mut(&mut self, ui: &mut egui::Ui, extra_data: &Self::ExtraData) {
-        egui::ComboBox::from_id_source(extra_data.info_id)
+        egui::ComboBox::from_id_source(extra_data.get_shader_egui_id().with("IntersectInfoType"))
             .selected_text(format!("{}", self))
             .show_ui(ui, |ui| {
-                ui.selectable_value(self, IntersectInfoType::T(None), "T");
-                ui.selectable_value(self, IntersectInfoType::P(None), "Point");
-                ui.selectable_value(self, IntersectInfoType::Bary_Coords(None), "Bary_Coords");
-                ui.selectable_value(
-                    self,
-                    IntersectInfoType::Primitive_index(None),
-                    "Primitive_index",
-                );
-                ui.selectable_value(self, IntersectInfoType::ObjectId(None), "ObjectId");
-                ui.selectable_value(self, IntersectInfoType::ShaderId(None), "ShaderId");
-                ui.selectable_value(self, IntersectInfoType::UV(None), "UV");
-                ui.selectable_value(self, IntersectInfoType::Normal(None), "Normal");
-                ui.selectable_value(self, IntersectInfoType::Front_face, (None), "Front_face,");
+                Self::all().for_each(|info| {
+                    ui.selectable_value(self, info, format!("{}", info));
+                });
             });
     }
 }
