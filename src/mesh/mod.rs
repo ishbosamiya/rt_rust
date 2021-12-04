@@ -278,6 +278,7 @@ impl Mesh {
         Ok(())
     }
 
+    /// Build BVH of the mesh
     pub fn build_bvh(&mut self, epsilon: f64) {
         let mut bvh = BVHTree::new(self.faces.len(), epsilon, 4, 8);
 
@@ -295,6 +296,21 @@ impl Mesh {
         self.bvh = Some(bvh);
     }
 
+    /// Build BVH if needed. Assumes that BVH is valid if it was built
+    /// already.
+    ///
+    /// To force build BVH, call [`Mesh::delete_bvh()`] before this
+    /// call, or call [`Mesh::build_bvh()`] directly.
+    pub fn rebuild_bvh_if_needed(&mut self, epsilon: f64) {
+        if self.bvh.is_none() {
+            self.build_bvh(epsilon);
+        }
+    }
+
+    pub fn delete_bvh(&mut self) {
+        self.bvh = None;
+    }
+
     pub fn get_bvh(&self) -> &Option<BVHTree<usize>> {
         &self.bvh
     }
@@ -303,11 +319,6 @@ impl Mesh {
         self.vertices.par_iter_mut().for_each(|vert| {
             vert.apply_model_matrix(model);
         });
-
-        // TODO(ish): need to set any expensive rebuild such as the
-        // bvh to be None instead of actually rebuilding, the caller
-        // should handle it.
-        self.build_bvh(0.01);
     }
 
     pub fn get_min_max_bounds(&self) -> (glm::DVec3, glm::DVec3) {

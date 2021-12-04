@@ -154,6 +154,17 @@ pub trait Object:
 
     /// Must set any data that must be cached
     fn set_cached_data(&mut self);
+
+    /// Rebuild BVH of the object if needed
+    ///
+    /// TODO: It might make sense to add support for storing at what
+    /// state (maybe through some hash) the BVH was built. This can
+    /// even evolve to creating BVH in multiple states and choosing
+    /// the state that is most appropriate for that particular BVH
+    /// query.
+    ///
+    /// TODO: add delete BVH function in the Object Trait
+    fn rebuild_bvh_if_needed(&mut self, epsilon: f64);
 }
 
 pub mod objects {
@@ -340,6 +351,10 @@ pub mod objects {
 
             fn set_cached_data(&mut self) {
                 // no caching for sphere
+            }
+
+            fn rebuild_bvh_if_needed(&mut self, _epsilon: f64) {
+                // no BVH for sphere
             }
         }
     }
@@ -579,6 +594,10 @@ pub mod objects {
                             .collect_vec(),
                     );
                 }
+            }
+
+            fn rebuild_bvh_if_needed(&mut self, epsilon: f64) {
+                self.data.rebuild_bvh_if_needed(epsilon);
             }
         }
     }
