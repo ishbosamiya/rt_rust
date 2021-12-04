@@ -27,6 +27,10 @@ pub enum IntersectInfoType {
     Front_face,
 }
 
+pub struct IntersectInfoTypeUI {
+    info_id: egui::Id,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DebugBSDF {
     info_type: IntersectInfoType,
@@ -144,14 +148,32 @@ impl DrawUI for DebugBSDF {
     fn draw_ui_mut(&mut self, ui: &mut egui::Ui, extra_data: &Self::ExtraData) {
         ui.horizontal(|ui| {
             ui.label("Debug Shader Picker");
-            self.color.draw_ui_mut(
-                ui,
-                &ColorPickerUiData::new(
-                    extra_data.get_texture_list().clone(),
-                    extra_data.get_shader_egui_id().with("Base Color"),
-                ),
-            );
+            self.IntersectInfoType
+                .draw_ui_mut(ui, &IntersectInfoType::new());
         });
-        ui.add(egui::Slider::new(&mut self.power, 0.0..=10.0).text("Power"));
+    }
+}
+
+impl DrawUI for IntersectInfoType {
+    type ExtraData = IntersectInfoTypeUI;
+
+    fn draw_ui_mut(&mut self, ui: &mut egui::Ui, extra_data: &Self::ExtraData) {
+        egui::ComboBox::from_id_source(extra_data.info_id)
+            .selected_text(format!("{}", self))
+            .show_ui(ui, |ui| {
+                ui.selectable_value(self, IntersectInfoType::T(None), "T");
+                ui.selectable_value(self, IntersectInfoType::P(None), "Point");
+                ui.selectable_value(self, IntersectInfoType::Bary_Coords(None), "Bary_Coords");
+                ui.selectable_value(
+                    self,
+                    IntersectInfoType::Primitive_index(None),
+                    "Primitive_index",
+                );
+                ui.selectable_value(self, IntersectInfoType::ObjectId(None), "ObjectId");
+                ui.selectable_value(self, IntersectInfoType::ShaderId(None), "ShaderId");
+                ui.selectable_value(self, IntersectInfoType::UV(None), "UV");
+                ui.selectable_value(self, IntersectInfoType::Normal(None), "Normal");
+                ui.selectable_value(self, IntersectInfoType::Front_face, (None), "Front_face,");
+            });
     }
 }
