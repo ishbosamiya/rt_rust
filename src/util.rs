@@ -72,3 +72,51 @@ pub fn vec2_apply_bary_coord(
 ) -> glm::DVec2 {
     v1 * bary_coord[0] + v2 * bary_coord[1] + v3 * bary_coord[2]
 }
+
+/// convert linear rgb to srgb
+///
+/// `linear`: rgb linear values between 0.0 and 1.0
+///
+/// Takes the first 3 values of `linear` and converts to srgb. `R` must be >= 3.
+///
+/// reference: https://en.wikipedia.org/wiki/SRGB#From_CIE_XYZ_to_sRGB
+pub fn linear_to_srgb<const R: usize>(linear: &glm::TVec<f64, R>) -> glm::TVec<f64, R> {
+    debug_assert!(R >= 3);
+
+    let srgbize = |linear: f64| {
+        // if linear <= 0.0031308 {
+        //     12.92 * linear
+        // } else {
+        //     1.055 * linear.powf(1.0 / 2.4) - 0.055
+        // }
+        egui_glfw::egui::color::gamma_from_linear(linear as f32) as _
+    };
+
+    let mut srgb = *linear;
+    srgb[0] = srgbize(srgb[0]);
+    srgb[1] = srgbize(srgb[1]);
+    srgb[2] = srgbize(srgb[2]);
+    srgb
+}
+
+/// convert srgb to linear rgb
+///
+/// /// `srgb`: srgb values between 0.0 and 1.0
+///
+/// reference: https://en.wikipedia.org/wiki/SRGB#From_sRGB_to_CIE_XYZ
+pub fn srgb_to_linear<const R: usize>(srgb: &glm::TVec<f64, R>) -> glm::TVec<f64, R> {
+    let linearize = |srgb: f64| {
+        // if srgb <= 0.04045 {
+        //     srgb / 12.92
+        // } else {
+        //     ((srgb + 0.055) / 1.055).powf(2.4)
+        // }
+        egui_glfw::egui::color::linear_from_gamma(srgb as f32) as _
+    };
+
+    let mut linear = *srgb;
+    linear[0] = linearize(linear[0]);
+    linear[1] = linearize(linear[1]);
+    linear[2] = linearize(linear[2]);
+    linear
+}
