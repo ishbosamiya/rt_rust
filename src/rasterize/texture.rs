@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 use crate::glm;
 use crate::image::Image;
 
+use super::Rasterize;
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TextureRGBAFloat {
     /// id that matches Image id from which the texture is made from
@@ -270,19 +272,21 @@ impl TextureRGBAFloat {
             (uv[1] * self.height as f64) as _,
         )
     }
+}
 
-    pub fn cleanup_opengl(&mut self) {
+impl Rasterize for TextureRGBAFloat {
+    fn cleanup_opengl(&mut self) {
         unsafe {
-            if let Some(gl_tex) = self.gl_tex {
-                gl::DeleteTextures(1, &gl_tex);
-                self.gl_tex = None;
-            }
+            gl::DeleteTextures(1, &self.gl_tex.unwrap());
         }
+        self.gl_tex = None;
     }
 }
 
 impl Drop for TextureRGBAFloat {
     fn drop(&mut self) {
-        self.cleanup_opengl();
+        if self.gl_tex.is_some() {
+            self.cleanup_opengl();
+        }
     }
 }

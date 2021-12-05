@@ -3,7 +3,12 @@ use std::collections::{hash_map, HashMap};
 use rfd::FileDialog;
 use serde::{Deserialize, Serialize};
 
-use crate::{egui, rasterize::texture::TextureRGBAFloat, ui::DrawUI, UiData};
+use crate::{
+    egui,
+    rasterize::{texture::TextureRGBAFloat, Rasterize},
+    ui::DrawUI,
+    UiData,
+};
 
 /// A unique identifier given to each `Texture` during its
 /// initialization.
@@ -93,6 +98,13 @@ impl TextureList {
 impl Default for TextureList {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl Rasterize for TextureList {
+    fn cleanup_opengl(&mut self) {
+        self.get_textures_mut()
+            .for_each(|(_, texture)| texture.cleanup_opengl());
     }
 }
 

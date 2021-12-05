@@ -4,7 +4,7 @@ use memoffset::offset_of;
 
 use crate::glm;
 
-use super::drawable::Drawable;
+use super::{drawable::Drawable, Rasterize};
 
 #[repr(C, packed)]
 #[derive(Debug, Clone, Copy)]
@@ -44,18 +44,30 @@ pub struct GLMesh {
     // triangles: Vec<Triangle>,
     num_triangles: usize,
 
-    vao: gl::types::GLuint,
-    vbo: gl::types::GLuint,
-    ebo: gl::types::GLuint,
+    vao: Option<gl::types::GLuint>,
+    vbo: Option<gl::types::GLuint>,
+    ebo: Option<gl::types::GLuint>,
 }
 
 impl Drop for GLMesh {
     fn drop(&mut self) {
-        unsafe {
-            gl::BindVertexArray(self.vao);
-            gl::DeleteBuffers(1, &self.vbo);
-            gl::DeleteBuffers(1, &self.ebo);
+        if self.vao.is_some() {
+            assert!(self.vbo.is_some());
+            assert!(self.ebo.is_some());
+            self.cleanup_opengl();
         }
+    }
+}
+
+impl Rasterize for GLMesh {
+    fn cleanup_opengl(&mut self) {
+        unsafe {
+            gl::BindVertexArray(self.vao.unwrap());
+            gl::DeleteBuffers(2, [self.vbo.unwrap(), self.ebo.unwrap()].as_ptr());
+        }
+        self.vao = None;
+        self.vbo = None;
+        self.ebo = None;
     }
 }
 
@@ -141,9 +153,9 @@ impl GLMesh {
 
         Self {
             num_triangles: triangles.len(),
-            vao,
-            vbo,
-            ebo,
+            vao: Some(vao),
+            vbo: Some(vbo),
+            ebo: Some(ebo),
         }
     }
 }
@@ -154,7 +166,7 @@ impl Drawable for GLMesh {
 
     fn draw(&self, _extra_data: &mut Self::ExtraData) -> Result<(), Self::Error> {
         unsafe {
-            gl::BindVertexArray(self.vao);
+            gl::BindVertexArray(self.vao.unwrap());
             gl::DrawElements(
                 gl::TRIANGLES,
                 (3 * self.num_triangles).try_into().unwrap(),

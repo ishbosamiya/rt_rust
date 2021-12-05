@@ -16,6 +16,7 @@ use crate::path_trace::ray::Ray;
 use crate::path_trace::shader_list::ShaderList;
 use crate::rasterize::drawable::Drawable;
 use crate::rasterize::gpu_immediate::GPUImmediate;
+use crate::rasterize::Rasterize;
 use crate::ui::DrawUI;
 use crate::UiData;
 #[cfg(feature = "use_embree")]
@@ -487,5 +488,13 @@ impl DrawUI for Scene {
         } else {
             ui.label("No object currently selected");
         }
+    }
+}
+
+impl Rasterize for Scene {
+    fn cleanup_opengl(&mut self) {
+        self.get_objects_mut().for_each(|object| {
+            object.cleanup_opengl();
+        });
     }
 }

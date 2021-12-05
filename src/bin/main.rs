@@ -40,7 +40,7 @@ use rt::fps::FPS;
 use rt::rasterize::drawable::Drawable;
 use rt::rasterize::gpu_immediate::GPUImmediate;
 use rt::rasterize::infinite_grid::{InfiniteGrid, InfiniteGridDrawData};
-use rt::rasterize::shader;
+use rt::rasterize::{shader, Rasterize};
 
 fn print_active_feature_list() {
     print!("active_features: ");
@@ -1400,7 +1400,7 @@ fn main_gui(
         window.swap_buffers();
     }
 
-    handle_opengl_cleanup(texture_list);
+    handle_opengl_cleanup(scene, texture_list);
 
     // turn off viewport rendered shading so cleanup happens
     // correctly, must be cleaned up before ray trace main thread is
@@ -1624,12 +1624,9 @@ fn handle_window_event(
 ///
 /// In this case, any opengl related objects created before
 /// [`main_gui()`] (in [`main()`]) must be cleaned up
-fn handle_opengl_cleanup(texture_list: Arc<RwLock<TextureList>>) {
-    texture_list
-        .write()
-        .unwrap()
-        .get_textures_mut()
-        .for_each(|(_, texture)| texture.cleanup_opengl());
+fn handle_opengl_cleanup(scene: Arc<RwLock<Scene>>, texture_list: Arc<RwLock<TextureList>>) {
+    scene.write().unwrap().cleanup_opengl();
+    texture_list.write().unwrap().cleanup_opengl();
 }
 
 fn glfw_modifier_to_string(mods: glfw::Modifiers) -> String {

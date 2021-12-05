@@ -7,7 +7,7 @@ use crate::{
     mesh::MeshDrawError,
     namegen::NameGen,
     path_trace::{intersectable::Intersectable, shader_list::ShaderID as PathTraceShaderID},
-    rasterize::{drawable::Drawable, gpu_immediate::GPUImmediate},
+    rasterize::{drawable::Drawable, gpu_immediate::GPUImmediate, Rasterize},
 };
 
 use lazy_static::lazy_static;
@@ -117,7 +117,12 @@ impl DataForInterpolation {
 
 #[typetag::serde(tag = "type")]
 pub trait Object:
-    Debug + Intersectable + Drawable<ExtraData = ObjectDrawData, Error = DrawError> + Sync + Send
+    Debug
+    + Intersectable
+    + Drawable<ExtraData = ObjectDrawData, Error = DrawError>
+    + Rasterize
+    + Sync
+    + Send
 {
     fn set_model_matrix(&mut self, model: glm::DMat4);
     fn get_model_matrix(&self) -> &Option<glm::DMat4>;
@@ -183,7 +188,7 @@ pub mod objects {
                 ray::Ray,
                 shader_list::ShaderID,
             },
-            rasterize::drawable::Drawable,
+            rasterize::{drawable::Drawable, Rasterize},
             sphere::{Sphere as SphereData, SphereDrawData},
         };
 
@@ -280,6 +285,12 @@ pub mod objects {
             }
         }
 
+        impl Rasterize for Sphere {
+            fn cleanup_opengl(&mut self) {
+                // no clean up for Sphere
+            }
+        }
+
         #[typetag::serde]
         impl Object for Sphere {
             fn set_model_matrix(&mut self, model: glm::DMat4) {
@@ -371,7 +382,7 @@ pub mod objects {
                 ray::Ray,
                 shader_list::ShaderID,
             },
-            rasterize::{drawable::Drawable, shader},
+            rasterize::{drawable::Drawable, shader, Rasterize},
             util,
         };
 
@@ -484,6 +495,12 @@ pub mod objects {
 
             fn draw_wireframe(&self, _extra_data: &mut ObjectDrawData) -> Result<(), DrawError> {
                 todo!()
+            }
+        }
+
+        impl Rasterize for Mesh {
+            fn cleanup_opengl(&mut self) {
+                self.data.cleanup_opengl();
             }
         }
 

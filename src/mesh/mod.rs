@@ -16,6 +16,7 @@ use crate::path_trace::intersectable::{IntersectInfo, Intersectable};
 use crate::path_trace::ray::Ray;
 use crate::rasterize::gl_mesh::{self, GLMesh, GLVert};
 use crate::rasterize::gpu_immediate::GPUImmediate;
+use crate::rasterize::Rasterize;
 use crate::util::{self, normal_apply_model_matrix, vec3_apply_model_matrix};
 use crate::{
     bvh::{BVHDrawData, BVHTree},
@@ -447,6 +448,14 @@ impl Drawable for Mesh {
 
     fn draw_wireframe(&self, _draw_data: &mut MeshDrawData) -> Result<(), MeshDrawError> {
         todo!()
+    }
+}
+
+impl Rasterize for Mesh {
+    fn cleanup_opengl(&mut self) {
+        if let Some(gl_mesh) = self.gl_mesh.lock().unwrap().as_mut() {
+            gl_mesh.cleanup_opengl();
+        }
     }
 }
 
