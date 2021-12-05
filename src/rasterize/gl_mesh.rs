@@ -97,7 +97,7 @@ impl GLMesh {
                 gl::STATIC_DRAW,
             );
 
-            // positions
+            // positions at attribute location 0
             gl::EnableVertexAttribArray(0);
             gl::VertexAttribPointer(
                 0,
@@ -107,20 +107,20 @@ impl GLMesh {
                 std::mem::size_of::<GLVert>().try_into().unwrap(),
                 offset_of!(GLVert, pos) as *const gl::types::GLvoid,
             );
-            //uv
-            gl::EnableVertexAttribArray(1);
+            // uvs at attribute location 2
+            gl::EnableVertexAttribArray(2);
             gl::VertexAttribPointer(
-                1,
+                2,
                 2,
                 gl::FLOAT,
                 gl::FALSE,
                 std::mem::size_of::<GLVert>().try_into().unwrap(),
                 offset_of!(GLVert, uv) as *const gl::types::GLvoid,
             );
-            //normals
-            gl::EnableVertexAttribArray(2);
+            // normals at attribute location 1
+            gl::EnableVertexAttribArray(1);
             gl::VertexAttribPointer(
-                2,
+                1,
                 3,
                 gl::FLOAT,
                 gl::FALSE,
