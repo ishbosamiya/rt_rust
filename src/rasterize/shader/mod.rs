@@ -264,8 +264,9 @@ impl Shader {
         self.program_id
     }
 
-    pub fn get_attributes(&self) -> Vec<String> {
-        let mut attributes = Vec::new();
+    /// Get all the active attributes of the shader along with the
+    /// attribute location.
+    pub fn get_attributes(&self) -> Vec<(String, isize)> {
         let mut count: gl::types::GLint = -1;
         const MAX_LENGTH: usize = 100;
         let mut name: [i8; MAX_LENGTH] = [-1; MAX_LENGTH];
@@ -276,30 +277,41 @@ impl Shader {
             gl::GetProgramiv(self.get_id(), gl::ACTIVE_ATTRIBUTES, &mut count);
         }
 
-        for i in 0..count {
-            unsafe {
-                gl::GetActiveAttrib(
-                    self.get_id(),
-                    i.try_into().unwrap(),
-                    MAX_LENGTH.try_into().unwrap(),
-                    &mut length,
-                    &mut size,
-                    &mut var_type,
-                    name.as_mut_ptr(),
-                );
-            }
-            let name_string: std::ffi::CString;
-            unsafe {
-                name_string = std::ffi::CString::from(std::ffi::CStr::from_ptr(name.as_ptr()));
-            }
-            attributes.push(name_string.into_string().unwrap());
-        }
-
-        attributes
+        (0..count)
+            .map(|i| {
+                unsafe {
+                    gl::GetActiveAttrib(
+                        self.get_id(),
+                        i.try_into().unwrap(),
+                        MAX_LENGTH.try_into().unwrap(),
+                        &mut length,
+                        &mut size,
+                        &mut var_type,
+                        name.as_mut_ptr(),
+                    );
+                }
+                let name_string: std::ffi::CString;
+                unsafe {
+                    name_string = std::ffi::CString::from(std::ffi::CStr::from_ptr(name.as_ptr()));
+                }
+                (
+                    name_string.into_string().unwrap(),
+                    unsafe {
+                        gl::GetAttribLocation(
+                            self.get_id(),
+                            (std::ffi::CStr::from_ptr(name.as_ptr())).as_ptr(),
+                        )
+                    }
+                    .try_into()
+                    .unwrap(),
+                )
+            })
+            .collect()
     }
 
-    pub fn get_uniforms(&self) -> Vec<String> {
-        let mut uniforms = Vec::new();
+    /// Get all the active uniforms of the shader along with the
+    /// uniform location.
+    pub fn get_uniforms(&self) -> Vec<(String, isize)> {
         let mut count: gl::types::GLint = -1;
         const MAX_LENGTH: usize = 100;
         let mut name: [i8; MAX_LENGTH] = [-1; MAX_LENGTH];
@@ -310,25 +322,35 @@ impl Shader {
             gl::GetProgramiv(self.get_id(), gl::ACTIVE_UNIFORMS, &mut count);
         }
 
-        for i in 0..count {
-            unsafe {
-                gl::GetActiveUniform(
-                    self.get_id(),
-                    i.try_into().unwrap(),
-                    MAX_LENGTH.try_into().unwrap(),
-                    &mut length,
-                    &mut size,
-                    &mut var_type,
-                    name.as_mut_ptr(),
-                );
-            }
-            let name_string: std::ffi::CString;
-            unsafe {
-                name_string = std::ffi::CString::from(std::ffi::CStr::from_ptr(name.as_ptr()));
-            }
-            uniforms.push(name_string.into_string().unwrap());
-        }
-
-        uniforms
+        (0..count)
+            .map(|i| {
+                unsafe {
+                    gl::GetActiveUniform(
+                        self.get_id(),
+                        i.try_into().unwrap(),
+                        MAX_LENGTH.try_into().unwrap(),
+                        &mut length,
+                        &mut size,
+                        &mut var_type,
+                        name.as_mut_ptr(),
+                    );
+                }
+                let name_string: std::ffi::CString;
+                unsafe {
+                    name_string = std::ffi::CString::from(std::ffi::CStr::from_ptr(name.as_ptr()));
+                }
+                (
+                    name_string.into_string().unwrap(),
+                    unsafe {
+                        gl::GetUniformLocation(
+                            self.get_id(),
+                            (std::ffi::CStr::from_ptr(name.as_ptr())).as_ptr(),
+                        )
+                    }
+                    .try_into()
+                    .unwrap(),
+                )
+            })
+            .collect()
     }
 }
