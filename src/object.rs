@@ -191,7 +191,7 @@ pub mod objects {
 
         use serde::{Deserialize, Serialize};
 
-        #[derive(Debug, Clone, Serialize, Deserialize)]
+        #[derive(Debug, Serialize, Deserialize)]
         pub struct Sphere {
             data: SphereData,
             shader_id: Option<ShaderID>,
@@ -393,7 +393,7 @@ pub mod objects {
             }
         }
 
-        #[derive(Debug, Clone, Serialize, Deserialize)]
+        #[derive(Debug, Serialize, Deserialize)]
         pub struct Mesh {
             data: MeshData,
             /// precomputed triangulation of the mesh, valid only

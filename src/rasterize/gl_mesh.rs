@@ -34,6 +34,7 @@ impl Triangle {
     }
 }
 
+#[derive(Debug)]
 pub struct GLMesh {
     // no need to store the verts and indices, currently there is no
     // way to update the verts or indices thus does not need to be

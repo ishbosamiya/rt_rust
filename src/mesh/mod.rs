@@ -5,22 +5,23 @@ use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use std::cell::RefCell;
+use std::convert::TryInto;
+use std::fmt::Display;
 use std::path::Path;
-use std::{fmt::Display, rc::Rc};
+use std::rc::Rc;
+use std::sync::Mutex;
 
 use crate::bvh::{RayHitData, RayHitOptionalData};
 use crate::path_trace::intersectable::{IntersectInfo, Intersectable};
 use crate::path_trace::ray::Ray;
+use crate::rasterize::gl_mesh::{self, GLMesh, GLVert};
+use crate::rasterize::gpu_immediate::GPUImmediate;
 use crate::util::{self, normal_apply_model_matrix, vec3_apply_model_matrix};
 use crate::{
     bvh::{BVHDrawData, BVHTree},
     glm,
     meshio::{self, MeshIO},
-    rasterize::{
-        drawable::Drawable,
-        gpu_immediate::{GPUImmediate, GPUPrimType, GPUVertCompType, GPUVertFetchMode},
-        shader,
-    },
+    rasterize::{drawable::Drawable, shader},
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -125,13 +126,17 @@ impl From<meshio::MeshIOError> for Error {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Mesh {
     vertices: Vec<Vertex>,
     faces: Vec<Vec<usize>>,
 
-    // BVH that stores face indices
+    /// BVH that stores face indices
     bvh: Option<BVHTree<usize>>,
+    /// OpenGL mesh for rendering, is cached upon first draw, if mesh
+    /// structure changes, it should be made None
+    #[serde(skip)]
+    gl_mesh: Mutex<Option<GLMesh>>,
 }
 
 impl Mesh {
@@ -179,6 +184,7 @@ impl Mesh {
             vertices,
             faces,
             bvh: None,
+            gl_mesh: Mutex::new(None),
         })
     }
 
@@ -191,11 +197,7 @@ impl Mesh {
         Mesh::read(&meshio)
     }
 
-    fn draw_directional_light_shader(
-        &self,
-        draw_data: &mut MeshDrawData,
-        mesh_color: glm::DVec3,
-    ) -> Result<(), MeshDrawError> {
+    fn draw_directional_light_shader(&self, mesh_color: glm::DVec3) -> Result<(), MeshDrawError> {
         if self.faces.is_empty() {
             return Ok(());
         }
@@ -207,73 +209,52 @@ impl Mesh {
 
         directional_light_shader.set_vec3("material.color\0", &glm::convert(mesh_color));
 
-        let mut imm = draw_data.imm.borrow_mut();
+        {
+            let gl_mesh: &mut Option<GLMesh> = &mut self.gl_mesh.lock().unwrap();
+            if gl_mesh.is_none() {
+                *gl_mesh = Some(GLMesh::new(
+                    &self
+                        .get_vertices()
+                        .iter()
+                        .map(|vert| {
+                            GLVert::new(
+                                glm::convert(*vert.get_pos()),
+                                glm::convert(vert.get_uv().unwrap()),
+                                glm::convert(vert.get_normal().unwrap()),
+                            )
+                        })
+                        .collect_vec(),
+                    &self
+                        .get_faces()
+                        .iter()
+                        .flat_map(|face| {
+                            // TODO: need to find a better way to triangulate the
+                            // face
 
-        let format = imm.get_cleared_vertex_format();
-        let pos_attr = format.add_attribute(
-            "in_pos\0".to_string(),
-            GPUVertCompType::F32,
-            3,
-            GPUVertFetchMode::Float,
-        );
-        // let uv_attr = format.add_attribute(
-        //     "in_uv\0".to_string(),
-        //     GPUVertCompType::F32,
-        //     2,
-        //     GPUVertFetchMode::Float,
-        // );
-        let normal_attr = format.add_attribute(
-            "in_normal\0".to_string(),
-            GPUVertCompType::F32,
-            3,
-            GPUVertFetchMode::Float,
-        );
+                            // It doesn't make sense for a face to have only 2 verts
+                            assert!(face.len() > 2);
 
-        // currently assuming that no face has verts in excess of 10
-        imm.begin_at_most(
-            GPUPrimType::Tris,
-            self.faces.len() * 10,
-            directional_light_shader,
-        );
-
-        self.faces.iter().for_each(|face| {
-            // currently assuming that no face has verts in excess of
-            // 10, will figure out a generic way to handle this later
-            assert!(face.len() <= 10);
-
-            // It doesn't make sense for a face to have only 2 verts
-            assert!(face.len() > 2);
-
-            let v1_index = face[0];
-            let v1 = &self.vertices[v1_index];
-            for (v2_index, v3_index) in face.iter().skip(1).tuple_windows() {
-                let v2 = &self.vertices[*v2_index];
-                let v3 = &self.vertices[*v3_index];
-
-                let v1_normal: glm::Vec3 = glm::convert(v1.normal.unwrap());
-                imm.attr_3f(normal_attr, v1_normal[0], v1_normal[1], v1_normal[2]);
-                // let v1_uv: glm::Vec2 = glm::convert(v1.uv.unwrap());
-                // imm.attr_2f(uv_attr, v1_uv[0], v1_uv[1]);
-                let v1_pos: glm::Vec3 = glm::convert(v1.pos);
-                imm.vertex_3f(pos_attr, v1_pos[0], v1_pos[1], v1_pos[2]);
-
-                let v2_normal: glm::Vec3 = glm::convert(v2.normal.unwrap());
-                imm.attr_3f(normal_attr, v2_normal[0], v2_normal[1], v2_normal[2]);
-                // let v2_uv: glm::Vec2 = glm::convert(v2.uv.unwrap());
-                // imm.attr_2f(uv_attr, v2_uv[0], v2_uv[1]);
-                let v2_pos: glm::Vec3 = glm::convert(v2.pos);
-                imm.vertex_3f(pos_attr, v2_pos[0], v2_pos[1], v2_pos[2]);
-
-                let v3_normal: glm::Vec3 = glm::convert(v3.normal.unwrap());
-                imm.attr_3f(normal_attr, v3_normal[0], v3_normal[1], v3_normal[2]);
-                // let v3_uv: glm::Vec2 = glm::convert(v3.uv.unwrap());
-                // imm.attr_2f(uv_attr, v3_uv[0], v3_uv[1]);
-                let v3_pos: glm::Vec3 = glm::convert(v3.pos);
-                imm.vertex_3f(pos_attr, v3_pos[0], v3_pos[1], v3_pos[2]);
+                            let v1_index = face[0];
+                            face.iter().skip(1).tuple_windows().map(
+                                move |(&v2_index, &v3_index)| {
+                                    gl_mesh::Triangle::new(
+                                        v1_index.try_into().unwrap(),
+                                        v2_index.try_into().unwrap(),
+                                        v3_index.try_into().unwrap(),
+                                    )
+                                },
+                            )
+                        })
+                        .collect_vec(),
+                ));
             }
-        });
 
-        imm.end();
+            gl_mesh
+                .as_ref()
+                .unwrap()
+                .draw(&mut ())
+                .map_err(|_| MeshDrawError::ErrorWhileDrawing)?;
+        }
 
         Ok(())
     }
@@ -354,7 +335,6 @@ impl Mesh {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum MeshDrawError {
-    GenerateGLMeshFirst,
     ErrorWhileDrawing,
     NoColorButSmoothColorShader,
 }
@@ -364,9 +344,6 @@ impl std::error::Error for MeshDrawError {}
 impl std::fmt::Display for MeshDrawError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            MeshDrawError::GenerateGLMeshFirst => {
-                write!(f, "Generate GLMesh before calling draw()")
-            }
             MeshDrawError::ErrorWhileDrawing => {
                 write!(f, "Error while drawing Mesh")
             }
@@ -448,10 +425,8 @@ impl Drawable for Mesh {
     fn draw(&self, draw_data: &mut MeshDrawData) -> Result<(), MeshDrawError> {
         match draw_data.use_shader {
             MeshUseShader::DirectionalLight { color } => {
-                self.draw_directional_light_shader(draw_data, color)?
+                self.draw_directional_light_shader(color)?
             }
-            // MeshUseShader::SmoothColor3D => self.draw_smooth_color_3d_shader(draw_data),
-            // MeshUseShader::FaceOrientation => self.draw_face_orientation_shader(draw_data),
             _ => todo!(),
         }
 
