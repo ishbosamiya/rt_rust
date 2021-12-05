@@ -44,11 +44,18 @@ pub struct GLMesh {
     num_triangles: usize,
 
     vao: gl::types::GLuint,
-    // no need to store the vbo and ebo since there is no need to
-    // update it as of right now and thus not required.
-    //
-    // vbo: gl::types::GLuint,
-    // ebo: gl::types::GLuint,
+    vbo: gl::types::GLuint,
+    ebo: gl::types::GLuint,
+}
+
+impl Drop for GLMesh {
+    fn drop(&mut self) {
+        unsafe {
+            gl::BindVertexArray(self.vao);
+            gl::DeleteBuffers(1, &self.vbo);
+            gl::DeleteBuffers(1, &self.ebo);
+        }
+    }
 }
 
 impl GLMesh {
@@ -134,6 +141,8 @@ impl GLMesh {
         Self {
             num_triangles: triangles.len(),
             vao,
+            vbo,
+            ebo,
         }
     }
 }
