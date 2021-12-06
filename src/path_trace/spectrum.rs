@@ -118,6 +118,31 @@ impl<T: RealField> TSpectrum<T> {
     pub fn from_srgb(srgb: &glm::TVec3<T>) -> Self {
         &SRGB_R_SPECTRUM * srgb[0] + &SRGB_G_SPECTRUM * srgb[1] + &SRGB_B_SPECTRUM * srgb[2]
     }
+
+    /// Convert Spectrum to CIE XYZ. Uses illuminant D65.
+    ///
+    /// Reference: <https://graphics.geometrian.com/research/spectral-primaries.html>
+    pub fn to_cie_xyz(&self) -> glm::TVec3<T> {
+        self.get_samples()
+            .iter()
+            .fold(glm::vec3(T::zero(), T::zero(), T::zero()), |acc, sample| {
+                let final_intensity = *sample.get_intensity()
+                    * T::from_f64(
+                        *ILLUMINANT_D65
+                            .get(sample.get_wavelength())
+                            .expect("wavelengths [380, 780] binned at 5nm supported"),
+                    )
+                    .unwrap();
+                let x = T::from_f64(*CIE_X_BAR.get(sample.get_wavelength()).unwrap()).unwrap()
+                    * final_intensity;
+                let y = T::from_f64(*CIE_Y_BAR.get(sample.get_wavelength()).unwrap()).unwrap()
+                    * final_intensity;
+                let z = T::from_f64(*CIE_Z_BAR.get(sample.get_wavelength()).unwrap()).unwrap()
+                    * final_intensity;
+
+                glm::vec3(acc[0] + x, acc[1] + y, acc[2] + z)
+            })
+    }
 }
 
 pub type Spectrum = TSpectrum<f32>;
@@ -264,15 +289,16 @@ impl<T: std::fmt::Display> std::fmt::Display for TSpectrum<T> {
 pub fn cie_xyz_to_srgb(xyz: &glm::DVec3) -> glm::DVec3 {
     glm::mat3(
         3.2408302291321256,
-        -0.9692293208748544,
-        0.05564528732689767,
         -1.5373169035626748,
-        1.8759397940918867,
-        -0.20403272019862467,
         -0.4985892660203271,
+        -0.9692293208748544,
+        1.8759397940918867,
         0.04155444365280374,
+        0.05564528732689767,
+        -0.20403272019862467,
         1.0572604592110555,
     ) * xyz
+        / Y_ILLUMINANCE_D65
 }
 
 lazy_static! {
@@ -756,9 +782,276 @@ lazy_static! {
         map.insert(780, 0.333111083);
         map
     };
+
+    /// <https://geometrian.com/data/research/spectral-primaries/primaries-visualization.html>
+    /// variable x_bar
+    pub static ref CIE_X_BAR: HashMap<usize, f64> = {
+        let mut map = HashMap::new();
+        map.insert(380, 0.001368);
+        map.insert(385, 0.002236);
+        map.insert(390, 0.004243);
+        map.insert(395, 0.00765);
+        map.insert(400, 0.01431);
+        map.insert(405, 0.02319);
+        map.insert(410, 0.04351);
+        map.insert(415, 0.07763);
+        map.insert(420, 0.13438);
+        map.insert(425, 0.21477);
+        map.insert(430, 0.2839);
+        map.insert(435, 0.3285);
+        map.insert(440, 0.34828);
+        map.insert(445, 0.34806);
+        map.insert(450, 0.3362);
+        map.insert(455, 0.3187);
+        map.insert(460, 0.2908);
+        map.insert(465, 0.2511);
+        map.insert(470, 0.19536);
+        map.insert(475, 0.1421);
+        map.insert(480, 0.09564);
+        map.insert(485, 0.05795);
+        map.insert(490, 0.03201);
+        map.insert(495, 0.0147);
+        map.insert(500, 0.0049);
+        map.insert(505, 0.0024);
+        map.insert(510, 0.0093);
+        map.insert(515, 0.0291);
+        map.insert(520, 0.06327);
+        map.insert(525, 0.1096);
+        map.insert(530, 0.1655);
+        map.insert(535, 0.22575);
+        map.insert(540, 0.2904);
+        map.insert(545, 0.3597);
+        map.insert(550, 0.43345);
+        map.insert(555, 0.51205);
+        map.insert(560, 0.5945);
+        map.insert(565, 0.6784);
+        map.insert(570, 0.7621);
+        map.insert(575, 0.8425);
+        map.insert(580, 0.9163);
+        map.insert(585, 0.9786);
+        map.insert(590, 1.0263);
+        map.insert(595, 1.0567);
+        map.insert(600, 1.0622);
+        map.insert(605, 1.0456);
+        map.insert(610, 1.0026);
+        map.insert(615, 0.9384);
+        map.insert(620, 0.85445);
+        map.insert(625, 0.7514);
+        map.insert(630, 0.6424);
+        map.insert(635, 0.5419);
+        map.insert(640, 0.4479);
+        map.insert(645, 0.3608);
+        map.insert(650, 0.2835);
+        map.insert(655, 0.2187);
+        map.insert(660, 0.1649);
+        map.insert(665, 0.1212);
+        map.insert(670, 0.0874);
+        map.insert(675, 0.0636);
+        map.insert(680, 0.04677);
+        map.insert(685, 0.0329);
+        map.insert(690, 0.0227);
+        map.insert(695, 0.01584);
+        map.insert(700, 0.011359);
+        map.insert(705, 0.008111);
+        map.insert(710, 0.00579);
+        map.insert(715, 0.004109);
+        map.insert(720, 0.002899);
+        map.insert(725, 0.002049);
+        map.insert(730, 0.00144);
+        map.insert(735, 0.001);
+        map.insert(740, 0.00069);
+        map.insert(745, 0.000476);
+        map.insert(750, 0.000332);
+        map.insert(755, 0.000235);
+        map.insert(760, 0.000166);
+        map.insert(765, 0.000117);
+        map.insert(770, 8.3e-05);
+        map.insert(775, 5.9e-05);
+        map.insert(780, 4.2e-05);
+        map
+    };
+
+    /// <https://geometrian.com/data/research/spectral-primaries/primaries-visualization.html>
+    /// variable y_bar
+    pub static ref CIE_Y_BAR: HashMap<usize, f64> = {
+        let mut map = HashMap::new();
+        map.insert(380, 3.9e-05);
+        map.insert(385, 6.4e-05);
+        map.insert(390, 0.00012);
+        map.insert(395, 0.000217);
+        map.insert(400, 0.000396);
+        map.insert(405, 0.00064);
+        map.insert(410, 0.00121);
+        map.insert(415, 0.00218);
+        map.insert(420, 0.004);
+        map.insert(425, 0.0073);
+        map.insert(430, 0.0116);
+        map.insert(435, 0.01684);
+        map.insert(440, 0.023);
+        map.insert(445, 0.0298);
+        map.insert(450, 0.038);
+        map.insert(455, 0.048);
+        map.insert(460, 0.06);
+        map.insert(465, 0.0739);
+        map.insert(470, 0.09098);
+        map.insert(475, 0.1126);
+        map.insert(480, 0.13902);
+        map.insert(485, 0.1693);
+        map.insert(490, 0.20802);
+        map.insert(495, 0.2586);
+        map.insert(500, 0.323);
+        map.insert(505, 0.4073);
+        map.insert(510, 0.503);
+        map.insert(515, 0.6082);
+        map.insert(520, 0.71);
+        map.insert(525, 0.7932);
+        map.insert(530, 0.862);
+        map.insert(535, 0.91485);
+        map.insert(540, 0.954);
+        map.insert(545, 0.9803);
+        map.insert(550, 0.99495);
+        map.insert(555, 1.0);
+        map.insert(560, 0.995);
+        map.insert(565, 0.9786);
+        map.insert(570, 0.952);
+        map.insert(575, 0.9154);
+        map.insert(580, 0.87);
+        map.insert(585, 0.8163);
+        map.insert(590, 0.757);
+        map.insert(595, 0.6949);
+        map.insert(600, 0.631);
+        map.insert(605, 0.5668);
+        map.insert(610, 0.503);
+        map.insert(615, 0.4412);
+        map.insert(620, 0.381);
+        map.insert(625, 0.321);
+        map.insert(630, 0.265);
+        map.insert(635, 0.217);
+        map.insert(640, 0.175);
+        map.insert(645, 0.1382);
+        map.insert(650, 0.107);
+        map.insert(655, 0.0816);
+        map.insert(660, 0.061);
+        map.insert(665, 0.04458);
+        map.insert(670, 0.032);
+        map.insert(675, 0.0232);
+        map.insert(680, 0.017);
+        map.insert(685, 0.01192);
+        map.insert(690, 0.00821);
+        map.insert(695, 0.005723);
+        map.insert(700, 0.004102);
+        map.insert(705, 0.002929);
+        map.insert(710, 0.002091);
+        map.insert(715, 0.001484);
+        map.insert(720, 0.001047);
+        map.insert(725, 0.00074);
+        map.insert(730, 0.00052);
+        map.insert(735, 0.000361);
+        map.insert(740, 0.000249);
+        map.insert(745, 0.000172);
+        map.insert(750, 0.00012);
+        map.insert(755, 8.5e-05);
+        map.insert(760, 6e-05);
+        map.insert(765, 4.2e-05);
+        map.insert(770, 3e-05);
+        map.insert(775, 2.1e-05);
+        map.insert(780, 1.5e-05);
+        map
+    };
+
+    /// <https://geometrian.com/data/research/spectral-primaries/primaries-visualization.html>
+    /// variable z_bar
+    pub static ref CIE_Z_BAR: HashMap<usize, f64> = {
+        let mut map = HashMap::new();
+        map.insert(380, 0.00645);
+        map.insert(385, 0.01055);
+        map.insert(390, 0.02005);
+        map.insert(395, 0.03621);
+        map.insert(400, 0.06785);
+        map.insert(405, 0.1102);
+        map.insert(410, 0.2074);
+        map.insert(415, 0.3713);
+        map.insert(420, 0.6456);
+        map.insert(425, 1.03905);
+        map.insert(430, 1.3856);
+        map.insert(435, 1.62296);
+        map.insert(440, 1.74706);
+        map.insert(445, 1.7826);
+        map.insert(450, 1.77211);
+        map.insert(455, 1.7441);
+        map.insert(460, 1.6692);
+        map.insert(465, 1.5281);
+        map.insert(470, 1.28764);
+        map.insert(475, 1.0419);
+        map.insert(480, 0.81295);
+        map.insert(485, 0.6162);
+        map.insert(490, 0.46518);
+        map.insert(495, 0.3533);
+        map.insert(500, 0.272);
+        map.insert(505, 0.2123);
+        map.insert(510, 0.1582);
+        map.insert(515, 0.1117);
+        map.insert(520, 0.07825);
+        map.insert(525, 0.05725);
+        map.insert(530, 0.04216);
+        map.insert(535, 0.02984);
+        map.insert(540, 0.0203);
+        map.insert(545, 0.0134);
+        map.insert(550, 0.00875);
+        map.insert(555, 0.00575);
+        map.insert(560, 0.0039);
+        map.insert(565, 0.00275);
+        map.insert(570, 0.0021);
+        map.insert(575, 0.0018);
+        map.insert(580, 0.00165);
+        map.insert(585, 0.0014);
+        map.insert(590, 0.0011);
+        map.insert(595, 0.001);
+        map.insert(600, 0.0008);
+        map.insert(605, 0.0006);
+        map.insert(610, 0.00034);
+        map.insert(615, 0.00024);
+        map.insert(620, 0.00019);
+        map.insert(625, 0.0001);
+        map.insert(630, 5e-05);
+        map.insert(635, 3e-05);
+        map.insert(640, 2e-05);
+        map.insert(645, 1e-05);
+        map.insert(650, 0.0);
+        map.insert(655, 0.0);
+        map.insert(660, 0.0);
+        map.insert(665, 0.0);
+        map.insert(670, 0.0);
+        map.insert(675, 0.0);
+        map.insert(680, 0.0);
+        map.insert(685, 0.0);
+        map.insert(690, 0.0);
+        map.insert(695, 0.0);
+        map.insert(700, 0.0);
+        map.insert(705, 0.0);
+        map.insert(710, 0.0);
+        map.insert(715, 0.0);
+        map.insert(720, 0.0);
+        map.insert(725, 0.0);
+        map.insert(730, 0.0);
+        map.insert(735, 0.0);
+        map.insert(740, 0.0);
+        map.insert(745, 0.0);
+        map.insert(750, 0.0);
+        map.insert(755, 0.0);
+        map.insert(760, 0.0);
+        map.insert(765, 0.0);
+        map.insert(770, 0.0);
+        map.insert(775, 0.0);
+        map.insert(780, 0.0);
+        map
+    };
 }
 
-macro_rules! mul_srgb_x_spectrum {
+/// Y illuminance for D65
+pub const Y_ILLUMINANCE_D65: f64 = 2113.454951;
+
+macro_rules! mul_spectrum_bars {
     ( $x_spectrum:ty ) => {
         impl<T: RealField> std::ops::Mul<T> for $x_spectrum {
             type Output = TSpectrum<T>;
@@ -780,14 +1073,19 @@ macro_rules! mul_srgb_x_spectrum {
     };
 }
 
-mul_srgb_x_spectrum!(&SRGB_R_SPECTRUM);
-mul_srgb_x_spectrum!(&SRGB_G_SPECTRUM);
-mul_srgb_x_spectrum!(&SRGB_B_SPECTRUM);
+mul_spectrum_bars!(&SRGB_R_SPECTRUM);
+mul_spectrum_bars!(&SRGB_G_SPECTRUM);
+mul_spectrum_bars!(&SRGB_B_SPECTRUM);
+mul_spectrum_bars!(&CIE_X_BAR);
+mul_spectrum_bars!(&CIE_Y_BAR);
+mul_spectrum_bars!(&CIE_Z_BAR);
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    /// Both spectra should have same wavelengths and their
+    /// intensities should be within margin of error
     fn spectrum_is_equal<T: RealField>(spectrum1: &TSpectrum<T>, spectrum2: &TSpectrum<T>) -> bool {
         if spectrum1.len() != spectrum2.len() {
             false
@@ -809,6 +1107,15 @@ mod tests {
                 })
                 .is_some()
         }
+    }
+
+    /// All components of both the vectors should be within margin
+    /// of error
+    fn vec3_is_equal<T: RealField>(v1: &glm::TVec3<T>, v2: &glm::TVec3<T>) -> bool {
+        let margin = 0.001;
+        (v1[0] - v2[0]) < T::from_f64(margin).unwrap()
+            && (v1[1] - v2[1]) < T::from_f64(margin).unwrap()
+            && (v1[2] - v2[2]) < T::from_f64(margin).unwrap()
     }
 
     #[test]
@@ -1033,5 +1340,49 @@ mod tests {
         let srgb = glm::vec3(1.0, 1.0, 1.0);
         let spectrum = DSpectrum::from_srgb(&srgb);
         assert!(spectrum_is_equal(&spectrum, &DSpectrum::ones(380..=780, 5)));
+    }
+
+    #[test]
+    fn spectrum_to_cie_xyz_01() {
+        let srgb = glm::vec3(1.0, 1.0, 1.0);
+        let spectrum = DSpectrum::from_srgb(&srgb);
+        assert!(vec3_is_equal(
+            &cie_xyz_to_srgb(&spectrum.to_cie_xyz()),
+            &srgb
+        ));
+    }
+
+    #[test]
+    fn spectrum_to_cie_xyz_02() {
+        let srgb = glm::vec3(0.0, 0.0, 0.0);
+        let spectrum = DSpectrum::from_srgb(&srgb);
+        assert!(vec3_is_equal(
+            &cie_xyz_to_srgb(&spectrum.to_cie_xyz()),
+            &srgb
+        ));
+    }
+
+    // expensive test, so must ignore
+    #[ignore]
+    #[test]
+    fn spectrum_to_cie_xyz_03() {
+        let num_vals = 100;
+        (0..num_vals).for_each(|x| {
+            let x = x as f64;
+            (0..num_vals).for_each(|y| {
+                let y = y as f64;
+                (0..num_vals).for_each(|z| {
+                    let z = z as f64;
+                    let num_vals = num_vals as f64;
+                    let srgb =
+                        glm::vec3(1.0 * x / num_vals, 1.0 * y / num_vals, 1.0 * z / num_vals);
+                    let spectrum = DSpectrum::from_srgb(&srgb);
+                    assert!(vec3_is_equal(
+                        &cie_xyz_to_srgb(&spectrum.to_cie_xyz()),
+                        &srgb
+                    ));
+                });
+            });
+        });
     }
 }
