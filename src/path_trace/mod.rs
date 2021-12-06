@@ -6,6 +6,7 @@ pub mod medium;
 pub mod ray;
 pub mod shader_list;
 pub mod shaders;
+pub mod spectrum;
 pub mod texture_list;
 pub mod traversal_info;
 pub mod viewport_renderer;

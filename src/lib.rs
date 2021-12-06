@@ -28,6 +28,7 @@ extern crate image as external_image;
 
 use mesh::MeshUseShader;
 use meshio::MeshIO;
+extern crate nalgebra as na;
 pub use nalgebra_glm as glm;
 
 use camera::Camera;
