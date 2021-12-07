@@ -61,6 +61,23 @@ impl<T: std::fmt::Display> std::fmt::Display for Sample<T> {
     }
 }
 
+/// A list of wavelengths, no associated intensities. Useful for
+/// defining which wavelengths to convert to/from spectrum.
+pub struct Wavelengths {
+    wavelengths: Vec<usize>,
+}
+
+impl Wavelengths {
+    pub fn new(wavelengths: Vec<usize>) -> Self {
+        Self { wavelengths }
+    }
+
+    /// Get a reference to the wavelengths's wavelengths.
+    pub fn get_wavelengths(&self) -> &[usize] {
+        self.wavelengths.as_ref()
+    }
+}
+
 /// A generic spectrum of any number of wavelengths and of any type
 /// `T`. Stores the wavelengths that define the spectrum and their
 /// corresponding intensities.
@@ -120,11 +137,37 @@ impl<T: RealField> TSpectrum<T> {
         )
     }
 
-    /// Convert sRGB to Spectrum.
+    /// Convert sRGB to complete Spectrum.
     ///
     /// Reference: <https://graphics.geometrian.com/research/spectral-primaries.html>
     pub fn from_srgb(srgb: &glm::TVec3<T>) -> Self {
         &SRGB_R_SPECTRUM * srgb[0] + &SRGB_G_SPECTRUM * srgb[1] + &SRGB_B_SPECTRUM * srgb[2]
+    }
+
+    /// Convert sRGB to Spectrum defined by the given wavelengths.
+    ///
+    /// Reference: <https://graphics.geometrian.com/research/spectral-primaries.html>
+    pub fn from_srgb_for_wavelengths(srgb: &glm::TVec3<T>, wavelengths: &Wavelengths) -> Self {
+        Self::new(
+            wavelengths
+                .get_wavelengths()
+                .iter()
+                .map(|wavelength| {
+                    let srgb_spectrum: glm::TVec3<T> = glm::convert(glm::vec3(
+                        *SRGB_R_SPECTRUM
+                            .get(wavelength)
+                            .expect("wavelengths [380, 780] binned at 5nm supported"),
+                        *SRGB_G_SPECTRUM
+                            .get(wavelength)
+                            .expect("wavelengths [380, 780] binned at 5nm supported"),
+                        *SRGB_B_SPECTRUM
+                            .get(wavelength)
+                            .expect("wavelengths [380, 780] binned at 5nm supported"),
+                    ));
+                    Sample::new(*wavelength, srgb_spectrum.dot(srgb))
+                })
+                .collect(),
+        )
     }
 
     /// Convert Spectrum to CIE XYZ. Uses illuminant D65.
