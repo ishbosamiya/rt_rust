@@ -8,6 +8,7 @@ use super::BSDFUiData;
 use crate::egui;
 use crate::glm;
 use crate::path_trace::medium::Mediums;
+use crate::path_trace::spectrum::{DSpectrum, TSpectrum};
 use crate::path_trace::texture_list::TextureList;
 use crate::ui::DrawUI;
 
@@ -55,9 +56,12 @@ impl BSDF for Lambert {
         _wo: &glm::DVec3,
         intersect_info: &IntersectInfo,
         texture_list: &TextureList,
-    ) -> glm::DVec3 {
-        self.color
-            .get_color(intersect_info.get_uv().as_ref().unwrap(), texture_list)
+    ) -> DSpectrum {
+        TSpectrum::from_srgb(
+            &self
+                .color
+                .get_color(intersect_info.get_uv().as_ref().unwrap(), texture_list),
+        )
     }
 
     fn get_bsdf_name(&self) -> &str {

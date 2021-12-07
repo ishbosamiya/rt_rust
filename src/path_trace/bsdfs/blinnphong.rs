@@ -9,6 +9,7 @@ use crate::egui;
 use crate::glm;
 use crate::math;
 use crate::path_trace::medium::Mediums;
+use crate::path_trace::spectrum::{DSpectrum, TSpectrum};
 use crate::path_trace::texture_list::TextureList;
 use crate::ui::DrawUI;
 
@@ -63,7 +64,7 @@ impl BSDF for Blinnphong {
         wo: &glm::DVec3,
         intersect_info: &IntersectInfo,
         texture_list: &TextureList,
-    ) -> glm::DVec3 {
+    ) -> DSpectrum {
         let h = (-wi + wo).normalize();
 
         let val = intersect_info
@@ -79,9 +80,12 @@ impl BSDF for Blinnphong {
             val
         };
 
-        self.color
-            .get_color(intersect_info.get_uv().as_ref().unwrap(), texture_list)
-            .component_mul(&glm::vec3(val, val, val))
+        TSpectrum::from_srgb(
+            &self
+                .color
+                .get_color(intersect_info.get_uv().as_ref().unwrap(), texture_list)
+                .component_mul(&glm::vec3(val, val, val)),
+        )
     }
 
     fn get_bsdf_name(&self) -> &str {

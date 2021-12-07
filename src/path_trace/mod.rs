@@ -465,7 +465,7 @@ fn shade_hit(
             let next_ray_dir = -wi;
 
             ScatterHitData::new(
-                color,
+                color.to_srgb(),
                 Ray::new(*intersect_info.get_point(), next_ray_dir),
                 sampling_type,
             )
@@ -473,7 +473,7 @@ fn shade_hit(
 
     let emission_data = bsdf
         .emission(intersect_info, texture_list)
-        .map(EmissionHitData::new);
+        .map(|color| EmissionHitData::new(color.to_srgb()));
 
     (scattering_data, emission_data)
 }

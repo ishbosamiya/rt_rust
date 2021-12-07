@@ -8,6 +8,7 @@ use super::BSDFUiData;
 use crate::egui;
 use crate::glm;
 use crate::path_trace::medium::Mediums;
+use crate::path_trace::spectrum::{DSpectrum, TSpectrum};
 use crate::path_trace::texture_list::TextureList;
 use crate::ui::DrawUI;
 
@@ -50,7 +51,7 @@ impl BSDF for Emissive {
         _wo: &glm::DVec3,
         _intersect_info: &IntersectInfo,
         _texture_list: &TextureList,
-    ) -> glm::DVec3 {
+    ) -> DSpectrum {
         unreachable!("Emissive only material, so no eval is possible")
     }
 
@@ -58,13 +59,13 @@ impl BSDF for Emissive {
         &self,
         intersect_info: &IntersectInfo,
         texture_list: &TextureList,
-    ) -> Option<glm::DVec3> {
-        Some(
-            self.power
+    ) -> Option<DSpectrum> {
+        Some(TSpectrum::from_srgb(
+            &(self.power
                 * self
                     .color
-                    .get_color(intersect_info.get_uv().as_ref().unwrap(), texture_list),
-        )
+                    .get_color(intersect_info.get_uv().as_ref().unwrap(), texture_list)),
+        ))
     }
 
     fn get_bsdf_name(&self) -> &str {

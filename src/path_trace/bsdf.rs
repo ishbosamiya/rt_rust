@@ -2,6 +2,7 @@ use super::{
     bsdfs::{utils::ColorPicker, BSDFUiData},
     intersectable::IntersectInfo,
     medium::Mediums,
+    spectrum::DSpectrum,
     texture_list::TextureList,
 };
 use crate::{glm, ui::DrawUI};
@@ -90,14 +91,14 @@ pub trait BSDF: DrawUI<ExtraData = BSDFUiData> {
         wo: &glm::DVec3,
         intersect_info: &IntersectInfo,
         texture_list: &TextureList,
-    ) -> glm::DVec3;
+    ) -> DSpectrum;
 
     /// Calculates the colour/intensity of light produced by the object the point of intersection
     fn emission(
         &self,
         _intersect_info: &IntersectInfo,
         _texture_list: &TextureList,
-    ) -> Option<glm::DVec3> {
+    ) -> Option<DSpectrum> {
         None
     }
 
