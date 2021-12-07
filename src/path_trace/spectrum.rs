@@ -1,10 +1,17 @@
-use std::collections::HashMap;
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use itertools::Itertools;
 use lazy_static::lazy_static;
 use nalgebra::RealField;
 
-use crate::glm;
+use crate::{
+    glm,
+    rasterize::{
+        drawable::Drawable,
+        gpu_immediate::{GPUImmediate, GPUPrimType, GPUVertCompType, GPUVertFetchMode},
+        shader,
+    },
+};
 
 /// TODO:
 /// RGB to CIE XYZ,
@@ -299,6 +306,121 @@ pub fn cie_xyz_to_srgb(xyz: &glm::DVec3) -> glm::DVec3 {
         1.0572604592110555,
     ) * xyz
         / Y_ILLUMINANCE_D65
+}
+
+#[derive(Debug)]
+pub struct SpectrumDrawData {
+    imm: Rc<RefCell<GPUImmediate>>,
+    /// postition of the spectrum with respect to its origin at bottom
+    /// left (0.0, 0.0, 0.0)
+    pos: glm::DVec3,
+    scale: glm::DVec3,
+    normal: glm::DVec3,
+}
+
+impl SpectrumDrawData {
+    pub fn new(
+        imm: Rc<RefCell<GPUImmediate>>,
+        pos: glm::DVec3,
+        scale: glm::DVec3,
+        normal: glm::DVec3,
+    ) -> Self {
+        Self {
+            imm,
+            pos,
+            scale,
+            normal,
+        }
+    }
+}
+
+impl<T: RealField + simba::scalar::SubsetOf<f32> + simba::scalar::SubsetOf<f64>> Drawable
+    for TSpectrum<T>
+{
+    type ExtraData = SpectrumDrawData;
+
+    type Error = ();
+
+    fn draw(&self, extra_data: &mut Self::ExtraData) -> Result<(), Self::Error> {
+        let smooth_color_3d_shader = shader::builtins::get_smooth_color_3d_shader()
+            .as_ref()
+            .unwrap();
+
+        smooth_color_3d_shader.use_shader();
+        let translated_mat = glm::translate(&glm::identity(), &extra_data.pos);
+        let rotated_mat = {
+            let rotation_axis = glm::cross(&glm::vec3(0.0, 1.0, 0.0), &extra_data.normal);
+            let rotation_angle = (glm::dot(&glm::vec3(0.0, 1.0, 0.0), &extra_data.normal)
+                / glm::length(&extra_data.normal))
+            .acos();
+            glm::rotate(&translated_mat, rotation_angle, &rotation_axis)
+        };
+        let model = glm::convert(glm::scale(&rotated_mat, &extra_data.scale));
+        smooth_color_3d_shader.set_mat4("model\0", &model);
+
+        let imm = &mut extra_data.imm.borrow_mut();
+        let format = imm.get_cleared_vertex_format();
+        let pos_attr = format.add_attribute(
+            "in_pos\0".to_string(),
+            GPUVertCompType::F32,
+            3,
+            GPUVertFetchMode::Float,
+        );
+        let color_attr = format.add_attribute(
+            "in_color\0".to_string(),
+            GPUVertCompType::F32,
+            4,
+            GPUVertFetchMode::Float,
+        );
+
+        imm.begin(GPUPrimType::LineStrip, self.len(), smooth_color_3d_shader);
+
+        let color: glm::Vec3 = glm::convert(cie_xyz_to_srgb(&glm::convert(self.to_cie_xyz())));
+
+        self.get_samples().iter().for_each(|sample| {
+            assert!(
+                sample.get_wavelength() >= &380 && sample.get_wavelength() <= &780,
+                "wavelengths outside [380, 780] are not supported"
+            );
+            let pos = glm::vec3(
+                (sample.get_wavelength() - 380) as f32 / (780.0 - 380.0),
+                0.0,
+                glm::convert(*sample.get_intensity()),
+            );
+
+            imm.attr_4f(color_attr, color[0], color[1], color[2], 1.0);
+            imm.vertex_3f(pos_attr, pos[0], pos[1], pos[2]);
+        });
+
+        imm.end();
+
+        // rectangle around it possible spectrum line
+        {
+            imm.begin(GPUPrimType::LineStrip, 4, smooth_color_3d_shader);
+
+            let box_color = 0.1;
+
+            imm.attr_4f(color_attr, box_color, box_color, box_color, 1.0);
+            imm.vertex_3f(pos_attr, 0.0, 0.0, 0.0);
+
+            imm.attr_4f(color_attr, box_color, box_color, box_color, 1.0);
+            imm.vertex_3f(pos_attr, 0.0, 0.0, 1.0);
+
+            imm.attr_4f(color_attr, box_color, box_color, box_color, 1.0);
+            imm.vertex_3f(pos_attr, 1.0, 0.0, 1.0);
+
+            imm.attr_4f(color_attr, box_color, box_color, box_color, 1.0);
+            imm.vertex_3f(pos_attr, 1.0, 0.0, 0.0);
+
+            imm.end();
+        }
+
+        Ok(())
+    }
+
+    fn draw_wireframe(&self, _extra_data: &mut Self::ExtraData) -> Result<(), Self::Error> {
+        unreachable!("wireframe not supported for TSpectrum");
+    }
 }
 
 lazy_static! {

@@ -9,6 +9,7 @@ use rt::path_trace::intersectable::Intersectable;
 use rt::path_trace::medium::Mediums;
 use rt::path_trace::ray::Ray;
 use rt::path_trace::shader_list::{ShaderID, ShaderList};
+use rt::path_trace::spectrum::{DSpectrum, SpectrumDrawData};
 use rt::path_trace::texture_list::TextureList;
 use rt::path_trace::traversal_info::{TraversalInfo, TraversalInfoDrawData};
 use rt::path_trace::viewport_renderer::{ViewportRenderer, ViewportRendererDrawData};
@@ -357,6 +358,8 @@ fn main_gui(
     let mut end_ray_depth: usize = trace_max_depth;
     let mut start_ray_depth: usize = 1;
 
+    let mut spectrum_srgb_color = glm::vec3(0.0, 0.0, 0.0);
+
     let mut previous_frame_scene_viewport = None;
 
     while !window.should_close() {
@@ -685,6 +688,12 @@ fn main_gui(
                                 ui,
                                 "Infinite Grid Color",
                                 &mut infinite_grid_color,
+                            );
+
+                            ui::color_edit_button_dvec3(
+                                ui,
+                                "Spectrum sRGB Color",
+                                &mut spectrum_srgb_color,
                             );
 
                             ui.separator();
@@ -1243,6 +1252,19 @@ fn main_gui(
             1.0,
             &mut imm.borrow_mut(),
         );
+
+        // spectrum drawing test
+        {
+            let spectrum = DSpectrum::from_srgb(&spectrum_srgb_color);
+            spectrum
+                .draw(&mut SpectrumDrawData::new(
+                    imm.clone(),
+                    glm::vec3(-1.0, 0.0, 0.0),
+                    glm::vec3(2.0, 1.0, 1.0),
+                    glm::vec3(0.0, 0.0, -1.0),
+                ))
+                .unwrap();
+        }
 
         // handle casting ray into the scene
         if should_cast_scene_ray {
