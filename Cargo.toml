@@ -72,5 +72,9 @@ harness = false
 name = "bvh_benchmark"
 harness = false
 
+[[bench]]
+name = "spectrum_benchmark"
+harness = false
+
 [patch.crates-io]
 generational-arena = { git = "ssh://git@github.com/JOE1994/generational-arena.git", branch = 'fix_bug' }
