@@ -1264,14 +1264,27 @@ fn main_gui(
         // spectrum drawing test
         if spectrum_show {
             let spectrum = DSpectrum::from_srgb(&spectrum_srgb_color);
-            spectrum
-                .draw(&mut SpectrumDrawData::new(
-                    imm.clone(),
-                    glm::vec3(-1.0, 0.0, 0.0),
-                    glm::vec3(2.0, 1.0, 1.0),
-                    glm::vec3(0.0, 0.0, -1.0),
-                ))
-                .unwrap();
+            let spectrum_r = DSpectrum::from_srgb(&glm::vec3(spectrum_srgb_color[0], 0.0, 0.0));
+            let spectrum_g = DSpectrum::from_srgb(&glm::vec3(0.0, spectrum_srgb_color[1], 0.0));
+            let spectrum_b = DSpectrum::from_srgb(&glm::vec3(0.0, 0.0, spectrum_srgb_color[2]));
+            let position = glm::vec3(-1.0, 0.0, 0.0);
+            let scale = glm::vec3(2.0, 1.0, 1.0);
+            let normal = glm::vec3(0.0, 0.0, -1.0);
+            let draw_spectrum = |spectrum: &DSpectrum| {
+                spectrum
+                    .draw(&mut SpectrumDrawData::new(
+                        imm.clone(),
+                        position,
+                        scale,
+                        normal,
+                    ))
+                    .unwrap();
+            };
+
+            draw_spectrum(&spectrum);
+            draw_spectrum(&spectrum_r);
+            draw_spectrum(&spectrum_g);
+            draw_spectrum(&spectrum_b);
         }
 
         // handle casting ray into the scene
