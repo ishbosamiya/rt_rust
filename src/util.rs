@@ -1,3 +1,5 @@
+use nalgebra::RealField;
+
 use crate::glm;
 
 /// str to CStr
@@ -95,14 +97,19 @@ pub fn linear_to_srgb<const R: usize>(linear: &glm::TVec<f64, R>) -> glm::TVec<f
 /// /// `srgb`: srgb values between 0.0 and 1.0
 ///
 /// reference: https://en.wikipedia.org/wiki/SRGB#From_sRGB_to_CIE_XYZ
-pub fn srgb_to_linear<const R: usize>(srgb: &glm::TVec<f64, R>) -> glm::TVec<f64, R> {
-    let linearize = |srgb: f64| {
+pub fn srgb_to_linear<T: RealField + simba::scalar::SubsetOf<f32>, const R: usize>(
+    srgb: &glm::TVec<T, R>,
+) -> glm::TVec<T, R> {
+    let linearize = |srgb: T| {
         // if srgb <= 0.04045 {
         //     srgb / 12.92
         // } else {
         //     ((srgb + 0.055) / 1.055).powf(2.4)
         // }
-        egui_glfw::egui::color::linear_from_gamma(srgb as f32) as _
+        T::from_f32(egui_glfw::egui::color::linear_from_gamma(glm::convert(
+            srgb,
+        )))
+        .unwrap()
     };
 
     let mut linear = *srgb;
