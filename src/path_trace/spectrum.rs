@@ -11,6 +11,7 @@ use crate::{
         gpu_immediate::{GPUImmediate, GPUPrimType, GPUVertCompType, GPUVertFetchMode},
         shader,
     },
+    util,
 };
 
 /// TODO:
@@ -149,6 +150,18 @@ impl<T: RealField> TSpectrum<T> {
 
                 glm::vec3(acc[0] + x, acc[1] + y, acc[2] + z)
             })
+    }
+
+    /// Convert Spectrum to sRGB (through CIE XYZ)
+    pub fn to_srgb(&self) -> glm::TVec3<T> {
+        cie_xyz_to_srgb(&self.to_cie_xyz())
+    }
+}
+
+impl<T: RealField + simba::scalar::SubsetOf<f32>> TSpectrum<T> {
+    /// Convert Spectrum to linear RGB
+    pub fn to_rgb(&self) -> glm::TVec3<T> {
+        util::srgb_to_linear(&self.to_srgb())
     }
 }
 
@@ -293,8 +306,8 @@ impl<T: std::fmt::Display> std::fmt::Display for TSpectrum<T> {
     }
 }
 
-pub fn cie_xyz_to_srgb(xyz: &glm::DVec3) -> glm::DVec3 {
-    glm::mat3(
+pub fn cie_xyz_to_srgb<T: RealField>(xyz: &glm::TVec3<T>) -> glm::TVec3<T> {
+    let mat = glm::mat3(
         3.2408302291321256,
         -1.5373169035626748,
         -0.4985892660203271,
@@ -304,8 +317,9 @@ pub fn cie_xyz_to_srgb(xyz: &glm::DVec3) -> glm::DVec3 {
         0.05564528732689767,
         -0.20403272019862467,
         1.0572604592110555,
-    ) * xyz
-        / Y_ILLUMINANCE_D65
+    );
+    let mat: glm::TMat3<T> = glm::convert(mat);
+    mat * xyz / T::from_f64(Y_ILLUMINANCE_D65).unwrap()
 }
 
 #[derive(Debug)]
@@ -375,7 +389,7 @@ impl<T: RealField + simba::scalar::SubsetOf<f32> + simba::scalar::SubsetOf<f64>>
 
         imm.begin(GPUPrimType::LineStrip, self.len(), smooth_color_3d_shader);
 
-        let color: glm::Vec3 = glm::convert(cie_xyz_to_srgb(&glm::convert(self.to_cie_xyz())));
+        let color: glm::Vec3 = cie_xyz_to_srgb(&glm::convert(self.to_cie_xyz()));
 
         self.get_samples().iter().for_each(|sample| {
             assert!(
