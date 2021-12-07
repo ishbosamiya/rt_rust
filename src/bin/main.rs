@@ -358,6 +358,7 @@ fn main_gui(
     let mut end_ray_depth: usize = trace_max_depth;
     let mut start_ray_depth: usize = 1;
 
+    let mut spectrum_show = false;
     let mut spectrum_srgb_color = glm::vec3(0.0, 0.0, 0.0);
 
     let mut previous_frame_scene_viewport = None;
@@ -690,11 +691,18 @@ fn main_gui(
                                 &mut infinite_grid_color,
                             );
 
-                            ui::color_edit_button_dvec3(
-                                ui,
-                                "Spectrum sRGB Color",
-                                &mut spectrum_srgb_color,
-                            );
+                            // For testing various things that are not
+                            // directly connected to the path tracer
+                            ui.collapsing("Testing Parameters", |ui| {
+                                ui.collapsing("Spectrum Test", |ui| {
+                                    ui.checkbox(&mut spectrum_show, "Show Spectrum");
+                                    ui::color_edit_button_dvec3(
+                                        ui,
+                                        "Spectrum sRGB Color",
+                                        &mut spectrum_srgb_color,
+                                    );
+                                });
+                            });
 
                             ui.separator();
 
@@ -1254,7 +1262,7 @@ fn main_gui(
         );
 
         // spectrum drawing test
-        {
+        if spectrum_show {
             let spectrum = DSpectrum::from_srgb(&spectrum_srgb_color);
             spectrum
                 .draw(&mut SpectrumDrawData::new(
