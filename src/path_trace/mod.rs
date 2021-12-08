@@ -242,14 +242,16 @@ pub fn ray_trace_scene(
                                 .collect(),
                         );
 
-                        wavelengths.get_wavelengths().iter().for_each(|wavelength| {
+                        {
                             let mut samples_per_wavelength_per_pixel =
                                 samples_per_wavelength_per_pixel.write().unwrap();
-                            let samples = samples_per_wavelength_per_pixel[*pixel_index]
-                                .entry(*wavelength)
-                                .or_insert(0);
-                            *samples += 1;
-                        });
+                            wavelengths.get_wavelengths().iter().for_each(|wavelength| {
+                                let samples = samples_per_wavelength_per_pixel[*pixel_index]
+                                    .entry(*wavelength)
+                                    .or_insert(0);
+                                *samples += 1;
+                            });
+                        }
 
                         let (spectrum, _traversal_info) = trace_ray(
                             &ray,
@@ -277,6 +279,7 @@ pub fn ray_trace_scene(
         }
 
         {
+            let samples_per_wavelength_per_pixel = samples_per_wavelength_per_pixel.read().unwrap();
             let mut rendered_image = ray_trace_params.rendered_image.write().unwrap();
             *rendered_image = Image::from_pixels(
                 image.get_width(),
@@ -291,10 +294,9 @@ pub fn ray_trace_scene(
                                 .get_samples()
                                 .iter()
                                 .map(|sample| {
-                                    let num_samples =
-                                        *samples_per_wavelength_per_pixel.read().unwrap()[i]
-                                            .get(sample.get_wavelength())
-                                            .unwrap();
+                                    let num_samples = *samples_per_wavelength_per_pixel[i]
+                                        .get(sample.get_wavelength())
+                                        .unwrap();
                                     spectrum::Sample::new(
                                         *sample.get_wavelength(),
                                         sample.get_intensity() / num_samples as f64,
