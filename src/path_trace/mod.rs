@@ -164,6 +164,8 @@ pub fn ray_trace_scene(
         Arc::new(RwLock::new(samples_per_wavelength_per_pixel))
     };
 
+    let complete_wavelengths = Wavelengths::complete();
+
     // ray trace
     for processed_samples in 0..ray_trace_params.get_samples_per_pixel() {
         if *stop_render.read().unwrap() {
@@ -235,7 +237,7 @@ pub fn ray_trace_scene(
                         let mut rng = rand::thread_rng();
 
                         let wavelengths = Wavelengths::new(
-                            Wavelengths::complete()
+                            complete_wavelengths
                                 .get_wavelengths()
                                 .choose_multiple(&mut rng, 3)
                                 .cloned()
