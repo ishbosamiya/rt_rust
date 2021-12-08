@@ -575,19 +575,22 @@ pub fn trace_ray(
         traversal_info.add_ray(SingleRayInfo::new(
             *ray,
             Some(*info.get_point()),
-            resulting_intensity.to_srgb(),
+            resulting_intensity.clone(),
             Some(info.get_normal().unwrap()),
         ));
 
         (resulting_intensity, traversal_info)
     } else {
-        let final_intensity = shade_environment(ray, environment);
+        let final_intensity =
+            DSpectrum::from_srgb_for_wavelengths(&shade_environment(ray, environment), wavelengths);
 
-        traversal_info.add_ray(SingleRayInfo::new(*ray, None, final_intensity, None));
+        traversal_info.add_ray(SingleRayInfo::new(
+            *ray,
+            None,
+            final_intensity.clone(),
+            None,
+        ));
 
-        (
-            DSpectrum::from_srgb_for_wavelengths(&final_intensity, wavelengths),
-            traversal_info,
-        )
+        (final_intensity, traversal_info)
     }
 }

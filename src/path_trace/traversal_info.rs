@@ -9,7 +9,7 @@ use crate::{
     },
 };
 
-use super::ray::Ray;
+use super::{ray::Ray, spectrum::DSpectrum};
 
 pub struct SingleRayInfo {
     /// the ray for which the info is defined
@@ -19,8 +19,8 @@ pub struct SingleRayInfo {
     /// it is possible for the ray to be shaded by the environment so
     /// `co` may not exist, thus is made optional
     co: Option<glm::DVec3>,
-    /// color/intensity of light of the ray
-    color: glm::DVec3,
+    /// spectrum of light of the ray
+    spectrum: DSpectrum,
     /// normal at co if co exists
     normal: Option<glm::DVec3>,
 }
@@ -30,18 +30,18 @@ impl SingleRayInfo {
     pub fn new(
         ray: Ray,
         co: Option<glm::DVec3>,
-        color: glm::DVec3,
+        spectrum: DSpectrum,
         normal: Option<glm::DVec3>,
     ) -> Self {
         Self {
             ray,
             co,
-            color,
+            spectrum,
             normal,
         }
     }
 
-    /// Get a reference to the single ray info's color.
+    /// Get a reference to the single ray info's ray.
     pub fn get_ray(&self) -> &Ray {
         &self.ray
     }
@@ -51,9 +51,9 @@ impl SingleRayInfo {
         &self.co
     }
 
-    /// Get a reference to the single ray info's color.
-    pub fn get_color(&self) -> &glm::DVec3 {
-        &self.color
+    /// Get a reference to the single ray info's spectrum.
+    pub fn get_spectrum(&self) -> &DSpectrum {
+        &self.spectrum
     }
 
     /// Get a reference to the single ray info's normal.
@@ -173,7 +173,7 @@ impl Drawable for TraversalInfo {
                         info.get_ray().at(1000.0)
                     };
                     let p2: glm::Vec3 = glm::convert(p2);
-                    let color: glm::Vec3 = glm::convert(*info.get_color());
+                    let color: glm::Vec3 = glm::convert(info.get_spectrum().to_srgb());
 
                     imm.attr_4f(color_attr, color[0], color[1], color[2], 1.0);
                     imm.vertex_3f(pos_attr, p1[0], p1[1], p1[2]);
