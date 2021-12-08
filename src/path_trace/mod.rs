@@ -23,6 +23,7 @@ use std::thread::JoinHandle;
 use std::time::Instant;
 
 use enumflags2::BitFlags;
+use itertools::Itertools;
 use lazy_static::lazy_static;
 use rand::prelude::*;
 use rayon::prelude::*;
@@ -241,6 +242,7 @@ pub fn ray_trace_scene(
                                 .get_wavelengths()
                                 .choose_multiple(&mut rng, 3)
                                 .cloned()
+                                .sorted()
                                 .collect(),
                         );
 
