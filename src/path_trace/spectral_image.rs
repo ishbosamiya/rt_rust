@@ -84,3 +84,5 @@ impl<T: RealField + simba::scalar::SubsetOf<f64> + simba::scalar::SubsetOf<f32>>
         )
     }
 }
+
+pub type DSpectralImage = TSpectralImage<f64>;
