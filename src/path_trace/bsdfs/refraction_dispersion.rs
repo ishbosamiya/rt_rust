@@ -1,11 +1,9 @@
-use std::fmt::Display;
-
 use enumflags2::BitFlags;
 use serde::{Deserialize, Serialize};
 
 use super::super::bsdf::{SampleData, SamplingTypes, BSDF};
 use super::super::intersectable::IntersectInfo;
-use super::utils::{self, ColorPicker, ColorPickerUiData};
+use super::utils::{self, ColorPicker, ColorPickerUiData, DispersiveMaterial};
 use super::BSDFUiData;
 use crate::egui;
 use crate::glm;
@@ -14,31 +12,11 @@ use crate::path_trace::spectrum::{DSpectrum, TSpectrum, Wavelengths};
 use crate::path_trace::texture_list::TextureList;
 use crate::ui::DrawUI;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum Material {
-    Diamond,
-}
-
-impl Display for Material {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Material::Diamond => write!(f, "Diamond"),
-        }
-    }
-}
-
-impl Material {
-    pub fn all() -> impl Iterator<Item = Self> {
-        use Material::*;
-        [Diamond].iter().copied()
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RefractionDispersion {
     color: ColorPicker,
 
-    material: Material,
+    material: DispersiveMaterial,
 
     #[serde(default = "default_roughness")]
     roughness: f64,
@@ -51,12 +29,12 @@ fn default_roughness() -> f64 {
 
 impl Default for RefractionDispersion {
     fn default() -> Self {
-        Self::new(glm::vec3(1.0, 1.0, 1.0), Material::Diamond, 0.0)
+        Self::new(glm::vec3(1.0, 1.0, 1.0), DispersiveMaterial::Diamond, 0.0)
     }
 }
 
 impl RefractionDispersion {
-    pub fn new(color: glm::DVec3, material: Material, roughness: f64) -> Self {
+    pub fn new(color: glm::DVec3, material: DispersiveMaterial, roughness: f64) -> Self {
         Self {
             color: ColorPicker::Color(color),
             material,
@@ -64,54 +42,8 @@ impl RefractionDispersion {
         }
     }
 
-    /// Calculate ior of the material at the given wavelength using
-    /// Sellmeir's equation.
     fn calculate_ior(&self, wavelength: usize) -> f64 {
-        match self.material {
-            Material::Diamond => {
-                // reference:
-                // https://refractiveindex.info/?shelf=3d&book=crystals&page=diamond
-                let iors = vec![
-                    (365, 2.473323675),
-                    (387, 2.464986815),
-                    (413, 2.455051934),
-                    (443, 2.441251728),
-                    (477, 2.431478974),
-                    (517, 2.427076431),
-                    (564, 2.420857286),
-                    (620, 2.411429037),
-                    (689, 2.406543164),
-                    (775, 2.406202402),
-                    (886, 2.400035416),
-                ];
-
-                let mut ior = 0.0;
-                for (i, (known_wavelength, known_ior)) in iors.iter().enumerate() {
-                    match wavelength.cmp(known_wavelength) {
-                        std::cmp::Ordering::Less => {}
-                        std::cmp::Ordering::Equal => {
-                            ior = *known_ior;
-                            break;
-                        }
-                        std::cmp::Ordering::Greater => {
-                            let (higher_wavelength, higher_refractive_index) = iors[i + 1];
-                            let (lower_wavelength, lower_refractive_index): (usize, f64) =
-                                (*known_wavelength, *known_ior);
-
-                            ior = glm::lerp_scalar(
-                                lower_refractive_index,
-                                higher_refractive_index,
-                                (wavelength - lower_wavelength) as f64
-                                    / (higher_wavelength - lower_wavelength) as f64,
-                            );
-                            break;
-                        }
-                    }
-                }
-                assert!(ior != 0.0);
-                ior
-            }
-        }
+        self.material.calculate_ior(wavelength)
     }
 
     fn handle_refraction(
@@ -269,23 +201,5 @@ impl DrawUI for RefractionDispersion {
 
         self.material.draw_ui_mut(ui, extra_data);
         ui.add(egui::Slider::new(&mut self.roughness, 0.0..=1.0).text("Roughness"));
-    }
-}
-
-impl DrawUI for Material {
-    type ExtraData = BSDFUiData;
-
-    fn draw_ui(&self, _ui: &mut egui::Ui, _extra_data: &Self::ExtraData) {
-        unreachable!("no non mut draw ui for IntersectInfoType")
-    }
-
-    fn draw_ui_mut(&mut self, ui: &mut egui::Ui, extra_data: &Self::ExtraData) {
-        egui::ComboBox::from_id_source(extra_data.get_shader_egui_id().with("Material"))
-            .selected_text(format!("{}", self))
-            .show_ui(ui, |ui| {
-                Self::all().for_each(|info| {
-                    ui.selectable_value(self, info, format!("{}", info));
-                });
-            });
     }
 }

@@ -7,6 +7,8 @@ use crate::path_trace::texture_list::{TextureID, TextureList};
 use crate::ui::DrawUI;
 use crate::{egui, glm, math, ui};
 
+use super::BSDFUiData;
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ColorPicker {
     Color(glm::DVec3),
@@ -150,4 +152,91 @@ pub fn wi_diffuse(normal: &glm::DVec3) -> glm::DVec3 {
 
     //need to return `wi` which should point towards the hitpoint
     -(normal + math::random_in_unit_sphere())
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum DispersiveMaterial {
+    Diamond,
+}
+
+impl Display for DispersiveMaterial {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DispersiveMaterial::Diamond => write!(f, "Diamond"),
+        }
+    }
+}
+
+impl DispersiveMaterial {
+    pub fn all() -> impl Iterator<Item = Self> {
+        use DispersiveMaterial::*;
+        [Diamond].iter().copied()
+    }
+
+    /// Calculate ior of the material at the given wavelength
+    pub fn calculate_ior(&self, wavelength: usize) -> f64 {
+        match self {
+            DispersiveMaterial::Diamond => {
+                // reference:
+                // https://refractiveindex.info/?shelf=3d&book=crystals&page=diamond
+                let iors = vec![
+                    (365, 2.473323675),
+                    (387, 2.464986815),
+                    (413, 2.455051934),
+                    (443, 2.441251728),
+                    (477, 2.431478974),
+                    (517, 2.427076431),
+                    (564, 2.420857286),
+                    (620, 2.411429037),
+                    (689, 2.406543164),
+                    (775, 2.406202402),
+                    (886, 2.400035416),
+                ];
+
+                let mut ior = 0.0;
+                for (i, (known_wavelength, known_ior)) in iors.iter().enumerate() {
+                    match wavelength.cmp(known_wavelength) {
+                        std::cmp::Ordering::Less => {}
+                        std::cmp::Ordering::Equal => {
+                            ior = *known_ior;
+                            break;
+                        }
+                        std::cmp::Ordering::Greater => {
+                            let (higher_wavelength, higher_refractive_index) = iors[i + 1];
+                            let (lower_wavelength, lower_refractive_index): (usize, f64) =
+                                (*known_wavelength, *known_ior);
+
+                            ior = glm::lerp_scalar(
+                                lower_refractive_index,
+                                higher_refractive_index,
+                                (wavelength - lower_wavelength) as f64
+                                    / (higher_wavelength - lower_wavelength) as f64,
+                            );
+                            break;
+                        }
+                    }
+                }
+                assert!(ior != 0.0);
+                ior
+            }
+        }
+    }
+}
+
+impl DrawUI for DispersiveMaterial {
+    type ExtraData = BSDFUiData;
+
+    fn draw_ui(&self, _ui: &mut egui::Ui, _extra_data: &Self::ExtraData) {
+        unreachable!("no non mut draw ui for IntersectInfoType")
+    }
+
+    fn draw_ui_mut(&mut self, ui: &mut egui::Ui, extra_data: &Self::ExtraData) {
+        egui::ComboBox::from_id_source(extra_data.get_shader_egui_id().with("DispersiveMaterial"))
+            .selected_text(format!("{}", self))
+            .show_ui(ui, |ui| {
+                Self::all().for_each(|info| {
+                    ui.selectable_value(self, info, format!("{}", info));
+                });
+            });
+    }
 }
