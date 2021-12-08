@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use enumflags2::BitFlags;
 use serde::{Deserialize, Serialize};
 
@@ -12,10 +14,31 @@ use crate::path_trace::spectrum::{DSpectrum, TSpectrum, Wavelengths};
 use crate::path_trace::texture_list::TextureList;
 use crate::ui::DrawUI;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Material {
+    Diamond,
+}
+
+impl Display for Material {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Material::Diamond => write!(f, "Diamond"),
+        }
+    }
+}
+
+impl Material {
+    pub fn all() -> impl Iterator<Item = Self> {
+        use Material::*;
+        [Diamond].iter().copied()
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Refraction {
+pub struct RefractionDispersion {
     color: ColorPicker,
-    ior: f64,
+
+    material: Material,
 
     #[serde(default = "default_roughness")]
     roughness: f64,
@@ -26,35 +49,89 @@ fn default_roughness() -> f64 {
     0.0
 }
 
-impl Default for Refraction {
+impl Default for RefractionDispersion {
     fn default() -> Self {
-        Self::new(glm::vec3(1.0, 1.0, 1.0), 1.5, 0.4)
+        Self::new(glm::vec3(1.0, 1.0, 1.0), Material::Diamond, 0.0)
     }
 }
 
-impl Refraction {
-    pub fn new(color: glm::DVec3, ior: f64, roughness: f64) -> Self {
+impl RefractionDispersion {
+    pub fn new(color: glm::DVec3, material: Material, roughness: f64) -> Self {
         Self {
             color: ColorPicker::Color(color),
-            ior,
+            material,
             roughness,
+        }
+    }
+
+    /// Calculate ior of the material at the given wavelength using
+    /// Sellmeir's equation.
+    fn calculate_ior(&self, wavelength: usize) -> f64 {
+        match self.material {
+            Material::Diamond => {
+                // reference:
+                // https://refractiveindex.info/?shelf=3d&book=crystals&page=diamond
+                let iors = vec![
+                    (365, 2.473323675),
+                    (387, 2.464986815),
+                    (413, 2.455051934),
+                    (443, 2.441251728),
+                    (477, 2.431478974),
+                    (517, 2.427076431),
+                    (564, 2.420857286),
+                    (620, 2.411429037),
+                    (689, 2.406543164),
+                    (775, 2.406202402),
+                    (886, 2.400035416),
+                ];
+
+                let mut ior = 0.0;
+                for (i, (known_wavelength, known_ior)) in iors.iter().enumerate() {
+                    match wavelength.cmp(known_wavelength) {
+                        std::cmp::Ordering::Less => {}
+                        std::cmp::Ordering::Equal => {
+                            ior = *known_ior;
+                            break;
+                        }
+                        std::cmp::Ordering::Greater => {
+                            let (higher_wavelength, higher_refractive_index) = iors[i + 1];
+                            let (lower_wavelength, lower_refractive_index): (usize, f64) =
+                                (*known_wavelength, *known_ior);
+
+                            ior = glm::lerp_scalar(
+                                lower_refractive_index,
+                                higher_refractive_index,
+                                (wavelength - lower_wavelength) as f64
+                                    / (higher_wavelength - lower_wavelength) as f64,
+                            );
+                            break;
+                        }
+                    }
+                }
+                assert!(ior != 0.0);
+                ior
+            }
         }
     }
 
     fn handle_refraction(
         &self,
         wo: &glm::DVec3,
+        wavelength: usize,
         mediums: &mut Mediums,
         intersect_info: &IntersectInfo,
         sampling_types: BitFlags<SamplingTypes>,
     ) -> Option<SampleData> {
+        // calculate ior based on the given wavelength
+        let self_ior = self.calculate_ior(wavelength);
+
         // TODO: need to figure out which sampling type it would be,
         // both diffuse and reflection seem to make sense
         if sampling_types.contains(SamplingTypes::Diffuse) {
             let entering = intersect_info.get_front_face();
 
             let ior = if entering {
-                let ior = mediums.get_lastest_medium().unwrap().get_ior() / self.get_ior();
+                let ior = mediums.get_lastest_medium().unwrap().get_ior() / self_ior;
                 ior
             } else {
                 // need to remove the lastest medium since it would be
@@ -66,7 +143,7 @@ impl Refraction {
                 // sample. This can happen because of non manifold
                 // meshes. If there exists a medium, calculate the
                 // ior.
-                self.get_ior() / mediums.get_lastest_medium()?.get_ior()
+                self_ior / mediums.get_lastest_medium()?.get_ior()
             };
 
             let output =
@@ -81,7 +158,7 @@ impl Refraction {
             if output != glm::DVec3::zeros() {
                 // add `wi` medium if entering the medium
                 if entering {
-                    mediums.add_medium(Medium::new(self.get_ior()));
+                    mediums.add_medium(Medium::new(self_ior));
                 }
 
                 Some(SampleData::new(output, SamplingTypes::Diffuse))
@@ -110,11 +187,11 @@ impl Refraction {
 }
 
 #[typetag::serde]
-impl BSDF for Refraction {
+impl BSDF for RefractionDispersion {
     fn sample(
         &self,
         wo: &glm::DVec3,
-        _wavelengths: &Wavelengths,
+        wavelengths: &Wavelengths,
         mediums: &mut Mediums,
         intersect_info: &IntersectInfo,
         sampling_types: BitFlags<SamplingTypes>,
@@ -128,7 +205,13 @@ impl BSDF for Refraction {
             self.handle_diffuse(intersect_info, sampling_types)
         } else {
             // sample pure refraction
-            self.handle_refraction(wo, mediums, intersect_info, sampling_types)
+            self.handle_refraction(
+                wo,
+                wavelengths.get_wavelengths()[(wavelengths.get_wavelengths().len() / 2)],
+                mediums,
+                intersect_info,
+                sampling_types,
+            )
         }
     }
 
@@ -149,7 +232,7 @@ impl BSDF for Refraction {
     }
 
     fn get_bsdf_name(&self) -> &str {
-        "Refraction"
+        "RefractionDispersion"
     }
 
     fn get_base_color(&self, texture_list: &TextureList) -> Option<glm::DVec3> {
@@ -161,11 +244,11 @@ impl BSDF for Refraction {
     }
 
     fn get_ior(&self) -> f64 {
-        self.ior
+        self.calculate_ior(580)
     }
 }
 
-impl DrawUI for Refraction {
+impl DrawUI for RefractionDispersion {
     type ExtraData = BSDFUiData;
 
     fn draw_ui(&self, ui: &mut egui::Ui, _extra_data: &Self::ExtraData) {
@@ -183,7 +266,26 @@ impl DrawUI for Refraction {
                 ),
             );
         });
-        ui.add(egui::Slider::new(&mut self.ior, 1.0..=2.0).text("ior"));
+
+        self.material.draw_ui_mut(ui, extra_data);
         ui.add(egui::Slider::new(&mut self.roughness, 0.0..=1.0).text("Roughness"));
+    }
+}
+
+impl DrawUI for Material {
+    type ExtraData = BSDFUiData;
+
+    fn draw_ui(&self, _ui: &mut egui::Ui, _extra_data: &Self::ExtraData) {
+        unreachable!("no non mut draw ui for IntersectInfoType")
+    }
+
+    fn draw_ui_mut(&mut self, ui: &mut egui::Ui, extra_data: &Self::ExtraData) {
+        egui::ComboBox::from_id_source(extra_data.get_shader_egui_id().with("Material"))
+            .selected_text(format!("{}", self))
+            .show_ui(ui, |ui| {
+                Self::all().for_each(|info| {
+                    ui.selectable_value(self, info, format!("{}", info));
+                });
+            });
     }
 }

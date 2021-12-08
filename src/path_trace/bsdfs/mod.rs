@@ -5,6 +5,7 @@ pub mod glass;
 pub mod glossy;
 pub mod lambert;
 pub mod refraction;
+pub mod refraction_dispersion;
 pub mod utils;
 
 use std::sync::{Arc, RwLock};

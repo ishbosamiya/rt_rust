@@ -133,7 +133,8 @@ ShaderFromBSDF!("default_viewport_color",
                 Blinnphong, bsdfs::blinnphong::Blinnphong;
                 Refraction, bsdfs::refraction::Refraction;
                 Glass, bsdfs::glass::Glass;
-                Debug, bsdfs::debug_bsdf::DebugBSDF);
+                Debug, bsdfs::debug_bsdf::DebugBSDF;
+                RefractionDispersion, bsdfs::refraction_dispersion::RefractionDispersion);
 
 impl Default for ShaderType {
     fn default() -> Self {
