@@ -63,6 +63,7 @@ impl<T: std::fmt::Display> std::fmt::Display for Sample<T> {
 
 /// A list of wavelengths, no associated intensities. Useful for
 /// defining which wavelengths to convert to/from spectrum.
+#[derive(Debug, Clone)]
 pub struct Wavelengths {
     wavelengths: Vec<usize>,
 }
@@ -279,6 +280,19 @@ spectrum_add!(TSpectrum<T>, TSpectrum<T>);
 spectrum_add!(TSpectrum<T>, &TSpectrum<T>);
 spectrum_add!(&TSpectrum<T>, TSpectrum<T>);
 spectrum_add!(&TSpectrum<T>, &TSpectrum<T>);
+
+macro_rules! spectrum_add_assign {
+    ( $lhs:ty, $rhs:ty ) => {
+        impl<T: RealField> std::ops::AddAssign<$rhs> for $lhs {
+            fn add_assign(&mut self, rhs: $rhs) {
+                *self = &*self + rhs;
+            }
+        }
+    };
+}
+
+spectrum_add_assign!(TSpectrum<T>, TSpectrum<T>);
+spectrum_add_assign!(TSpectrum<T>, &TSpectrum<T>);
 
 macro_rules! spectrum_mul {
     ( $lhs:ty, $rhs:ty ) => {
