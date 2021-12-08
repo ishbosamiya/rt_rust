@@ -105,6 +105,10 @@ pub struct TSpectrum<T> {
 }
 
 impl<T> TSpectrum<T> {
+    pub fn new_empty() -> Self {
+        Self::new(vec![])
+    }
+
     pub fn new(samples: Vec<Sample<T>>) -> Self {
         Self { samples }
     }
