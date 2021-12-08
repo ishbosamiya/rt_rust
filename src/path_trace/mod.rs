@@ -12,6 +12,7 @@ pub mod texture_list;
 pub mod traversal_info;
 pub mod viewport_renderer;
 
+use std::collections::HashMap;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 use std::sync::mpsc::Receiver;
@@ -43,6 +44,7 @@ use self::environment::EnvironmentShadingData;
 use self::medium::Mediums;
 use self::shader_list::Shader;
 use self::shader_list::ShaderList;
+use self::spectral_image::DSpectralImage;
 use self::spectrum::DSpectrum;
 use self::spectrum::Wavelengths;
 use self::texture_list::TextureList;
@@ -140,7 +142,8 @@ pub fn ray_trace_scene(
     stop_render: Arc<RwLock<bool>>,
     stop_render_immediate: Arc<RwLock<bool>>,
 ) {
-    let mut image = Image::new(ray_trace_params.get_width(), ray_trace_params.get_height());
+    let mut image =
+        DSpectralImage::new(ray_trace_params.get_width(), ray_trace_params.get_height());
     progress.write().unwrap().reset();
 
     let camera = ray_trace_params.get_camera();
@@ -149,6 +152,17 @@ pub fn ray_trace_scene(
     let total_number_of_samples = ray_trace_params.get_samples_per_pixel()
         * ray_trace_params.get_width()
         * ray_trace_params.get_height();
+
+    // Samples per wavelength of pixel. Number of elements in
+    // `samples_per_wavelength_per_pixel` should always equal the
+    // number of pixels and have a 1:1 correspondence. For each
+    // corresponding pixel, a map of wavelength to number of samples
+    // is stored.
+    let samples_per_wavelength_per_pixel: Arc<RwLock<Vec<HashMap<usize, usize>>>> = {
+        let mut samples_per_wavelength_per_pixel = Vec::with_capacity(image.get_pixels().len());
+        samples_per_wavelength_per_pixel.resize(image.get_pixels().len(), HashMap::new());
+        Arc::new(RwLock::new(samples_per_wavelength_per_pixel))
+    };
 
     // ray trace
     for processed_samples in 0..ray_trace_params.get_samples_per_pixel() {
@@ -166,80 +180,93 @@ pub fn ray_trace_scene(
         let texture_list = texture_list.read().unwrap();
         let environment: &Environment = &environment.read().unwrap();
         let environment = environment.into();
-        let image_width = image.width();
+        let image_width = image.get_width();
         let maybe_exit = image
             .get_pixels_mut()
             .par_iter_mut()
+            .enumerate()
             .chunks(image_width)
             .enumerate()
             .try_for_each(|(j, mut row)| {
-                row.par_iter_mut().enumerate().try_for_each(|(i, pixel)| {
-                    let processed_pixels = processed_pixels.fetch_add(1, Ordering::SeqCst);
+                row.par_iter_mut()
+                    .enumerate()
+                    .try_for_each(|(i, (pixel_index, pixel))| {
+                        let processed_pixels = processed_pixels.fetch_add(1, Ordering::SeqCst);
 
-                    {
-                        if update_often.read().unwrap().elapsed().as_secs_f64() > 0.03 {
-                            // calculate and set progress
-                            {
-                                let calculated_progress = (processed_samples
-                                    * ray_trace_params.get_width()
-                                    * ray_trace_params.get_height()
-                                    + processed_pixels)
-                                    as f64
-                                    / total_number_of_samples as f64;
+                        {
+                            if update_often.read().unwrap().elapsed().as_secs_f64() > 0.03 {
+                                // calculate and set progress
+                                {
+                                    let calculated_progress = (processed_samples
+                                        * ray_trace_params.get_width()
+                                        * ray_trace_params.get_height()
+                                        + processed_pixels)
+                                        as f64
+                                        / total_number_of_samples as f64;
 
-                                progress.write().unwrap().set_progress(calculated_progress);
+                                    progress.write().unwrap().set_progress(calculated_progress);
+                                }
+
+                                // check if render must be stopped immediately
+                                if *stop_render_immediate.read().unwrap() {
+                                    progress.write().unwrap().stop_progress();
+                                    return None;
+                                }
+
+                                *update_often.write().unwrap() = Instant::now();
                             }
-
-                            // check if render must be stopped immediately
-                            if *stop_render_immediate.read().unwrap() {
-                                progress.write().unwrap().stop_progress();
-                                return None;
-                            }
-
-                            *update_often.write().unwrap() = Instant::now();
                         }
-                    }
 
-                    let j = ray_trace_params.get_height() - j - 1;
+                        let j = ray_trace_params.get_height() - j - 1;
 
-                    // use opengl coords, (0.0, 0.0) is center; (1.0, 1.0) is
-                    // top right; (-1.0, -1.0) is bottom left
-                    let u = (((i as f64 + rand::random::<f64>())
-                        / (ray_trace_params.get_width() - 1) as f64)
-                        - 0.5)
-                        * 2.0;
-                    let v = (((j as f64 + rand::random::<f64>())
-                        / (ray_trace_params.get_height() - 1) as f64)
-                        - 0.5)
-                        * 2.0;
+                        // use opengl coords, (0.0, 0.0) is center; (1.0, 1.0) is
+                        // top right; (-1.0, -1.0) is bottom left
+                        let u = (((i as f64 + rand::random::<f64>())
+                            / (ray_trace_params.get_width() - 1) as f64)
+                            - 0.5)
+                            * 2.0;
+                        let v = (((j as f64 + rand::random::<f64>())
+                            / (ray_trace_params.get_height() - 1) as f64)
+                            - 0.5)
+                            * 2.0;
 
-                    let ray = camera.get_ray(&glm::vec2(u, v)).unwrap();
+                        let ray = camera.get_ray(&glm::vec2(u, v)).unwrap();
 
-                    let mut rng = rand::thread_rng();
+                        let mut rng = rand::thread_rng();
 
-                    let (spectrum, _traversal_info) = trace_ray(
-                        &ray,
-                        camera,
-                        &scene,
-                        ray_trace_params.get_trace_max_depth(),
-                        &shader_list,
-                        &texture_list,
-                        &environment,
-                        // &Wavelengths::complete(),
-                        &Wavelengths::new(
+                        let wavelengths = Wavelengths::new(
                             Wavelengths::complete()
                                 .get_wavelengths()
                                 .choose_multiple(&mut rng, 3)
                                 .cloned()
                                 .collect(),
-                        ),
-                        &mut Mediums::with_air(),
-                    );
+                        );
 
-                    **pixel += spectrum.to_srgb();
+                        wavelengths.get_wavelengths().iter().for_each(|wavelength| {
+                            let mut samples_per_wavelength_per_pixel =
+                                samples_per_wavelength_per_pixel.write().unwrap();
+                            let samples = samples_per_wavelength_per_pixel[*pixel_index]
+                                .entry(*wavelength)
+                                .or_insert(0);
+                            *samples += 1;
+                        });
 
-                    Some(())
-                })?;
+                        let (spectrum, _traversal_info) = trace_ray(
+                            &ray,
+                            camera,
+                            &scene,
+                            ray_trace_params.get_trace_max_depth(),
+                            &shader_list,
+                            &texture_list,
+                            &environment,
+                            &wavelengths,
+                            &mut Mediums::with_air(),
+                        );
+
+                        **pixel += spectrum;
+
+                        Some(())
+                    })?;
                 Some(())
             });
 
@@ -251,13 +278,34 @@ pub fn ray_trace_scene(
 
         {
             let mut rendered_image = ray_trace_params.rendered_image.write().unwrap();
-            *rendered_image = image.clone();
-            rendered_image
-                .get_pixels_mut()
-                .par_iter_mut()
-                .for_each(|pixel| {
-                    *pixel /= (processed_samples + 1) as f64;
-                });
+            *rendered_image = Image::from_pixels(
+                image.get_width(),
+                image.get_height(),
+                image
+                    .get_pixels()
+                    .par_iter()
+                    .enumerate()
+                    .map(|(i, spectrum)| {
+                        DSpectrum::new(
+                            spectrum
+                                .get_samples()
+                                .iter()
+                                .map(|sample| {
+                                    let num_samples =
+                                        *samples_per_wavelength_per_pixel.read().unwrap()[i]
+                                            .get(sample.get_wavelength())
+                                            .unwrap();
+                                    spectrum::Sample::new(
+                                        *sample.get_wavelength(),
+                                        sample.get_intensity() / num_samples as f64,
+                                    )
+                                })
+                                .collect(),
+                        )
+                        .to_srgb()
+                    })
+                    .collect(),
+            );
         }
 
         {

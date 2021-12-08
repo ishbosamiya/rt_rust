@@ -12,7 +12,7 @@ pub struct TSpectralImage<T> {
     /// update.
     id: usize,
 
-    /// pixels of the image stored as spectrum stored from top left
+    /// Pixels of the image stored as spectrum stored from top left
     /// row wise
     pixels: Vec<TSpectrum<T>>,
 
