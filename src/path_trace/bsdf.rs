@@ -2,7 +2,7 @@ use super::{
     bsdfs::{utils::ColorPicker, BSDFUiData},
     intersectable::IntersectInfo,
     medium::Mediums,
-    spectrum::DSpectrum,
+    spectrum::{DSpectrum, Wavelengths},
     texture_list::TextureList,
 };
 use crate::{glm, ui::DrawUI};
@@ -49,6 +49,9 @@ pub trait BSDF: DrawUI<ExtraData = BSDFUiData> {
     ///
     /// `wi`: incoming ray direction
     ///
+    /// `wavelengths`: wavelengths for which the BSDF should be
+    /// sampled.
+    ///
     /// `mediums`: mediums that the ray is currently in. Usually the
     /// latest medium is most useful. Depending on the material,
     /// `mediums` might be changed, add a medium or remove a
@@ -67,9 +70,15 @@ pub trait BSDF: DrawUI<ExtraData = BSDFUiData> {
     /// If the shader is going to sample a diffuse type of sample,
     /// `sample()` should return `SampleData` only if
     /// SamplingTypes::Diffuse is contained in `sampling_types`.
+    ///
+    /// TODO(ish): it might make sense to pass only one wavelength to
+    /// sample() instead of all the wavelengths and have sample()
+    /// decide which wavelength to use for the actual sampling, making
+    /// it random may lead to very slow convergence.
     fn sample(
         &self,
         wo: &glm::DVec3,
+        wavelengths: &Wavelengths,
         mediums: &mut Mediums,
         intersect_info: &IntersectInfo,
         sampling_types: BitFlags<SamplingTypes>,
@@ -78,8 +87,17 @@ pub trait BSDF: DrawUI<ExtraData = BSDFUiData> {
     /// Calculates the colour/intensity of light that moves from `wi` towards `wo`.
     ///
     /// `wo`: outgoing ray direction
+    ///
     /// `wi`: incoming ray direction
+    ///
+    /// `wavelengths`: wavelengths for which the BSDF should be
+    /// evalulated. The spectrum generated should contain only the
+    /// wavelengths provided. The most common way to do this is to use
+    /// [`super::spectrum::TSpectrum::from_srgb_for_wavelengths()`].
+    ///
     /// `intersect_info`: information at the point of intersection
+    ///
+    /// `texture_list`: texture list
     ///
     /// TODO: when different sampling type(s) are used, instead of
     /// just returning the colour/intensity of light, it will need to
@@ -89,6 +107,7 @@ pub trait BSDF: DrawUI<ExtraData = BSDFUiData> {
         &self,
         wi: &glm::DVec3,
         wo: &glm::DVec3,
+        wavelengths: &Wavelengths,
         intersect_info: &IntersectInfo,
         texture_list: &TextureList,
     ) -> DSpectrum;
@@ -96,6 +115,7 @@ pub trait BSDF: DrawUI<ExtraData = BSDFUiData> {
     /// Calculates the colour/intensity of light produced by the object the point of intersection
     fn emission(
         &self,
+        _wavelengths: &Wavelengths,
         _intersect_info: &IntersectInfo,
         _texture_list: &TextureList,
     ) -> Option<DSpectrum> {

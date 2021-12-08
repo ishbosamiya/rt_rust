@@ -9,7 +9,7 @@ use rt::path_trace::intersectable::Intersectable;
 use rt::path_trace::medium::Mediums;
 use rt::path_trace::ray::Ray;
 use rt::path_trace::shader_list::{ShaderID, ShaderList};
-use rt::path_trace::spectrum::{DSpectrum, SpectrumDrawData};
+use rt::path_trace::spectrum::{DSpectrum, SpectrumDrawData, Wavelengths};
 use rt::path_trace::texture_list::TextureList;
 use rt::path_trace::traversal_info::{TraversalInfo, TraversalInfoDrawData};
 use rt::path_trace::viewport_renderer::{ViewportRenderer, ViewportRendererDrawData};
@@ -984,6 +984,7 @@ fn main_gui(
                                                 &shader_list.read().unwrap(),
                                                 &texture_list.read().unwrap(),
                                                 &environment.into(),
+                                                &Wavelengths::complete(),
                                                 &mut Mediums::with_air(),
                                             );
                                             ray_traversal_info.push(traversal_info);
@@ -1311,6 +1312,7 @@ fn main_gui(
                 &shader_list.read().unwrap(),
                 &texture_list.read().unwrap(),
                 &environment.into(),
+                &Wavelengths::complete(),
                 &mut Mediums::with_air(),
             );
 
@@ -1333,6 +1335,7 @@ fn main_gui(
                 &shader_list.read().unwrap(),
                 &texture_list.read().unwrap(),
                 &environment.into(),
+                &Wavelengths::complete(),
                 &mut Mediums::with_air(),
             );
 

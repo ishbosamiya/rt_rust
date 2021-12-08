@@ -9,7 +9,7 @@ use crate::egui;
 use crate::glm;
 use crate::math;
 use crate::path_trace::medium::Mediums;
-use crate::path_trace::spectrum::{DSpectrum, TSpectrum};
+use crate::path_trace::spectrum::{DSpectrum, TSpectrum, Wavelengths};
 use crate::path_trace::texture_list::TextureList;
 use crate::ui::DrawUI;
 
@@ -41,6 +41,7 @@ impl BSDF for Blinnphong {
     fn sample(
         &self,
         _wo: &glm::DVec3,
+        _wavelengths: &Wavelengths,
         _mediums: &mut Mediums,
         intersect_info: &IntersectInfo,
         sampling_types: BitFlags<SamplingTypes>,
@@ -62,6 +63,7 @@ impl BSDF for Blinnphong {
         &self,
         wi: &glm::DVec3,
         wo: &glm::DVec3,
+        wavelengths: &Wavelengths,
         intersect_info: &IntersectInfo,
         texture_list: &TextureList,
     ) -> DSpectrum {
@@ -80,11 +82,12 @@ impl BSDF for Blinnphong {
             val
         };
 
-        TSpectrum::from_srgb(
+        TSpectrum::from_srgb_for_wavelengths(
             &self
                 .color
                 .get_color(intersect_info.get_uv().as_ref().unwrap(), texture_list)
                 .component_mul(&glm::vec3(val, val, val)),
+            wavelengths,
         )
     }
 

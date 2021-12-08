@@ -8,7 +8,7 @@ use super::BSDFUiData;
 use crate::egui;
 use crate::glm;
 use crate::path_trace::medium::Mediums;
-use crate::path_trace::spectrum::{DSpectrum, TSpectrum};
+use crate::path_trace::spectrum::{DSpectrum, TSpectrum, Wavelengths};
 use crate::path_trace::texture_list::TextureList;
 use crate::ui::DrawUI;
 
@@ -38,6 +38,7 @@ impl BSDF for Emissive {
     fn sample(
         &self,
         _wo: &glm::DVec3,
+        _wavelengths: &Wavelengths,
         _mediums: &mut Mediums,
         _intersect_info: &IntersectInfo,
         _sampling_types: BitFlags<SamplingTypes>,
@@ -49,6 +50,7 @@ impl BSDF for Emissive {
         &self,
         _wi: &glm::DVec3,
         _wo: &glm::DVec3,
+        _wavelengths: &Wavelengths,
         _intersect_info: &IntersectInfo,
         _texture_list: &TextureList,
     ) -> DSpectrum {
@@ -57,14 +59,16 @@ impl BSDF for Emissive {
 
     fn emission(
         &self,
+        wavelengths: &Wavelengths,
         intersect_info: &IntersectInfo,
         texture_list: &TextureList,
     ) -> Option<DSpectrum> {
-        Some(TSpectrum::from_srgb(
+        Some(TSpectrum::from_srgb_for_wavelengths(
             &(self.power
                 * self
                     .color
                     .get_color(intersect_info.get_uv().as_ref().unwrap(), texture_list)),
+            wavelengths,
         ))
     }
 

@@ -8,7 +8,7 @@ use super::BSDFUiData;
 use crate::egui;
 use crate::glm;
 use crate::path_trace::medium::{Medium, Mediums};
-use crate::path_trace::spectrum::{DSpectrum, TSpectrum};
+use crate::path_trace::spectrum::{DSpectrum, TSpectrum, Wavelengths};
 use crate::path_trace::texture_list::TextureList;
 use crate::ui::DrawUI;
 
@@ -121,6 +121,7 @@ impl BSDF for Glass {
     fn sample(
         &self,
         wo: &glm::DVec3,
+        _wavelengths: &Wavelengths,
         mediums: &mut Mediums,
         intersect_info: &IntersectInfo,
         sampling_types: BitFlags<SamplingTypes>,
@@ -128,6 +129,8 @@ impl BSDF for Glass {
         // TODO(ish): need to handle roughness accurately, using
         // something like GGX microfacet model. Right now it cannot
         // give physically accurate results.
+
+        // TODO(ish): make the glass wavelength dependent
 
         if rand::random::<f64>() < self.roughness {
             // sample diffuse
@@ -142,13 +145,15 @@ impl BSDF for Glass {
         &self,
         _wi: &glm::DVec3,
         _wo: &glm::DVec3,
+        wavelengths: &Wavelengths,
         intersect_info: &IntersectInfo,
         texture_list: &TextureList,
     ) -> DSpectrum {
-        TSpectrum::from_srgb(
+        TSpectrum::from_srgb_for_wavelengths(
             &self
                 .color
                 .get_color(intersect_info.get_uv().as_ref().unwrap(), texture_list),
+            wavelengths,
         )
     }
 

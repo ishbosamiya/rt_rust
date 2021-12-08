@@ -41,6 +41,7 @@ use self::environment::EnvironmentShadingData;
 use self::medium::Mediums;
 use self::shader_list::Shader;
 use self::shader_list::ShaderList;
+use self::spectrum::Wavelengths;
 use self::texture_list::TextureList;
 use self::traversal_info::SingleRayInfo;
 use self::traversal_info::TraversalInfo;
@@ -219,6 +220,7 @@ pub fn ray_trace_scene(
                         &shader_list,
                         &texture_list,
                         &environment,
+                        &Wavelengths::complete(),
                         &mut Mediums::with_air(),
                     );
 
@@ -431,6 +433,7 @@ fn shade_hit(
     intersect_info: &IntersectInfo,
     shader_list: &ShaderList,
     texture_list: &TextureList,
+    wavelengths: &Wavelengths,
     mediums: &mut Mediums,
 ) -> ShadeHitData {
     // TODO: currently using a default shader only if the shader has
@@ -451,12 +454,12 @@ fn shade_hit(
     let wo = -ray.get_direction();
 
     let scattering_data = bsdf
-        .sample(&wo, mediums, intersect_info, BitFlags::all())
+        .sample(&wo, wavelengths, mediums, intersect_info, BitFlags::all())
         .map(|sample_data| {
             // wi: incoming way direction
             let wi = sample_data.get_wi().normalize();
             let sampling_type = sample_data.get_sampling_type();
-            let color = bsdf.eval(&wi, &wo, intersect_info, texture_list);
+            let color = bsdf.eval(&wi, &wo, wavelengths, intersect_info, texture_list);
 
             // BSDF returns the incoming ray direction at the point of
             // intersection but for the next ray that is shot in the opposite
@@ -472,7 +475,7 @@ fn shade_hit(
         });
 
     let emission_data = bsdf
-        .emission(intersect_info, texture_list)
+        .emission(wavelengths, intersect_info, texture_list)
         .map(|color| EmissionHitData::new(color.to_srgb()));
 
     (scattering_data, emission_data)
@@ -497,6 +500,7 @@ pub fn trace_ray(
     shader_list: &ShaderList,
     texture_list: &TextureList,
     environment: &EnvironmentShadingData,
+    wavelengths: &Wavelengths,
     mediums: &mut Mediums,
 ) -> (glm::DVec3, TraversalInfo) {
     if depth == 0 {
@@ -507,7 +511,7 @@ pub fn trace_ray(
 
     if let Some(info) = scene.hit(ray, 0.01, 1000.0) {
         let (scattering_data, emission_data) =
-            shade_hit(ray, &info, shader_list, texture_list, mediums);
+            shade_hit(ray, &info, shader_list, texture_list, wavelengths, mediums);
 
         // compute scattering of light
         let scattering_intensity = scattering_data.map_or(glm::zero(), |scattering_data| {
@@ -519,6 +523,7 @@ pub fn trace_ray(
                 shader_list,
                 texture_list,
                 environment,
+                wavelengths,
                 mediums,
             );
 

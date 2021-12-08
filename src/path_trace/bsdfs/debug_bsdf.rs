@@ -12,7 +12,7 @@ use super::BSDFUiData;
 use crate::egui;
 use crate::glm;
 use crate::path_trace::medium::Mediums;
-use crate::path_trace::spectrum::{DSpectrum, TSpectrum};
+use crate::path_trace::spectrum::{DSpectrum, TSpectrum, Wavelengths};
 use crate::path_trace::texture_list::TextureList;
 use crate::ui::DrawUI;
 
@@ -124,6 +124,7 @@ impl BSDF for DebugBSDF {
     fn sample(
         &self,
         _wo: &glm::DVec3,
+        _wavelengths: &Wavelengths,
         _mediums: &mut Mediums,
         _intersect_info: &IntersectInfo,
         _sampling_types: BitFlags<SamplingTypes>,
@@ -135,6 +136,7 @@ impl BSDF for DebugBSDF {
         &self,
         _wi: &glm::DVec3,
         _wo: &glm::DVec3,
+        _wavelengths: &Wavelengths,
         _intersect_info: &IntersectInfo,
         _texture_list: &TextureList,
     ) -> DSpectrum {
@@ -143,10 +145,14 @@ impl BSDF for DebugBSDF {
 
     fn emission(
         &self,
+        wavelengths: &Wavelengths,
         intersect_info: &IntersectInfo,
         _texture_list: &TextureList,
     ) -> Option<DSpectrum> {
-        Some(TSpectrum::from_srgb(&self.get_color(intersect_info)))
+        Some(TSpectrum::from_srgb_for_wavelengths(
+            &self.get_color(intersect_info),
+            wavelengths,
+        ))
     }
 
     fn get_bsdf_name(&self) -> &str {
