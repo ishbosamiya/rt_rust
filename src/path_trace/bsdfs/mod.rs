@@ -2,6 +2,7 @@ pub mod blinnphong;
 pub mod debug_bsdf;
 pub mod emissive;
 pub mod glass;
+pub mod glass_dispersion;
 pub mod glossy;
 pub mod lambert;
 pub mod refraction;

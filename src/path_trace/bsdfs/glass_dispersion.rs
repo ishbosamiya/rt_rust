@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use super::super::bsdf::{SampleData, SamplingTypes, BSDF};
 use super::super::intersectable::IntersectInfo;
-use super::utils::{ColorPicker, ColorPickerUiData};
+use super::utils::{self, ColorPicker, ColorPickerUiData, DispersiveMaterial};
 use super::BSDFUiData;
 use crate::egui;
 use crate::glm;
@@ -13,41 +13,57 @@ use crate::path_trace::texture_list::TextureList;
 use crate::ui::DrawUI;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Glass {
+pub struct GlassDispersion {
     color: ColorPicker,
-    ior: f64,
+
+    material: DispersiveMaterial,
+
+    #[serde(default = "default_roughness")]
     roughness: f64,
 }
 
-impl Default for Glass {
+fn default_roughness() -> f64 {
+    // any previous files assumed roughness of 0.0
+    0.0
+}
+
+impl Default for GlassDispersion {
     fn default() -> Self {
-        Self::new(glm::vec3(1.0, 1.0, 1.0), 1.5, 0.4)
+        Self::new(glm::vec3(1.0, 1.0, 1.0), DispersiveMaterial::Diamond, 0.0)
     }
 }
 
-impl Glass {
-    pub fn new(color: glm::DVec3, ior: f64, roughness: f64) -> Self {
+impl GlassDispersion {
+    pub fn new(color: glm::DVec3, material: DispersiveMaterial, roughness: f64) -> Self {
         Self {
             color: ColorPicker::Color(color),
-            ior,
+            material,
             roughness,
         }
+    }
+
+    fn calculate_ior(&self, wavelength: usize) -> f64 {
+        self.material.calculate_ior(wavelength)
     }
 
     fn handle_refraction_and_reflection(
         &self,
         wo: &glm::DVec3,
+        wavelength: usize,
         mediums: &mut Mediums,
         intersect_info: &IntersectInfo,
         sampling_types: BitFlags<SamplingTypes>,
     ) -> Option<SampleData> {
+        // calculate ior based on the given wavelength
+        let self_ior = self.calculate_ior(wavelength);
+
         // TODO: need to figure out which sampling type it would be,
         // both diffuse and reflection seem to make sense
         if sampling_types.contains(SamplingTypes::Diffuse | SamplingTypes::Reflection) {
             let entering = intersect_info.get_front_face();
 
             let ior = if entering {
-                let ior = mediums.get_lastest_medium().unwrap().get_ior() / self.get_ior();
+                let ior = mediums.get_lastest_medium().unwrap().get_ior() / self_ior;
                 ior
             } else {
                 // need to check second latest medium since the
@@ -59,7 +75,7 @@ impl Glass {
                 // sample. This can happen because of non manifold
                 // meshes. If there exists a medium, calculate the
                 // ior.
-                self.get_ior() / mediums.get_second_lastest_medium()?.get_ior()
+                self_ior / mediums.get_second_lastest_medium()?.get_ior()
             };
 
             let refracted_wi =
@@ -74,7 +90,7 @@ impl Glass {
                 if sampling_types.contains(SamplingTypes::Diffuse) {
                     // add `wi` medium if entering the medium
                     if entering {
-                        mediums.add_medium(Medium::new(self.get_ior()));
+                        mediums.add_medium(Medium::new(self_ior));
                     } else {
                         // must remove the latest medium
                         mediums.remove_medium().unwrap();
@@ -102,12 +118,12 @@ impl Glass {
 
     fn handle_diffuse(
         &self,
-        _intersect_info: &IntersectInfo,
+        intersect_info: &IntersectInfo,
         sampling_types: BitFlags<SamplingTypes>,
     ) -> Option<SampleData> {
         if sampling_types.contains(SamplingTypes::Diffuse) {
             Some(SampleData::new(
-                crate::math::random_in_unit_sphere(),
+                utils::wi_diffuse(intersect_info.get_normal().as_ref().unwrap()),
                 SamplingTypes::Diffuse,
             ))
         } else {
@@ -117,11 +133,11 @@ impl Glass {
 }
 
 #[typetag::serde]
-impl BSDF for Glass {
+impl BSDF for GlassDispersion {
     fn sample(
         &self,
         wo: &glm::DVec3,
-        _wavelengths: &Wavelengths,
+        wavelengths: &Wavelengths,
         mediums: &mut Mediums,
         intersect_info: &IntersectInfo,
         sampling_types: BitFlags<SamplingTypes>,
@@ -134,8 +150,14 @@ impl BSDF for Glass {
             // sample diffuse
             self.handle_diffuse(intersect_info, sampling_types)
         } else {
-            // sample refraction and reflection
-            self.handle_refraction_and_reflection(wo, mediums, intersect_info, sampling_types)
+            // sample pure glass
+            self.handle_refraction_and_reflection(
+                wo,
+                wavelengths.get_wavelengths()[(wavelengths.get_wavelengths().len() / 2)],
+                mediums,
+                intersect_info,
+                sampling_types,
+            )
         }
     }
 
@@ -156,7 +178,7 @@ impl BSDF for Glass {
     }
 
     fn get_bsdf_name(&self) -> &str {
-        "Glass"
+        "GlassDispersion"
     }
 
     fn get_base_color(&self, texture_list: &TextureList) -> Option<glm::DVec3> {
@@ -168,11 +190,11 @@ impl BSDF for Glass {
     }
 
     fn get_ior(&self) -> f64 {
-        self.ior
+        self.calculate_ior(580)
     }
 }
 
-impl DrawUI for Glass {
+impl DrawUI for GlassDispersion {
     type ExtraData = BSDFUiData;
 
     fn draw_ui(&self, ui: &mut egui::Ui, _extra_data: &Self::ExtraData) {
@@ -190,7 +212,8 @@ impl DrawUI for Glass {
                 ),
             );
         });
-        ui.add(egui::Slider::new(&mut self.ior, 1.0..=2.0).text("ior"));
+
+        self.material.draw_ui_mut(ui, extra_data);
         ui.add(egui::Slider::new(&mut self.roughness, 0.0..=1.0).text("Roughness"));
     }
 }
