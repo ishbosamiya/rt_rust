@@ -6,6 +6,7 @@ pub mod medium;
 pub mod ray;
 pub mod shader_list;
 pub mod shaders;
+pub mod spectral_image;
 pub mod spectrum;
 pub mod texture_list;
 pub mod traversal_info;
@@ -22,6 +23,7 @@ use std::time::Instant;
 
 use enumflags2::BitFlags;
 use lazy_static::lazy_static;
+use rand::prelude::*;
 use rayon::prelude::*;
 
 use crate::camera::Camera;
@@ -41,6 +43,7 @@ use self::environment::EnvironmentShadingData;
 use self::medium::Mediums;
 use self::shader_list::Shader;
 use self::shader_list::ShaderList;
+use self::spectrum::DSpectrum;
 use self::spectrum::Wavelengths;
 use self::texture_list::TextureList;
 use self::traversal_info::SingleRayInfo;
@@ -212,7 +215,9 @@ pub fn ray_trace_scene(
 
                     let ray = camera.get_ray(&glm::vec2(u, v)).unwrap();
 
-                    let (color, _traversal_info) = trace_ray(
+                    let mut rng = rand::thread_rng();
+
+                    let (spectrum, _traversal_info) = trace_ray(
                         &ray,
                         camera,
                         &scene,
@@ -220,11 +225,18 @@ pub fn ray_trace_scene(
                         &shader_list,
                         &texture_list,
                         &environment,
-                        &Wavelengths::complete(),
+                        // &Wavelengths::complete(),
+                        &Wavelengths::new(
+                            Wavelengths::complete()
+                                .get_wavelengths()
+                                .choose_multiple(&mut rng, 3)
+                                .cloned()
+                                .collect(),
+                        ),
                         &mut Mediums::with_air(),
                     );
 
-                    **pixel += color;
+                    **pixel += spectrum.to_srgb();
 
                     Some(())
                 })?;
@@ -346,10 +358,10 @@ pub type ShadeHitData = (Option<ScatterHitData>, Option<EmissionHitData>);
 
 /// Data returned during scattering of light while shading of the
 /// hitpoint
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct ScatterHitData {
-    /// color information that should be propagated forward
-    color: glm::DVec3,
+    /// spectrum that should be propagated forward
+    spectrum: DSpectrum,
     /// the next ray to continue the ray tracing, calculated from the
     /// `BSDF`
     next_ray: Ray,
@@ -359,16 +371,16 @@ pub struct ScatterHitData {
 }
 
 impl ScatterHitData {
-    pub fn new(color: glm::DVec3, next_ray: Ray, sampling_type: SamplingTypes) -> Self {
+    pub fn new(spectrum: DSpectrum, next_ray: Ray, sampling_type: SamplingTypes) -> Self {
         Self {
-            color,
+            spectrum,
             next_ray,
             sampling_type,
         }
     }
 
-    pub fn get_color(&self) -> &glm::DVec3 {
-        &self.color
+    pub fn get_spectrum(&self) -> &DSpectrum {
+        &self.spectrum
     }
 
     pub fn get_next_ray(&self) -> &Ray {
@@ -382,19 +394,19 @@ impl ScatterHitData {
 
 /// Data returned during emission of light while shading of the
 /// hitpoint
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct EmissionHitData {
-    /// color of light produced with intensity of the light encoded
-    emission_color: glm::DVec3,
+    /// spectrum of the emission
+    emission_spectrum: DSpectrum,
 }
 
 impl EmissionHitData {
-    pub fn new(emission_color: glm::DVec3) -> Self {
-        Self { emission_color }
+    pub fn new(emission_spectrum: DSpectrum) -> Self {
+        Self { emission_spectrum }
     }
 
-    pub fn get_emission_color(&self) -> &glm::DVec3 {
-        &self.emission_color
+    pub fn get_emission_spectrum(&self) -> &DSpectrum {
+        &self.emission_spectrum
     }
 }
 
@@ -459,7 +471,7 @@ fn shade_hit(
             // wi: incoming way direction
             let wi = sample_data.get_wi().normalize();
             let sampling_type = sample_data.get_sampling_type();
-            let color = bsdf.eval(&wi, &wo, wavelengths, intersect_info, texture_list);
+            let spectrum = bsdf.eval(&wi, &wo, wavelengths, intersect_info, texture_list);
 
             // BSDF returns the incoming ray direction at the point of
             // intersection but for the next ray that is shot in the opposite
@@ -468,7 +480,7 @@ fn shade_hit(
             let next_ray_dir = -wi;
 
             ScatterHitData::new(
-                color.to_srgb(),
+                spectrum,
                 Ray::new(*intersect_info.get_point(), next_ray_dir),
                 sampling_type,
             )
@@ -476,7 +488,7 @@ fn shade_hit(
 
     let emission_data = bsdf
         .emission(wavelengths, intersect_info, texture_list)
-        .map(|color| EmissionHitData::new(color.to_srgb()));
+        .map(EmissionHitData::new);
 
     (scattering_data, emission_data)
 }
@@ -488,9 +500,9 @@ fn shade_hit(
 // e: intensity of emitted light by x_prime reaching x
 // i: intensity of light from x_prime to x
 // p: intensity of light scattered from x_prime_prime to x by a patch on surface at x_prime
-/// Traces the given ray into the scene and returns the
-/// colour/intensity of light propagated by the given along with the
-/// path traced till that point
+/// Traces the given ray into the scene and returns spectrum of the
+/// light propagated by the given ray along with the path trace till
+/// that point (traversal info)
 #[allow(clippy::too_many_arguments)]
 pub fn trace_ray(
     ray: &Ray,
@@ -502,9 +514,9 @@ pub fn trace_ray(
     environment: &EnvironmentShadingData,
     wavelengths: &Wavelengths,
     mediums: &mut Mediums,
-) -> (glm::DVec3, TraversalInfo) {
+) -> (DSpectrum, TraversalInfo) {
     if depth == 0 {
-        return (glm::zero(), TraversalInfo::new());
+        return (DSpectrum::new_empty(), TraversalInfo::new());
     }
 
     let mut traversal_info = TraversalInfo::new();
@@ -514,31 +526,29 @@ pub fn trace_ray(
             shade_hit(ray, &info, shader_list, texture_list, wavelengths, mediums);
 
         // compute scattering of light
-        let scattering_intensity = scattering_data.map_or(glm::zero(), |scattering_data| {
-            let (traced_color, scatter_traversal_info) = trace_ray(
-                &scattering_data.next_ray,
-                camera,
-                scene,
-                depth - 1,
-                shader_list,
-                texture_list,
-                environment,
-                wavelengths,
-                mediums,
-            );
+        let scattering_intensity =
+            scattering_data.map_or(DSpectrum::new_empty(), |scattering_data| {
+                let (traced_spectrum, scatter_traversal_info) = trace_ray(
+                    &scattering_data.next_ray,
+                    camera,
+                    scene,
+                    depth - 1,
+                    shader_list,
+                    texture_list,
+                    environment,
+                    wavelengths,
+                    mediums,
+                );
 
-            traversal_info.append_traversal(scatter_traversal_info);
+                traversal_info.append_traversal(scatter_traversal_info);
 
-            glm::vec3(
-                scattering_data.color[0] * traced_color[0],
-                scattering_data.color[1] * traced_color[1],
-                scattering_data.color[2] * traced_color[2],
-            )
-        });
+                scattering_data.spectrum * traced_spectrum
+            });
 
         // compute emission of light
-        let emission_intensity =
-            emission_data.map_or(glm::zero(), |emission_data| emission_data.emission_color);
+        let emission_intensity = emission_data.map_or(DSpectrum::new_empty(), |emission_data| {
+            emission_data.emission_spectrum
+        });
 
         // emission added to the scattered light
         let resulting_intensity = emission_intensity + scattering_intensity;
@@ -565,7 +575,7 @@ pub fn trace_ray(
         traversal_info.add_ray(SingleRayInfo::new(
             *ray,
             Some(*info.get_point()),
-            resulting_intensity,
+            resulting_intensity.to_srgb(),
             Some(info.get_normal().unwrap()),
         ));
 
@@ -575,6 +585,9 @@ pub fn trace_ray(
 
         traversal_info.add_ray(SingleRayInfo::new(*ray, None, final_intensity, None));
 
-        (final_intensity, traversal_info)
+        (
+            DSpectrum::from_srgb_for_wavelengths(&final_intensity, wavelengths),
+            traversal_info,
+        )
     }
 }
