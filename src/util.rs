@@ -72,7 +72,9 @@ pub fn vec2_apply_bary_coord(
 ///
 /// Takes the first 3 values of `linear` and converts to srgb. `R` must be >= 3.
 ///
-/// reference: https://en.wikipedia.org/wiki/SRGB#From_CIE_XYZ_to_sRGB
+/// # Reference:
+///
+/// <https://en.wikipedia.org/wiki/SRGB#From_CIE_XYZ_to_sRGB>
 pub fn linear_to_srgb<const R: usize>(linear: &glm::TVec<f64, R>) -> glm::TVec<f64, R> {
     debug_assert!(R >= 3);
 
@@ -94,9 +96,11 @@ pub fn linear_to_srgb<const R: usize>(linear: &glm::TVec<f64, R>) -> glm::TVec<f
 
 /// convert srgb to linear rgb
 ///
-/// /// `srgb`: srgb values between 0.0 and 1.0
+/// `srgb`: srgb values between 0.0 and 1.0
 ///
-/// reference: https://en.wikipedia.org/wiki/SRGB#From_sRGB_to_CIE_XYZ
+/// # Reference:
+///
+/// <https://en.wikipedia.org/wiki/SRGB#From_sRGB_to_CIE_XYZ>
 pub fn srgb_to_linear<T: RealField + simba::scalar::SubsetOf<f32>, const R: usize>(
     srgb: &glm::TVec<T, R>,
 ) -> glm::TVec<T, R> {

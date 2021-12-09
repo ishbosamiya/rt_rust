@@ -14,16 +14,9 @@ use crate::{
     util,
 };
 
-/// TODO:
-/// RGB to CIE XYZ,
-/// CIE XYZ to RGB,
-/// CIE XYZ to Spectrum,
-/// Spectrum to CIE XYZ,
-/// More operators for Spectrum,
-///
 /// # References
 ///
-/// https://en.wikipedia.org/wiki/Illuminant_D65
+/// <https://en.wikipedia.org/wiki/Illuminant_D65>
 
 /// A single wavelength with it's corresponding intensity.
 ///
