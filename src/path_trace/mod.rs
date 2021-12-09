@@ -178,6 +178,8 @@ pub fn ray_trace_scene(
 
         scene.write().unwrap().apply_model_matrices();
 
+        scene.write().unwrap().rebuild_bvh_if_needed(0.01);
+
         let scene = scene.read().unwrap();
         let shader_list = shader_list.read().unwrap();
         let texture_list = texture_list.read().unwrap();

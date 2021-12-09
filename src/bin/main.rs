@@ -949,6 +949,8 @@ fn main_gui(
                                 if ui.button("Trace Rays").clicked() {
                                     scene.write().unwrap().apply_model_matrices();
 
+                                    scene.write().unwrap().rebuild_bvh_if_needed(0.01);
+
                                     let path_trace_camera = path_trace_camera.read().unwrap();
 
                                     ray_traversal_info.clear();
@@ -1299,6 +1301,8 @@ fn main_gui(
 
             scene.write().unwrap().apply_model_matrices();
 
+            scene.write().unwrap().rebuild_bvh_if_needed(0.01);
+
             let path_trace_camera = path_trace_camera.read().unwrap();
 
             // trace ray into scene from the rasterizer camera
@@ -1359,6 +1363,8 @@ fn main_gui(
 
                 scene.apply_model_matrices();
 
+                scene.rebuild_bvh_if_needed(0.01);
+
                 scene.try_select_object(&Ray::new(camera.get_position(), ray_direction));
 
                 scene.unapply_model_matrices();
@@ -1377,6 +1383,7 @@ fn main_gui(
 
                 let mut scene = scene.write().unwrap();
                 scene.apply_model_matrices();
+                scene.rebuild_bvh_if_needed(0.01);
                 if let Some(hit_info) = scene.hit(
                     &Ray::new(camera.get_position(), ray_direction),
                     0.01,
