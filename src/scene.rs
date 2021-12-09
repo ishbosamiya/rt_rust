@@ -295,6 +295,25 @@ impl Scene {
     pub fn get_object_ids(&self) -> &[ObjectID] {
         self.object_ids.as_slice()
     }
+
+    /// For all objects in the scene, get the object name paired with
+    /// the name of the shader that is assigned to the object
+    pub fn get_object_name_shader_name_pairs(
+        &self,
+        shader_list: &ShaderList,
+    ) -> Vec<(String, Option<String>)> {
+        self.get_objects()
+            .map(|object| {
+                (
+                    object.get_object_name().to_string(),
+                    object
+                        .get_path_trace_shader_id()
+                        .and_then(|shader_id| shader_list.get_shader(shader_id))
+                        .map(|shader| shader.get_shader_name().to_string()),
+                )
+            })
+            .collect()
+    }
 }
 
 impl Intersectable for Scene {

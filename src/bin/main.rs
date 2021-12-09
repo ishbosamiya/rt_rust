@@ -988,6 +988,21 @@ fn main_gui(
                                     object.set_path_trace_shader_id(shader.get_shader_id());
                                 });
                             }
+
+                            if ui.button("Print object name shader name pairs ").clicked() {
+                                let pairs =
+                                    scene.read().unwrap().get_object_name_shader_name_pairs(
+                                        &shader_list.read().unwrap(),
+                                    );
+                                println!("object name shader name pairs:");
+                                pairs.iter().for_each(|(object_name, shader_name)| {
+                                    if let Some(shader_name) = shader_name {
+                                        println!("[\"{}\", \"{}\"],", object_name, shader_name);
+                                    } else {
+                                        println!("[\"{}\", None],", object_name);
+                                    }
+                                });
+                            }
                         });
                     })
                     .response;
