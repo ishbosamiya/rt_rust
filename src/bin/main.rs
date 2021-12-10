@@ -796,6 +796,15 @@ fn main_gui(
                                     path_trace_camera.set_position(camera_position);
                                     path_trace_camera.set_yaw_and_pitch(camera_yaw, camera_pitch);
                                 }
+
+                                if ui.button("Set from Viewport Camera").clicked() {
+                                    if let Ok(mut path_trace_camera) = path_trace_camera.try_write()
+                                    {
+                                        let sensor = path_trace_camera.get_sensor_no_ref();
+                                        *path_trace_camera = camera.clone();
+                                        *path_trace_camera.get_sensor_mut() = sensor;
+                                    }
+                                }
                             });
 
                             // path trace camera depends on image
