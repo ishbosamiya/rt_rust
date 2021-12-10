@@ -46,6 +46,21 @@ impl GlassDispersion {
         self.material.calculate_ior(wavelength)
     }
 
+    fn handle_reflection(
+        wo: &glm::DVec3,
+        intersect_info: &IntersectInfo,
+        sampling_types: BitFlags<SamplingTypes>,
+    ) -> Option<SampleData> {
+        if sampling_types.contains(SamplingTypes::Reflection) {
+            Some(SampleData::new(
+                glm::reflect_vec(wo, intersect_info.get_normal().as_ref().unwrap()),
+                SamplingTypes::Reflection,
+            ))
+        } else {
+            None
+        }
+    }
+
     fn handle_refraction_and_reflection(
         &self,
         wo: &glm::DVec3,
@@ -102,14 +117,7 @@ impl GlassDispersion {
                 }
             } else {
                 // total internal reflection (TIR)
-                if sampling_types.contains(SamplingTypes::Reflection) {
-                    Some(SampleData::new(
-                        glm::reflect_vec(wo, intersect_info.get_normal().as_ref().unwrap()),
-                        SamplingTypes::Reflection,
-                    ))
-                } else {
-                    None
-                }
+                Self::handle_reflection(wo, intersect_info, sampling_types)
             }
         } else {
             None
@@ -151,13 +159,30 @@ impl BSDF for GlassDispersion {
             self.handle_diffuse(intersect_info, sampling_types)
         } else {
             // sample pure glass
-            self.handle_refraction_and_reflection(
-                wo,
-                wavelengths.get_wavelengths()[(wavelengths.get_wavelengths().len() / 2)],
-                mediums,
-                intersect_info,
-                sampling_types,
-            )
+            let entering = intersect_info.get_front_face();
+            let (n1, n2) = if entering {
+                (
+                    self.get_ior(),
+                    mediums.get_lastest_medium().unwrap().get_ior(),
+                )
+            } else {
+                (
+                    mediums.get_lastest_medium().unwrap().get_ior(),
+                    self.get_ior(),
+                )
+            };
+            let fresnel = utils::fresnel(intersect_info.get_normal().as_ref().unwrap(), wo, n1, n2);
+            if rand::random::<f64>() < fresnel {
+                Self::handle_reflection(wo, intersect_info, sampling_types)
+            } else {
+                self.handle_refraction_and_reflection(
+                    wo,
+                    wavelengths.get_wavelengths()[(wavelengths.get_wavelengths().len() / 2)],
+                    mediums,
+                    intersect_info,
+                    sampling_types,
+                )
+            }
         }
     }
 
