@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use super::super::bsdf::{SampleData, SamplingTypes, BSDF};
 use super::super::intersectable::IntersectInfo;
-use super::utils::ColorPicker;
+use super::utils::{self, ColorPicker};
 use super::BSDFUiData;
 use crate::egui;
 use crate::glm;
@@ -17,7 +17,7 @@ use crate::path_trace::texture_list::TextureList;
 use crate::ui::DrawUI;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum IntersectInfoType {
+pub enum InfoType {
     T,
     Point,
     BaryCoords,
@@ -27,27 +27,29 @@ pub enum IntersectInfoType {
     UV,
     Normal,
     FrontFace,
+    Fresnel,
 }
 
-impl Display for IntersectInfoType {
+impl Display for InfoType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            IntersectInfoType::T => write!(f, "Ray Distance"),
-            IntersectInfoType::Point => write!(f, "Point"),
-            IntersectInfoType::BaryCoords => write!(f, "Barycentric Coords"),
-            IntersectInfoType::PrimitiveIndex => write!(f, "Primitive Index"),
-            IntersectInfoType::ObjectID => write!(f, "Object ID"),
-            IntersectInfoType::ShaderID => write!(f, "Shader ID"),
-            IntersectInfoType::UV => write!(f, "UV"),
-            IntersectInfoType::Normal => write!(f, "Normal"),
-            IntersectInfoType::FrontFace => write!(f, "Front Face"),
+            InfoType::T => write!(f, "Ray Distance"),
+            InfoType::Point => write!(f, "Point"),
+            InfoType::BaryCoords => write!(f, "Barycentric Coords"),
+            InfoType::PrimitiveIndex => write!(f, "Primitive Index"),
+            InfoType::ObjectID => write!(f, "Object ID"),
+            InfoType::ShaderID => write!(f, "Shader ID"),
+            InfoType::UV => write!(f, "UV"),
+            InfoType::Normal => write!(f, "Normal"),
+            InfoType::FrontFace => write!(f, "Front Face"),
+            InfoType::Fresnel => write!(f, "Fresnel"),
         }
     }
 }
 
-impl IntersectInfoType {
+impl InfoType {
     pub fn all() -> impl Iterator<Item = Self> {
-        use IntersectInfoType::*;
+        use InfoType::*;
         [
             T,
             Point,
@@ -58,6 +60,7 @@ impl IntersectInfoType {
             UV,
             Normal,
             FrontFace,
+            Fresnel,
         ]
         .iter()
         .copied()
@@ -76,44 +79,68 @@ fn hash_to_rgb(val: &impl Hash) -> glm::DVec3 {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DebugBSDF {
-    info_type: IntersectInfoType,
+    info_type: InfoType,
     /// Divide the intersect info t with this distance factor
     distance_factor: f64,
+    /// Index of refraction of the material
+    ior: f64,
 }
 
 impl Default for DebugBSDF {
     fn default() -> Self {
-        Self::new(IntersectInfoType::T, 25.0)
+        Self::new(InfoType::T, 25.0, 1.5)
     }
 }
 
 impl DebugBSDF {
-    pub fn new(info_type: IntersectInfoType, distance_factor: f64) -> Self {
+    pub fn new(info_type: InfoType, distance_factor: f64, ior: f64) -> Self {
         Self {
             info_type,
             distance_factor,
+            ior,
         }
     }
 
-    fn get_color(&self, intersect_info: &IntersectInfo) -> glm::DVec3 {
+    fn get_color(
+        &self,
+        wo: &glm::DVec3,
+        mediums: &Mediums,
+        intersect_info: &IntersectInfo,
+    ) -> glm::DVec3 {
         match self.info_type {
-            IntersectInfoType::T => {
+            InfoType::T => {
                 let val = intersect_info.get_t() / self.distance_factor;
                 glm::vec3(val, val, val)
             }
-            IntersectInfoType::Point => *intersect_info.get_point(),
-            IntersectInfoType::BaryCoords => *intersect_info.get_bary_coords(),
-            IntersectInfoType::PrimitiveIndex => hash_to_rgb(intersect_info.get_primitive_index()),
-            IntersectInfoType::ObjectID => hash_to_rgb(&intersect_info.get_object_id()),
-            IntersectInfoType::ShaderID => hash_to_rgb(&intersect_info.get_shader_id()),
-            IntersectInfoType::UV => glm::vec2_to_vec3(intersect_info.get_uv().as_ref().unwrap()),
-            IntersectInfoType::Normal => intersect_info.get_normal().unwrap(),
-            IntersectInfoType::FrontFace => {
+            InfoType::Point => *intersect_info.get_point(),
+            InfoType::BaryCoords => *intersect_info.get_bary_coords(),
+            InfoType::PrimitiveIndex => hash_to_rgb(intersect_info.get_primitive_index()),
+            InfoType::ObjectID => hash_to_rgb(&intersect_info.get_object_id()),
+            InfoType::ShaderID => hash_to_rgb(&intersect_info.get_shader_id()),
+            InfoType::UV => glm::vec2_to_vec3(intersect_info.get_uv().as_ref().unwrap()),
+            InfoType::Normal => intersect_info.get_normal().unwrap(),
+            InfoType::FrontFace => {
                 if intersect_info.get_front_face() {
                     glm::vec3(0.0, 0.0, 1.0)
                 } else {
                     glm::vec3(1.0, 0.0, 0.0)
                 }
+            }
+            InfoType::Fresnel => {
+                let entering = intersect_info.get_front_face();
+                let (n1, n2) = if entering {
+                    (
+                        self.get_ior(),
+                        mediums.get_lastest_medium().unwrap().get_ior(),
+                    )
+                } else {
+                    (
+                        mediums.get_lastest_medium().unwrap().get_ior(),
+                        self.get_ior(),
+                    )
+                };
+                let val = utils::fresnel(intersect_info.get_normal().as_ref().unwrap(), wo, n1, n2);
+                glm::vec3(val, val, val)
             }
         }
     }
@@ -145,12 +172,14 @@ impl BSDF for DebugBSDF {
 
     fn emission(
         &self,
+        wo: &glm::DVec3,
+        mediums: &Mediums,
         wavelengths: &Wavelengths,
         intersect_info: &IntersectInfo,
         _texture_list: &TextureList,
     ) -> Option<DSpectrum> {
         Some(TSpectrum::from_srgb_for_wavelengths(
-            &self.get_color(intersect_info),
+            &self.get_color(wo, mediums, intersect_info),
             wavelengths,
         ))
     }
@@ -165,6 +194,10 @@ impl BSDF for DebugBSDF {
 
     fn set_base_color(&mut self, _color: ColorPicker) {
         // no color to set
+    }
+
+    fn get_ior(&self) -> f64 {
+        self.ior
     }
 }
 
@@ -181,24 +214,30 @@ impl DrawUI for DebugBSDF {
             self.info_type.draw_ui_mut(ui, extra_data);
         });
 
-        if self.info_type == IntersectInfoType::T {
-            ui.add(
-                egui::Slider::new(&mut self.distance_factor, 0.00001..=25.0)
-                    .text("Distance Factor"),
-            );
+        match self.info_type {
+            InfoType::T => {
+                ui.add(
+                    egui::Slider::new(&mut self.distance_factor, 0.00001..=25.0)
+                        .text("Distance Factor"),
+                );
+            }
+            InfoType::Fresnel => {
+                ui.add(egui::Slider::new(&mut self.ior, 0.0..=3.0).text("ior"));
+            }
+            _ => {}
         }
     }
 }
 
-impl DrawUI for IntersectInfoType {
+impl DrawUI for InfoType {
     type ExtraData = BSDFUiData;
 
     fn draw_ui(&self, _ui: &mut egui::Ui, _extra_data: &Self::ExtraData) {
-        unreachable!("no non mut draw ui for IntersectInfoType")
+        unreachable!("no non mut draw ui for InfoType")
     }
 
     fn draw_ui_mut(&mut self, ui: &mut egui::Ui, extra_data: &Self::ExtraData) {
-        egui::ComboBox::from_id_source(extra_data.get_shader_egui_id().with("IntersectInfoType"))
+        egui::ComboBox::from_id_source(extra_data.get_shader_egui_id().with("InfoType"))
             .selected_text(format!("{}", self))
             .show_ui(ui, |ui| {
                 Self::all().for_each(|info| {

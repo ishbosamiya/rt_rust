@@ -543,7 +543,7 @@ fn shade_hit(
         });
 
     let emission_data = bsdf
-        .emission(wavelengths, intersect_info, texture_list)
+        .emission(&wo, mediums, wavelengths, intersect_info, texture_list)
         .map(EmissionHitData::new);
 
     (scattering_data, emission_data)

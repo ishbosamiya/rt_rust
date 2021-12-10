@@ -240,3 +240,15 @@ impl DrawUI for DispersiveMaterial {
             });
     }
 }
+
+/// TODO: documentation
+pub fn fresnel(normal: &glm::DVec3, view: &glm::DVec3, n1: f64, n2: f64) -> f64 {
+    // Schlick's approximation
+    debug_assert!((normal.norm_squared() - 1.0).abs() < 0.001);
+    debug_assert!((view.norm_squared() - 1.0).abs() < 0.001);
+    let cos_theta = normal.dot(view);
+
+    let r0 = ((n1 - n2) / (n1 + n2)).powi(2);
+
+    r0 + (1.0 - r0) * (1.0 - cos_theta).powi(5)
+}
