@@ -56,6 +56,8 @@ impl BSDF for Emissive {
 
     fn emission(
         &self,
+        _wo: &glm::DVec3,
+        _mediums: &Mediums,
         intersect_info: &IntersectInfo,
         texture_list: &TextureList,
     ) -> Option<glm::DVec3> {
