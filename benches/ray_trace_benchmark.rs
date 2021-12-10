@@ -31,6 +31,7 @@ fn ray_trace_scene_benchmark(c: &mut Criterion) {
                 criterion::black_box(Arc::new(RwLock::new(Progress::new()))),
                 criterion::black_box(Arc::new(RwLock::new(false))),
                 criterion::black_box(Arc::new(RwLock::new(false))),
+                criterion::black_box(true),
             )
         })
     });

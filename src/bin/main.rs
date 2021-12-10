@@ -161,6 +161,7 @@ fn main_headless(
             samples_per_pixel,
             path_trace_camera,
             rendered_image.clone(),
+            false,
         )))
         .unwrap();
 
@@ -863,6 +864,7 @@ fn main_gui(
                                             samples_per_pixel,
                                             path_trace_camera.read().unwrap().clone(),
                                             rendered_image.clone(),
+                                            true,
                                         )))
                                         .unwrap();
                                 }

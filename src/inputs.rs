@@ -549,6 +549,7 @@ impl InputArguments {
                     .into_inner()
                     .unwrap(),
                 Arc::new(RwLock::new(Image::new(1, 1))),
+                false,
             ),
             scene,
             shader_list,

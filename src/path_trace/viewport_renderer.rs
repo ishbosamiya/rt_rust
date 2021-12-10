@@ -147,6 +147,7 @@ impl ViewportRenderer {
                     samples_per_pixel,
                     render_data.camera.clone(),
                     rendered_image.clone(),
+                    true,
                 )))
                 .unwrap();
 
@@ -187,6 +188,7 @@ impl ViewportRenderer {
                                 samples_per_pixel,
                                 render_data.camera.clone(),
                                 rendered_image.clone(),
+                                true,
                             )))
                             .unwrap();
 

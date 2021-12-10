@@ -80,6 +80,10 @@ pub struct RayTraceParams {
     camera: Camera,
     /// image to which the render (can be progressive) is updated
     rendered_image: Arc<RwLock<Image>>,
+    /// will store the progressive render to rendered_image every
+    /// sample. Will always store the image upon stop (not immediate
+    /// stop) and the final sample that is rendered.
+    store_rendered_image_every_sample: bool,
 }
 
 impl RayTraceParams {
@@ -90,6 +94,7 @@ impl RayTraceParams {
         samples_per_pixel: usize,
         camera: Camera,
         rendered_image: Arc<RwLock<Image>>,
+        store_rendered_image_every_sample: bool,
     ) -> Self {
         Self {
             width,
@@ -98,6 +103,7 @@ impl RayTraceParams {
             samples_per_pixel,
             camera,
             rendered_image,
+            store_rendered_image_every_sample,
         }
     }
 
@@ -129,6 +135,11 @@ impl RayTraceParams {
     /// Get ray trace params's rendered image.
     pub fn get_rendered_image(&self) -> Arc<RwLock<Image>> {
         self.rendered_image.clone()
+    }
+
+    /// Get ray trace params's store rendered image every sample.
+    pub fn get_store_rendered_image_every_sample(&self) -> bool {
+        self.store_rendered_image_every_sample
     }
 }
 
@@ -165,12 +176,45 @@ pub fn ray_trace_scene(
         Arc::new(RwLock::new(samples_per_wavelength_per_pixel))
     };
 
+    let store_to_rendered_image = |image: &DSpectralImage| {
+        let samples_per_wavelength_per_pixel = samples_per_wavelength_per_pixel.read().unwrap();
+        let mut rendered_image = ray_trace_params.rendered_image.write().unwrap();
+        *rendered_image = Image::from_pixels(
+            image.get_width(),
+            image.get_height(),
+            image
+                .get_pixels()
+                .par_iter()
+                .enumerate()
+                .map(|(i, spectrum)| {
+                    DSpectrum::new(
+                        spectrum
+                            .get_samples()
+                            .iter()
+                            .map(|sample| {
+                                let num_samples = *samples_per_wavelength_per_pixel[i]
+                                    .get(sample.get_wavelength())
+                                    .unwrap();
+                                spectrum::Sample::new(
+                                    *sample.get_wavelength(),
+                                    sample.get_intensity() / num_samples as f64,
+                                )
+                            })
+                            .collect(),
+                    )
+                    .to_srgb()
+                })
+                .collect(),
+        );
+    };
+
     let complete_wavelengths = Wavelengths::complete();
 
     // ray trace
     for processed_samples in 0..ray_trace_params.get_samples_per_pixel() {
         if *stop_render.read().unwrap() {
             progress.write().unwrap().stop_progress();
+            store_to_rendered_image(&image);
             return;
         }
 
@@ -284,36 +328,10 @@ pub fn ray_trace_scene(
             return;
         }
 
+        if ray_trace_params.get_store_rendered_image_every_sample()
+            || (processed_samples + 1) == ray_trace_params.get_samples_per_pixel()
         {
-            let samples_per_wavelength_per_pixel = samples_per_wavelength_per_pixel.read().unwrap();
-            let mut rendered_image = ray_trace_params.rendered_image.write().unwrap();
-            *rendered_image = Image::from_pixels(
-                image.get_width(),
-                image.get_height(),
-                image
-                    .get_pixels()
-                    .par_iter()
-                    .enumerate()
-                    .map(|(i, spectrum)| {
-                        DSpectrum::new(
-                            spectrum
-                                .get_samples()
-                                .iter()
-                                .map(|sample| {
-                                    let num_samples = *samples_per_wavelength_per_pixel[i]
-                                        .get(sample.get_wavelength())
-                                        .unwrap();
-                                    spectrum::Sample::new(
-                                        *sample.get_wavelength(),
-                                        sample.get_intensity() / num_samples as f64,
-                                    )
-                                })
-                                .collect(),
-                        )
-                        .to_srgb()
-                    })
-                    .collect(),
-            );
+            store_to_rendered_image(&image);
         }
 
         {
