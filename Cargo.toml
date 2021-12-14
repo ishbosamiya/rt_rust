@@ -1,6 +1,6 @@
 [package]
 name = "rt"
-version = "0.3.0+dev"
+version = "0.4.0"
 authors = ["ishbosamiya <ishbosamiya@gmail.com>"]
 edition = "2018"
 default-run = "main"
