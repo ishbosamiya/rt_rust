@@ -72,12 +72,12 @@ https://user-images.githubusercontent.com/17758946/145869987-a1ce3ebd-276c-4050-
 
 ### Dependencies
 
-GLFW3, OpenGL
+GLFW3, Threading Building Blocks (TBB), OpenGL
 
 #### Linux (Debian)
 
 ```bash
-sudo apt install libglfw3-dev
+sudo apt install libglfw3-dev libtbb-dev
 ```
 
 ### Compile and run
