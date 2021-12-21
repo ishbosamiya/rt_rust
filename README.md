@@ -12,6 +12,7 @@ Sections:
 * [Screenshots](#screenshots)
 * [Compilation](#compilation)
 * [Renders](#renders)
+* [TODOs](#todos)
 
 ## Features
 
@@ -171,3 +172,13 @@ Model Credits: [victorborges from Blend Swap](https://www.blendswap.com/blend/11
 Model Credits: [victorborges from Blend Swap](https://www.blendswap.com/blend/11511)
 
 ![Materialball Glossy](/renders/glossy.png)
+
+## TODOs
+
+* [ ] Parse .blend files for Scene data
+* [ ] Microfacet models for certain BSDFs
+* [ ] Disney BSDF
+* [ ] Light falloff support
+* [ ] Shader nodes
+* [ ] Importance sampling
+* [ ] Improved RT file to reduce file size
