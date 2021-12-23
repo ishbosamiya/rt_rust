@@ -2,7 +2,7 @@ use std::convert::TryInto;
 
 use blend::Instance;
 
-use super::FromBlend;
+use super::{id::ID, FromBlend};
 
 /// Mesh Faces
 ///
@@ -326,6 +326,7 @@ impl FromBlend for MEdge {
 
 #[derive(Debug)]
 pub struct Mesh {
+    id: ID,
     mpoly: Vec<MPoly>,
     mloop: Vec<MLoop>,
     mloopuv: Vec<MLoopUV>,
@@ -335,6 +336,11 @@ pub struct Mesh {
 }
 
 impl Mesh {
+    /// Get a reference to the mesh's id.
+    pub fn get_id(&self) -> &ID {
+        &self.id
+    }
+
     /// Get a reference to the mesh's mpoly.
     pub fn get_mpoly(&self) -> &[MPoly] {
         self.mpoly.as_ref()
@@ -368,7 +374,8 @@ impl Mesh {
 
 impl FromBlend for Mesh {
     fn from_blend_instance(instance: &Instance) -> Option<Self> {
-        if !instance.is_valid("totvert")
+        if !instance.is_valid("id")
+            || !instance.is_valid("totvert")
             || !instance.is_valid("totedge")
             || !instance.is_valid("totpoly")
             || !instance.is_valid("totloop")
@@ -439,6 +446,7 @@ impl FromBlend for Mesh {
         assert_eq!(medge.len(), totedge);
 
         Some(Self {
+            id: ID::from_blend_instance(&instance.get("id")).unwrap(),
             mpoly,
             mloop,
             mloopuv,
