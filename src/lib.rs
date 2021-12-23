@@ -1,3 +1,4 @@
+pub mod blend;
 pub mod bvh;
 pub mod camera;
 #[cfg(feature = "use_embree")]
