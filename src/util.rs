@@ -111,3 +111,15 @@ pub fn srgb_to_linear<const R: usize>(srgb: &glm::TVec<f64, R>) -> glm::TVec<f64
     linear[2] = linearize(linear[2]);
     linear
 }
+
+/// Convert normal represented in a slice of i16 to glm::DVec3
+///
+/// This is based on Blender's `normal_short_to_float_v3()` function
+/// in the `file math_vector_inline.c`.
+pub fn normal_i16_slice_to_dvec3(normal: &[i16]) -> glm::DVec3 {
+    glm::vec3(
+        normal[0] as f64 * (1.0 / 32767.0),
+        normal[1] as f64 * (1.0 / 32767.0),
+        normal[2] as f64 * (1.0 / 32767.0),
+    )
+}
