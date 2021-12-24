@@ -70,7 +70,7 @@ pub fn vec2_apply_bary_coord(
 ///
 /// Takes the first 3 values of `linear` and converts to srgb. `R` must be >= 3.
 ///
-/// reference: https://en.wikipedia.org/wiki/SRGB#From_CIE_XYZ_to_sRGB
+/// reference: <https://en.wikipedia.org/wiki/SRGB#From_CIE_XYZ_to_sRGB>
 pub fn linear_to_srgb<const R: usize>(linear: &glm::TVec<f64, R>) -> glm::TVec<f64, R> {
     debug_assert!(R >= 3);
 
@@ -94,7 +94,7 @@ pub fn linear_to_srgb<const R: usize>(linear: &glm::TVec<f64, R>) -> glm::TVec<f
 ///
 /// /// `srgb`: srgb values between 0.0 and 1.0
 ///
-/// reference: https://en.wikipedia.org/wiki/SRGB#From_sRGB_to_CIE_XYZ
+/// reference: <https://en.wikipedia.org/wiki/SRGB#From_sRGB_to_CIE_XYZ>
 pub fn srgb_to_linear<const R: usize>(srgb: &glm::TVec<f64, R>) -> glm::TVec<f64, R> {
     let linearize = |srgb: f64| {
         // if srgb <= 0.04045 {
