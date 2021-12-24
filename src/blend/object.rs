@@ -21,6 +21,11 @@ pub struct Object {
     rot: [f32; 3],
     /// Scale (can be negative).
     scale: [f32; 3],
+    /// Final worldspace matrix with constraints & animsys applied.
+    ///
+    /// For simplicity reasons, the 4x4 matrix is stored in a single
+    /// 16 element array. Stored column wise.
+    obmat: [f32; 16],
 }
 
 impl Object {
@@ -53,6 +58,11 @@ impl Object {
     pub fn get_parsubstr(&self) -> &str {
         self.parsubstr.as_ref()
     }
+
+    /// Get a reference to the object's obmat.
+    pub fn get_obmat(&self) -> &[f32; 16] {
+        &self.obmat
+    }
 }
 
 impl FromBlend for Object {
@@ -62,6 +72,7 @@ impl FromBlend for Object {
             || !instance.is_valid("rot")
             // must use size and not scale
             || !instance.is_valid("size")
+            || !instance.is_valid("obmat")
         {
             println!("something not available");
             return None;
@@ -71,6 +82,8 @@ impl FromBlend for Object {
         let rot = instance.get_f32_vec("rot");
         let scale = instance.get_f32_vec("size");
 
+        let obmat = instance.get_f32_vec("obmat");
+
         Some(Self {
             id: ID::from_blend_instance(&instance.get("id"))?,
             parsubstr: instance.get_string("parsubstr"),
@@ -78,6 +91,11 @@ impl FromBlend for Object {
             loc: [loc[0], loc[1], loc[2]],
             rot: [rot[0], rot[1], rot[2]],
             scale: [scale[0], scale[1], scale[2]],
+            obmat: [
+                obmat[0], obmat[1], obmat[2], obmat[3], obmat[4], obmat[5], obmat[6], obmat[7],
+                obmat[8], obmat[9], obmat[10], obmat[11], obmat[12], obmat[13], obmat[14],
+                obmat[15],
+            ],
         })
     }
 }
