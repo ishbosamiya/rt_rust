@@ -35,7 +35,7 @@ pub struct InputArguments {
     /// sender is created that sends a progress update of the path trace.
     path_trace_progress_server_name: Option<String>,
     shader_texture: Vec<(String, usize)>,
-    obj_files: Vec<PathBuf>,
+    mesh_files: Vec<PathBuf>,
     /// A list of object and shader pairs, assigns a shader with the
     /// given shader name to the object with given object name.
     object_shader: Vec<(String, String)>,
@@ -180,9 +180,10 @@ impl InputArguments {
                     .require_delimiter(true),
             )
             .arg(
-                Arg::with_name("obj-files")
-                    .long("obj-files")
-                    .help("More OBJ files to load into the scene prior to render")
+                Arg::with_name("mesh-files")
+                    .long("mesh-files")
+                    .alias("obj-files")
+                    .help("Load specified mesh files into the scene prior to render")
                     .takes_value(true)
                     .multiple(true),
             )
@@ -244,8 +245,8 @@ impl InputArguments {
                         .map(|(shader, texture)| (shader.to_string(), texture.parse().unwrap()))
                         .collect()
                 }),
-            obj_files: values_t!(matches, "obj-files", PathBuf)
-                .map_or(vec![], |obj_files| obj_files),
+            mesh_files: values_t!(matches, "mesh-files", PathBuf)
+                .map_or(vec![], |mesh_files| mesh_files),
             object_shader: matches
                 .values_of("object-shader")
                 .map_or(vec![], |object_shader| {
@@ -338,7 +339,7 @@ impl InputArguments {
 
     /// Get a reference to the input arguments's obj files.
     pub fn get_obj_files(&self) -> &[PathBuf] {
-        self.obj_files.as_slice()
+        self.mesh_files.as_slice()
     }
 
     /// Get a reference to the input arguments's object shader.
