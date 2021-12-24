@@ -113,7 +113,7 @@ pub fn default_environment_strength() -> f64 {
 
 use crate::object::objects::Mesh as MeshObject;
 
-pub fn load_obj_file<P>(path: P) -> Vec<MeshObject>
+pub fn load_meshes<P>(path: P) -> Vec<MeshObject>
 where
     P: AsRef<std::path::Path>,
 {

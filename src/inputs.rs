@@ -497,7 +497,7 @@ impl InputArguments {
         // add more objects to the scene (loading obj files)
         {
             self.get_obj_files().iter().for_each(|obj_file_path| {
-                crate::load_obj_file(obj_file_path)
+                crate::load_meshes(obj_file_path)
                     .drain(0..)
                     .for_each(|object| {
                         scene.write().unwrap().add_object(Box::new(object));

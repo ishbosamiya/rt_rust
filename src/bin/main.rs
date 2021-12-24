@@ -532,7 +532,29 @@ fn main_gui(
                                         .set_directory(".")
                                         .pick_file()
                                     {
-                                        rt::load_obj_file(path).drain(0..).for_each(|object| {
+                                        rt::load_meshes(path).drain(0..).for_each(|object| {
+                                            scene.write().unwrap().add_object(Box::new(object));
+                                        });
+                                        // update scene bvh
+                                        {
+                                            let mut scene = scene.write().unwrap();
+                                            scene.apply_model_matrices();
+
+                                            scene.build_bvh(0.01);
+
+                                            scene.unapply_model_matrices();
+                                        }
+                                    }
+                                }
+
+                                if ui.button("Import Blend").clicked() {
+                                    if let Some(path) = FileDialog::new()
+                                        .add_filter("Blend", &["blend"])
+                                        .add_filter("Any", &["*"])
+                                        .set_directory(".")
+                                        .pick_file()
+                                    {
+                                        rt::load_meshes(path).drain(0..).for_each(|object| {
                                             scene.write().unwrap().add_object(Box::new(object));
                                         });
                                         // update scene bvh
