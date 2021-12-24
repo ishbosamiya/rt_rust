@@ -24,6 +24,8 @@ pub struct MeshIO {
     pub end_of_object: Vec<(usize, usize, usize, usize, usize)>,
     /// object names, if no name available, set to None
     pub object_names: Vec<Option<String>>,
+    /// Model matrices for the objects in the MeshIO
+    pub object_model_matrices: Vec<glm::DMat4>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -63,6 +65,7 @@ impl MeshIO {
             line_indices: Vec::new(),
             end_of_object: Vec::new(),
             object_names: Vec::new(),
+            object_model_matrices: Vec::new(),
         }
     }
 
@@ -122,6 +125,10 @@ impl MeshIO {
             object_names.push(None);
         }
 
+        // model matrices or transformations cannot be stored in OBJ
+        // files so for each model store the identity matrix
+        let object_model_matrices = vec![glm::identity(); object_names.len()];
+
         Ok(MeshIO {
             positions,
             uvs,
@@ -132,6 +139,7 @@ impl MeshIO {
             line_indices,
             end_of_object,
             object_names,
+            object_model_matrices,
         })
     }
 
@@ -151,6 +159,7 @@ impl MeshIO {
         }
 
         assert_eq!(self.end_of_object.len(), self.object_names.len());
+        assert_eq!(self.object_names.len(), self.object_model_matrices.len());
 
         let mut prev_position = 0;
         let mut prev_uv = 0;
@@ -196,6 +205,7 @@ impl MeshIO {
                         line_indices,
                         end_of_object: Vec::new(),
                         object_names: vec![self.object_names[object_index].clone()],
+                        object_model_matrices: vec![self.object_model_matrices[object_index]],
                     }
                 },
             )
@@ -428,6 +438,10 @@ impl MeshIO {
                 meshio
                     .object_names
                     .push(Some(object.get_id().get_name()[2..].to_string()));
+
+                meshio
+                    .object_model_matrices
+                    .push(glm::convert(glm::make_mat4(object.get_obmat())));
 
                 let blend::id::IDObject::Mesh(mesh) = object.get_data().unwrap();
 

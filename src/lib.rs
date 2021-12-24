@@ -137,7 +137,7 @@ where
                 },
                 None,
             );
-            object.set_model_matrix(glm::identity());
+            object.set_model_matrix(*meshio.object_model_matrices.first().unwrap());
             if let Some(name) = meshio.object_names.first().unwrap() {
                 *object.get_object_name_mut() = name.to_string();
             }
