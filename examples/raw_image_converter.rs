@@ -4,6 +4,7 @@
 /// to standard formats while maybe converting linear to srgb
 use std::{convert::TryInto, path::PathBuf};
 
+use egui_glfw::egui;
 use rt::image::Image;
 
 use clap::{value_t, values_t};
