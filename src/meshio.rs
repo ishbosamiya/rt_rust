@@ -1,10 +1,15 @@
-use crate::glm;
+use ordered_float::OrderedFloat;
 
+use crate::{blend, glm, util};
+
+use std::collections::HashMap;
+use std::convert::TryInto;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
 
+#[derive(Debug)]
 pub struct MeshIO {
     pub positions: Vec<glm::DVec3>,
     pub uvs: Vec<glm::DVec2>,
@@ -68,6 +73,7 @@ impl MeshIO {
         match path.as_ref().extension() {
             Some(extension) => match extension.to_str().unwrap() {
                 "obj" => Self::read_obj(path.as_ref()),
+                "blend" => Self::read_blend_from_path(path),
                 _ => Err(MeshIOError::Unknown),
             },
             None => Err(MeshIOError::Unknown),
@@ -131,13 +137,18 @@ impl MeshIO {
 
     /// Splits the meshio into the constituent objects
     pub fn split(mut self) -> Vec<Self> {
-        self.end_of_object.push((
-            self.positions.len(),
-            self.uvs.len(),
-            self.normals.len(),
-            self.face_indices.len(),
-            self.line_indices.len(),
-        ));
+        // End of object for the last object may not be specified but
+        // it's name should exist (Some(name) or None to indicate the
+        // number of objects. Update end of object list if needed.
+        if self.end_of_object.len() == self.object_names.len() - 1 {
+            self.end_of_object.push((
+                self.positions.len(),
+                self.uvs.len(),
+                self.normals.len(),
+                self.face_indices.len(),
+                self.line_indices.len(),
+            ));
+        }
 
         assert_eq!(self.end_of_object.len(), self.object_names.len());
 
@@ -381,6 +392,110 @@ impl MeshIO {
 
         Ok(())
     }
+
+    pub fn read_blend_from_path(path: impl AsRef<Path>) -> Result<MeshIO, MeshIOError> {
+        let mut file = File::open(&path)?;
+        let mut data = Vec::new();
+        file.read_to_end(&mut data)?;
+        let data = if data[0..7] != *b"BLENDER" {
+            if util::file_magic_is_gzip(&data) {
+                let mut zip_archive =
+                    zip::read::ZipArchive::new(std::io::Cursor::new(data)).unwrap();
+                let mut unzipped_data = Vec::new();
+                zip_archive
+                    .by_index(0)
+                    .unwrap()
+                    .read_to_end(&mut unzipped_data)?;
+                unzipped_data
+            } else if util::file_magic_is_zstd(&data) {
+                zstd::decode_all(std::io::Cursor::new(data))?
+            } else {
+                panic!("blend file compressed using unknown compression technique");
+            }
+        } else {
+            data
+        };
+
+        Self::read_blend(std::io::Cursor::new(data))
+    }
+
+    pub fn read_blend(data: impl Read) -> Result<MeshIO, MeshIOError> {
+        Ok(blend::get_all_objects(data)
+            .iter()
+            .filter(|object| object.get_data().is_some())
+            .filter(|object| matches!(object.get_data().unwrap(), blend::id::IDObject::Mesh(_)))
+            .fold(MeshIO::new(), |mut meshio, object| {
+                meshio
+                    .object_names
+                    .push(Some(object.get_id().get_name()[2..].to_string()));
+
+                let blend::id::IDObject::Mesh(mesh) = object.get_data().unwrap();
+
+                let start_pos_index = meshio.positions.len();
+                let start_uv_index = meshio.uvs.len();
+
+                meshio.positions.extend(
+                    mesh.get_mvert()
+                        .iter()
+                        .map::<glm::DVec3, _>(|mvert| glm::convert(glm::make_vec3(mvert.get_co()))),
+                );
+
+                meshio.normals.extend(
+                    mesh.get_mvert()
+                        .iter()
+                        .map(|mvert| util::normal_i16_slice_to_dvec3(mvert.get_no())),
+                );
+
+                {
+                    let mut true_uv_index = 0;
+                    let mut uv_map: HashMap<(usize, [OrderedFloat<f32>; 2]), usize> =
+                        HashMap::new();
+                    mesh.get_mpoly().iter().for_each(|mpoly| {
+                        let loopstart: usize = mpoly.get_loopstart().try_into().unwrap();
+                        let totloop: usize = mpoly.get_totloop().try_into().unwrap();
+                        let mut face = Vec::with_capacity(totloop);
+                        (0..totloop).for_each(|j| {
+                            let mloop: &blend::mesh::MLoop = &mesh.get_mloop()[loopstart + j];
+                            let mloopuv: &blend::mesh::MLoopUV = &mesh.get_mloopuv()[loopstart + j];
+                            let mloop_v = mloop.get_v().try_into().unwrap();
+                            let pos_index: usize = mloop_v + start_pos_index;
+                            let normal_index = pos_index;
+
+                            let uv_ordered = [
+                                OrderedFloat(mloopuv.get_uv()[0]),
+                                OrderedFloat(mloopuv.get_uv()[1]),
+                            ];
+                            let uv_index =
+                                *uv_map.entry((mloop_v, uv_ordered)).or_insert_with(|| {
+                                    meshio
+                                        .uvs
+                                        .push(glm::convert(glm::make_vec2(mloopuv.get_uv())));
+
+                                    true_uv_index += 1;
+
+                                    true_uv_index - 1
+                                }) + start_uv_index;
+
+                            face.push((pos_index, uv_index, normal_index));
+                        });
+
+                        meshio.face_indices.push(face);
+                    });
+                }
+
+                // TODO: add line indices support, currently not
+                // possible since MEdgeFlags are not implemented
+
+                meshio.end_of_object.push((
+                    meshio.positions.len(),
+                    meshio.uvs.len(),
+                    meshio.normals.len(),
+                    meshio.face_indices.len(),
+                    meshio.line_indices.len(),
+                ));
+                meshio
+            }))
+    }
 }
 
 impl Default for MeshIO {
@@ -449,5 +564,57 @@ mod tests {
         assert_eq!(data.face_indices.len(), 6);
         assert_eq!(data.face_indices[0].len(), 4);
         assert_eq!(data.line_indices.len(), 0);
+    }
+
+    #[test]
+    fn meshreader_read_blend_test_01() {
+        let meshio = MeshIO::read("tests/blend_test_01.blend").unwrap();
+        assert_eq!(meshio.positions.len(), 8);
+        assert_eq!(meshio.uvs.len(), 14);
+        assert_eq!(meshio.normals.len(), 8);
+        assert_eq!(meshio.face_indices.len(), 6);
+        assert_eq!(meshio.face_indices[0].len(), 4);
+        assert_eq!(meshio.line_indices.len(), 0);
+    }
+
+    #[test]
+    fn meshreader_read_blend_test_02() {
+        let meshio = MeshIO::read("tests/blend_test_01.blend").unwrap();
+        let meshios = meshio.split();
+        assert_eq!(meshios.len(), 1);
+        let meshio = &meshios[0];
+        assert_eq!(meshio.positions.len(), 8);
+        assert_eq!(meshio.uvs.len(), 14);
+        assert_eq!(meshio.normals.len(), 8);
+        assert_eq!(meshio.face_indices.len(), 6);
+        assert_eq!(meshio.face_indices[0].len(), 4);
+        assert_eq!(meshio.line_indices.len(), 0);
+    }
+
+    #[test]
+    fn meshreader_read_blend_test_03() {
+        let meshio = MeshIO::read("tests/blend_test_02.blend").unwrap();
+        let meshios = meshio.split();
+        assert_eq!(meshios.len(), 2);
+        let meshio = meshios
+            .iter()
+            .find(|meshio| meshio.object_names[0].as_ref().unwrap() == "Cube")
+            .unwrap();
+        assert_eq!(meshio.positions.len(), 8);
+        assert_eq!(meshio.uvs.len(), 14);
+        assert_eq!(meshio.normals.len(), 8);
+        assert_eq!(meshio.face_indices.len(), 6);
+        assert_eq!(meshio.face_indices[0].len(), 4);
+        assert_eq!(meshio.line_indices.len(), 0);
+
+        let meshio = meshios
+            .iter()
+            .find(|meshio| meshio.object_names[0].as_ref().unwrap() == "Suzanne")
+            .unwrap();
+        assert_eq!(meshio.positions.len(), 507);
+        assert_eq!(meshio.uvs.len(), 556);
+        assert_eq!(meshio.normals.len(), 507);
+        assert_eq!(meshio.face_indices.len(), 500);
+        assert_eq!(meshio.line_indices.len(), 0);
     }
 }

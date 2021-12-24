@@ -31,6 +31,9 @@ ctrlc = { version = "3.2", features = ["termination"] }
 embree_rust = { git = "ssh://git@github.com/ishbosamiya/embree_rust.git" }
 memoffset = "0.6"
 blend = "0.6"
+ordered-float = "2.8"
+zip = "0.5"
+zstd = "0.9"
 
 [dev-dependencies]
 criterion = "0.3"
