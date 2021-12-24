@@ -55,7 +55,7 @@ lazy_static! {
 
 /// IDs from Blender's `DNA_ID_enums.h`
 ///
-/// ```
+/// ```c
 /// /**
 ///  * ID from database.
 ///  *
