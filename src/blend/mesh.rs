@@ -119,8 +119,8 @@ pub struct MLoopUV {
 
 impl MLoopUV {
     /// Get mloop uv's uv.
-    pub fn get_uv(&self) -> [f32; 2] {
-        self.uv
+    pub fn get_uv(&self) -> &[f32; 2] {
+        &self.uv
     }
 
     /// Get mloop uv's flag.
@@ -213,13 +213,13 @@ pub struct MVert {
 
 impl MVert {
     /// Get mvert's co.
-    pub fn get_co(&self) -> [f32; 3] {
-        self.co
+    pub fn get_co(&self) -> &[f32; 3] {
+        &self.co
     }
 
     /// Get mvert's no.
-    pub fn get_no(&self) -> [i16; 3] {
-        self.no
+    pub fn get_no(&self) -> &[i16; 3] {
+        &self.no
     }
 
     /// Get mvert's flag.
