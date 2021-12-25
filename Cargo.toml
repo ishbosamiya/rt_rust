@@ -34,6 +34,10 @@ blend = "0.6"
 ordered-float = "2.8"
 zip = "0.5"
 zstd = "0.9"
+# TODO: shift from enumflags2 to bitflags entirely, it is much easier
+# to use bitflags in comparison to enumflags2, there does not seem to
+# be a clear reason to have used enumflags in the first place
+bitflags = "1.3"
 
 [dev-dependencies]
 criterion = "0.3"

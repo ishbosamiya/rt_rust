@@ -1,5 +1,6 @@
 use std::convert::TryInto;
 
+use bitflags::bitflags;
 use blend::Instance;
 
 use super::{id::ID, FromBlend};
@@ -18,7 +19,7 @@ pub struct MPoly {
     /// previous loop.
     totloop: i32,
     mat_nr: i16,
-    flag: i8,
+    flag: MPolyFlags,
     _pad: i8,
 }
 
@@ -39,12 +40,17 @@ impl MPoly {
     }
 
     /// Get mpoly's flag.
-    pub fn get_flag(&self) -> i8 {
+    pub fn get_flag(&self) -> MPolyFlags {
         self.flag
     }
 }
 
-// TODO: MPolyFlag
+bitflags! {
+    pub struct MPolyFlags: i8 {
+        const ME_SMOOTH   = 0b00000001;
+        const ME_FACE_SEL = 0b00000010;
+    }
+}
 
 impl FromBlend for MPoly {
     fn from_blend_instance(instance: &Instance) -> Option<Self> {
@@ -61,7 +67,7 @@ impl FromBlend for MPoly {
             loopstart: instance.get_i32("loopstart"),
             totloop: instance.get_i32("totloop"),
             mat_nr: instance.get_i16("mat_nr"),
-            flag: instance.get_i8("flag"),
+            flag: MPolyFlags::from_bits(instance.get_i8("flag")).unwrap(),
             _pad: instance.get_i8("_pad"),
         })
     }
@@ -114,7 +120,7 @@ impl FromBlend for MLoop {
 #[derive(Debug)]
 pub struct MLoopUV {
     uv: [f32; 2],
-    flag: i32,
+    flag: MLoopUVFlags,
 }
 
 impl MLoopUV {
@@ -124,12 +130,17 @@ impl MLoopUV {
     }
 
     /// Get mloop uv's flag.
-    pub fn get_flag(&self) -> i32 {
+    pub fn get_flag(&self) -> MLoopUVFlags {
         self.flag
     }
 }
 
-// TODO: MLoopUVFlag
+bitflags! {
+    pub struct MLoopUVFlags: i32 {
+        const MLOOPUV_VERTSEL = 0b00000010;
+        const MLOOPUV_PINNED  = 0b00000100;
+    }
+}
 
 impl FromBlend for MLoopUV {
     fn from_blend_instance(instance: &Instance) -> Option<Self> {
@@ -142,7 +153,7 @@ impl FromBlend for MLoopUV {
 
         Some(Self {
             uv: [uv[0], uv[1]],
-            flag: instance.get_i32("flag"),
+            flag: MLoopUVFlags::from_bits(instance.get_i32("flag")).unwrap(),
         })
     }
 }
@@ -207,7 +218,7 @@ pub struct MVert {
     /// Cache the normal, can always be recalculated from surrounding
     /// faces. See #CD_CUSTOMLOOPNORMAL for custom normals.
     no: [i16; 3],
-    flag: i8,
+    flag: MVertFlags,
     bweight: i8,
 }
 
@@ -223,7 +234,7 @@ impl MVert {
     }
 
     /// Get mvert's flag.
-    pub fn get_flag(&self) -> i8 {
+    pub fn get_flag(&self) -> MVertFlags {
         self.flag
     }
 
@@ -233,7 +244,18 @@ impl MVert {
     }
 }
 
-// TODO: MVertFlag
+bitflags! {
+    /// MVert's flags
+    ///
+    /// Unable to keep consistent type with Blender since
+    /// `ME_VERT_PBVH_UPDATE` cannot be stored in an `i8`
+    pub struct MVertFlags: u8 {
+        const ME_VERT_TMP_TAG     = 0b00000100;
+        const ME_HIDE             = 0b00010000;
+        const ME_VERT_FACEDOT     = 0b00100000;
+        const ME_VERT_PBVH_UPDATE = 0b10000000;
+    }
+}
 
 impl FromBlend for MVert {
     fn from_blend_instance(instance: &Instance) -> Option<Self> {
@@ -253,7 +275,8 @@ impl FromBlend for MVert {
         Some(Self {
             co: [co[0], co[1], co[2]],
             no: [no[0], no[1], no[2]],
-            flag: instance.get_i8("flag"),
+            flag: MVertFlags::from_bits(unsafe { std::mem::transmute(instance.get_i8("flag")) })
+                .unwrap(),
             bweight: instance.get_i8("bweight"),
         })
     }
@@ -269,7 +292,7 @@ pub struct MEdge {
     v2: u32,
     crease: i8,
     bweight: i8,
-    flag: i16,
+    flag: MEdgeFlags,
 }
 
 impl MEdge {
@@ -294,12 +317,22 @@ impl MEdge {
     }
 
     /// Get medge's flag.
-    pub fn get_flag(&self) -> i16 {
+    pub fn get_flag(&self) -> MEdgeFlags {
         self.flag
     }
 }
 
-// TODO: MEdgeFlag
+bitflags! {
+    /// MEdge's flags
+    pub struct MEdgeFlags: i16 {
+        const ME_EDGEDRAW         = 0b0000000010;
+        const ME_SEAM             = 0b0000000100;
+        const ME_EDGERENDER       = 0b0000100000;
+        const ME_LOOSEEDGE        = 0b0010000000;
+        const ME_EDGE_TMP_TAG     = 0b0100000000;
+        const ME_SHARP            = 0b1000000000;
+    }
+}
 
 impl FromBlend for MEdge {
     fn from_blend_instance(instance: &Instance) -> Option<Self> {
@@ -319,7 +352,7 @@ impl FromBlend for MEdge {
             v2: instance.get_i32("v2").try_into().unwrap(),
             crease: instance.get_i8("crease"),
             bweight: instance.get_i8("bweight"),
-            flag: instance.get_i16("flag"),
+            flag: MEdgeFlags::from_bits(instance.get_i16("flag")).unwrap(),
         })
     }
 }
