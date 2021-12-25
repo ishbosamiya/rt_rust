@@ -447,24 +447,36 @@ impl MeshIO {
                         util::Axis::Y,
                     ) * glm::convert::<_, glm::DMat4>(glm::make_mat4(object.get_obmat()));
 
-                meshio.object_model_matrices.push(model_matrix);
+                meshio.object_model_matrices.push(glm::identity());
 
                 let blend::id::IDObject::Mesh(mesh) = object.get_data().unwrap();
 
                 let start_pos_index = meshio.positions.len();
                 let start_uv_index = meshio.uvs.len();
 
-                meshio.positions.extend(
-                    mesh.get_mvert()
-                        .iter()
-                        .map::<glm::DVec3, _>(|mvert| glm::convert(glm::make_vec3(mvert.get_co()))),
-                );
+                // As a hack, apply the model matrix to the positions
+                // and normals so the identity matrix becomes the new
+                // model matrix. Currently, the rest of the code is
+                // not able to handle model matricies correctly, until
+                // that bug is fixed need to do this hack :(
 
-                meshio.normals.extend(
-                    mesh.get_mvert()
-                        .iter()
-                        .map(|mvert| util::normal_i16_slice_to_dvec3(mvert.get_no())),
-                );
+                // TODO: fix the model matrices part of the code
+
+                meshio
+                    .positions
+                    .extend(mesh.get_mvert().iter().map::<glm::DVec3, _>(|mvert| {
+                        util::vec3_apply_model_matrix(
+                            &glm::convert(glm::make_vec3(mvert.get_co())),
+                            &model_matrix,
+                        )
+                    }));
+
+                meshio.normals.extend(mesh.get_mvert().iter().map(|mvert| {
+                    util::normal_apply_model_matrix(
+                        &util::normal_i16_slice_to_dvec3(mvert.get_no()),
+                        &model_matrix,
+                    )
+                }));
 
                 {
                     let mut true_uv_index = 0;
