@@ -250,6 +250,9 @@ bitflags! {
     /// Unable to keep consistent type with Blender since
     /// `ME_VERT_PBVH_UPDATE` cannot be stored in an `i8`
     pub struct MVertFlags: u8 {
+        /// SELECT is a special case, it is not part of any enum
+        /// explicitly but it is used.
+        const SELECT              = 0b00000001;
         const ME_VERT_TMP_TAG     = 0b00000100;
         const ME_HIDE             = 0b00010000;
         const ME_VERT_FACEDOT     = 0b00100000;
@@ -325,6 +328,9 @@ impl MEdge {
 bitflags! {
     /// MEdge's flags
     pub struct MEdgeFlags: i16 {
+        /// SELECT is a special case, it is not part of any enum
+        /// explicitly but it is used.
+        const SELECT              = 0b0000000001;
         const ME_EDGEDRAW         = 0b0000000010;
         const ME_SEAM             = 0b0000000100;
         const ME_EDGERENDER       = 0b0000100000;
