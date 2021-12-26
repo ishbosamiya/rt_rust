@@ -1,6 +1,9 @@
 use ordered_float::OrderedFloat;
 
-use crate::{blend, glm, util};
+use crate::{
+    blend::{self, mesh::MPolyFlags},
+    glm, util,
+};
 
 use std::collections::HashMap;
 use std::convert::TryInto;
@@ -452,6 +455,7 @@ impl MeshIO {
                 let blend::id::IDObject::Mesh(mesh) = object.get_data().unwrap();
 
                 let start_pos_index = meshio.positions.len();
+                let start_normal_index = meshio.normals.len();
                 let start_uv_index = meshio.uvs.len();
 
                 // As a hack, apply the model matrix to the positions
@@ -483,15 +487,45 @@ impl MeshIO {
                     let mut uv_map: HashMap<(usize, [OrderedFloat<f32>; 2]), usize> =
                         HashMap::new();
                     mesh.get_mpoly().iter().for_each(|mpoly| {
+                        let is_smooth = mpoly.get_flag().contains(MPolyFlags::ME_SMOOTH);
                         let loopstart: usize = mpoly.get_loopstart().try_into().unwrap();
                         let totloop: usize = mpoly.get_totloop().try_into().unwrap();
                         let mut face = Vec::with_capacity(totloop);
+
+                        // If the face is smooth, use the normals
+                        // already part of meshio.normals, otherwise
+                        // add a new normal which is the face normal
+                        // and use that instead
+                        if !is_smooth {
+                            // TODO: find the complete poly normal,
+                            // currently just finding the first
+                            // triangle's normal
+                            let get_pos = |index: usize| -> &glm::DVec3 {
+                                let mloop: &blend::mesh::MLoop =
+                                    &mesh.get_mloop()[loopstart + index];
+                                let mloop_v: usize = mloop.get_v().try_into().unwrap();
+                                let pos_index = mloop_v + start_pos_index;
+                                &meshio.positions[pos_index]
+                            };
+                            let v1 = get_pos(0);
+                            let v2 = get_pos(1);
+                            let v3 = get_pos(2);
+                            let normal = glm::cross(&(v2 - v1), &(v3 - v1)).normalize();
+                            meshio.normals.push(normal);
+                        }
+
                         (0..totloop).for_each(|j| {
                             let mloop: &blend::mesh::MLoop = &mesh.get_mloop()[loopstart + j];
                             let mloopuv: &blend::mesh::MLoopUV = &mesh.get_mloopuv()[loopstart + j];
                             let mloop_v = mloop.get_v().try_into().unwrap();
                             let pos_index: usize = mloop_v + start_pos_index;
-                            let normal_index = pos_index;
+                            let normal_index = if is_smooth {
+                                mloop_v + start_normal_index
+                            } else {
+                                // the last added normal should be the
+                                // face normal, so use that
+                                meshio.normals.len() - 1
+                            };
 
                             let uv_ordered = [
                                 OrderedFloat(mloopuv.get_uv()[0]),
@@ -603,7 +637,7 @@ mod tests {
         let meshio = MeshIO::read("tests/blend_test_01.blend").unwrap();
         assert_eq!(meshio.positions.len(), 8);
         assert_eq!(meshio.uvs.len(), 14);
-        assert_eq!(meshio.normals.len(), 8);
+        assert_eq!(meshio.normals.len(), 14);
         assert_eq!(meshio.face_indices.len(), 6);
         assert_eq!(meshio.face_indices[0].len(), 4);
         assert_eq!(meshio.line_indices.len(), 0);
@@ -617,7 +651,7 @@ mod tests {
         let meshio = &meshios[0];
         assert_eq!(meshio.positions.len(), 8);
         assert_eq!(meshio.uvs.len(), 14);
-        assert_eq!(meshio.normals.len(), 8);
+        assert_eq!(meshio.normals.len(), 14);
         assert_eq!(meshio.face_indices.len(), 6);
         assert_eq!(meshio.face_indices[0].len(), 4);
         assert_eq!(meshio.line_indices.len(), 0);
@@ -634,7 +668,7 @@ mod tests {
             .unwrap();
         assert_eq!(meshio.positions.len(), 8);
         assert_eq!(meshio.uvs.len(), 14);
-        assert_eq!(meshio.normals.len(), 8);
+        assert_eq!(meshio.normals.len(), 14);
         assert_eq!(meshio.face_indices.len(), 6);
         assert_eq!(meshio.face_indices[0].len(), 4);
         assert_eq!(meshio.line_indices.len(), 0);
@@ -645,7 +679,7 @@ mod tests {
             .unwrap();
         assert_eq!(meshio.positions.len(), 507);
         assert_eq!(meshio.uvs.len(), 556);
-        assert_eq!(meshio.normals.len(), 507);
+        assert_eq!(meshio.normals.len(), 1007);
         assert_eq!(meshio.face_indices.len(), 500);
         assert_eq!(meshio.line_indices.len(), 0);
     }
