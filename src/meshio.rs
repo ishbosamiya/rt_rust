@@ -452,7 +452,10 @@ impl MeshIO {
 
                 meshio.object_model_matrices.push(glm::identity());
 
-                let blend::id::IDObject::Mesh(mesh) = object.get_data().unwrap();
+                let mesh = match object.get_data().unwrap() {
+                    blend::id::IDObject::Mesh(mesh) => mesh,
+                    _ => unreachable!(),
+                };
 
                 let start_pos_index = meshio.positions.len();
                 let start_normal_index = meshio.normals.len();

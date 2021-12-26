@@ -4,7 +4,7 @@ use lazy_static::lazy_static;
 
 use blend::Instance;
 
-use super::{mesh::Mesh, FromBlend};
+use super::{camera::Camera, mesh::Mesh, FromBlend};
 
 lazy_static! {
     static ref ID_NAME_MAP: HashMap<&'static [u8; 4], &'static str> = {
@@ -140,12 +140,15 @@ impl FromBlend for ID {
 #[derive(Debug)]
 pub enum IDObject {
     Mesh(Mesh),
+    Camera(Camera),
 }
 
 impl FromBlend for IDObject {
     fn from_blend_instance(instance: &Instance) -> Option<Self> {
         if instance.code()[0..=1] == *b"ME" {
             Some(Self::Mesh(Mesh::from_blend_instance(instance)?))
+        } else if instance.code()[0..=1] == *b"CA" {
+            Some(Self::Camera(Camera::from_blend_instance(instance)?))
         } else {
             eprintln!(
                 "TODO: Need to implement for id: {} code: {:?}",
