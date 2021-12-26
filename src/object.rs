@@ -170,6 +170,25 @@ pub trait Object:
     ///
     /// TODO: add delete BVH function in the Object Trait
     fn rebuild_bvh_if_needed(&mut self, epsilon: f64);
+
+    /// Returns the trait object to be used as an [`std::any::Any`]
+    ///
+    /// This is specially useful when the object is used through
+    /// dynamic dispatch and need to work on the object itself instead
+    /// of the trait object. Done via `std::any::Any::downcast_ref()`.
+    ///
+    /// See
+    /// <https://stackoverflow.com/questions/33687447/how-to-get-a-reference-to-a-concrete-type-from-a-trait-object>
+    /// for more details on why this specific method is needed in the
+    /// trait.
+    ///
+    /// Implementation for this function should always be
+    /// ```text
+    /// fn as_any(&self) -> &dyn std::any::Any {
+    ///   self
+    /// }
+    /// ```
+    fn as_any(&self) -> &dyn std::any::Any;
 }
 
 pub mod objects {
@@ -367,6 +386,10 @@ pub mod objects {
             fn rebuild_bvh_if_needed(&mut self, _epsilon: f64) {
                 // no BVH for sphere
             }
+
+            fn as_any(&self) -> &dyn std::any::Any {
+                self
+            }
         }
     }
 
@@ -445,6 +468,11 @@ pub mod objects {
                     use_shader,
                     bvh_draw_data,
                 }
+            }
+
+            /// Get a reference to the mesh's data.
+            pub fn get_data(&self) -> &MeshData {
+                &self.data
             }
         }
 
@@ -615,6 +643,10 @@ pub mod objects {
 
             fn rebuild_bvh_if_needed(&mut self, epsilon: f64) {
                 self.data.rebuild_bvh_if_needed(epsilon);
+            }
+
+            fn as_any(&self) -> &dyn std::any::Any {
+                self
             }
         }
     }
