@@ -15,7 +15,9 @@ use crate::bvh::{RayHitData, RayHitOptionalData};
 use crate::path_trace::intersectable::{IntersectInfo, Intersectable};
 use crate::path_trace::ray::Ray;
 use crate::rasterize::gl_mesh::{self, GLMesh, GLVert};
-use crate::rasterize::gpu_immediate::GPUImmediate;
+use crate::rasterize::gpu_immediate::{
+    GPUImmediate, GPUPrimType, GPUVertCompType, GPUVertFetchMode,
+};
 use crate::rasterize::Rasterize;
 use crate::util::{self, normal_apply_model_matrix, vec3_apply_model_matrix};
 use crate::{
@@ -258,6 +260,54 @@ impl Mesh {
         }
 
         Ok(())
+    }
+
+    pub fn draw_mesh_vertex_normals(&self, imm: &mut GPUImmediate, length: f64, color: glm::DVec4) {
+        let smooth_color_3d_shader = shader::builtins::get_smooth_color_3d_shader()
+            .as_ref()
+            .unwrap();
+        smooth_color_3d_shader.use_shader();
+        smooth_color_3d_shader.set_mat4("model\0", &glm::identity());
+
+        let color: glm::Vec4 = glm::convert(color);
+
+        let format = imm.get_cleared_vertex_format();
+        let pos_attr = format.add_attribute(
+            "in_pos\0".to_string(),
+            GPUVertCompType::F32,
+            3,
+            GPUVertFetchMode::Float,
+        );
+        let color_attr = format.add_attribute(
+            "in_color\0".to_string(),
+            GPUVertCompType::F32,
+            4,
+            GPUVertFetchMode::Float,
+        );
+
+        imm.begin(
+            GPUPrimType::Lines,
+            self.get_vertices().len() * 2,
+            smooth_color_3d_shader,
+        );
+
+        self.get_vertices().iter().for_each(|vert| {
+            let pos = vert.get_pos();
+            let normal = vert.get_normal().as_ref().unwrap();
+
+            let p1 = *pos;
+            let p2 = pos + length * normal;
+
+            let p1: glm::Vec3 = glm::convert(p1);
+            let p2: glm::Vec3 = glm::convert(p2);
+
+            imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+            imm.vertex_3f(pos_attr, p1[0], p1[1], p1[2]);
+            imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+            imm.vertex_3f(pos_attr, p2[0], p2[1], p2[2]);
+        });
+
+        imm.end();
     }
 
     /// Build BVH of the mesh
