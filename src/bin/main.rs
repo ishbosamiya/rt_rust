@@ -4,6 +4,7 @@ use rfd::FileDialog;
 use rt::camera::{Camera, CameraDrawData};
 use rt::image::Image;
 use rt::inputs::InputArguments;
+use rt::object::objects::Mesh as MeshObject;
 use rt::path_trace::environment::Environment;
 use rt::path_trace::intersectable::Intersectable;
 use rt::path_trace::medium::Mediums;
@@ -327,6 +328,9 @@ fn main_gui(
     let mut use_environment_map_as_background = false;
     let mut background_color = util::srgb_to_linear(&glm::vec4(0.051, 0.051, 0.051, 1.0));
     let mut infinite_grid_color = util::srgb_to_linear(&glm::vec4(0.15, 0.15, 0.15, 1.0));
+    let mut mesh_draw_vert_normals = false;
+    let mut mesh_draw_vert_normals_len = 1.0;
+    let mut mesh_draw_vert_normals_color = util::srgb_to_linear(&glm::vec4(0.85, 0.1, 0.1, 1.0));
     let mut should_cast_scene_ray = false;
     let mut try_select_object = false;
     let mut image_width = arguments
@@ -708,6 +712,24 @@ fn main_gui(
                                 "Infinite Grid Color",
                                 &mut infinite_grid_color,
                             );
+
+                            ui.collapsing("Testing Parameters", |ui| {
+                                ui.collapsing("Mesh Visualization", |ui| {
+                                    ui.checkbox(&mut mesh_draw_vert_normals, "Draw Vert Normals");
+                                    ui.add(
+                                        egui::Slider::new(
+                                            &mut mesh_draw_vert_normals_len,
+                                            0.0..=1.0,
+                                        )
+                                        .text("Vert Normals Len"),
+                                    );
+                                    ui::color_edit_button_dvec4(
+                                        ui,
+                                        "Vert Normals Color",
+                                        &mut mesh_draw_vert_normals_color,
+                                    );
+                                });
+                            });
 
                             ui.separator();
 
@@ -1266,6 +1288,21 @@ fn main_gui(
             .unwrap()
             .draw(&mut SceneDrawData::new(imm.clone(), shader_list.clone()))
             .unwrap();
+
+        // extra visualizations of the scene
+        {
+            if mesh_draw_vert_normals {
+                scene.read().unwrap().get_objects().for_each(|object| {
+                    if let Some(mesh) = object.as_any().downcast_ref::<MeshObject>() {
+                        mesh.get_data().draw_mesh_vertex_normals(
+                            &mut imm.borrow_mut(),
+                            mesh_draw_vert_normals_len,
+                            mesh_draw_vert_normals_color,
+                        );
+                    }
+                });
+            }
+        }
 
         // drawing ray traversal info if needed
         if show_ray_traversal_info {
