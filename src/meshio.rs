@@ -442,13 +442,8 @@ impl MeshIO {
                     .object_names
                     .push(Some(object.get_id().get_name()[2..].to_string()));
 
-                let model_matrix =
-                    util::axis_conversion_matrix(
-                        util::Axis::Y,
-                        util::Axis::Z,
-                        util::Axis::NegZ,
-                        util::Axis::Y,
-                    ) * glm::convert::<_, glm::DMat4>(glm::make_mat4(object.get_obmat()));
+                let model_matrix = util::axis_conversion_matrix_from_blender()
+                    * glm::convert::<_, glm::DMat4>(glm::make_mat4(object.get_obmat()));
 
                 meshio.object_model_matrices.push(glm::identity());
 

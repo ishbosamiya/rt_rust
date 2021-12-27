@@ -390,6 +390,12 @@ pub fn axis_conversion_matrix(
     unreachable!();
 }
 
+/// Axis conversion matrix to convert axis from Blender to X as right,
+/// Y as up with right hand thumb rule (OpenGL axis).
+pub fn axis_conversion_matrix_from_blender() -> glm::DMat4 {
+    axis_conversion_matrix(Axis::Y, Axis::Z, Axis::NegZ, Axis::Y)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
