@@ -2,6 +2,7 @@ use lazy_static::lazy_static;
 
 use std::convert::TryFrom;
 
+pub use crate::blend::object::RotationModes;
 use crate::glm;
 
 /// str to CStr
@@ -396,6 +397,140 @@ pub fn axis_conversion_matrix_from_blender() -> glm::DMat4 {
     axis_conversion_matrix(Axis::Y, Axis::Z, Axis::NegZ, Axis::Y)
 }
 
+/// Convert the given euler rotation to a rotation matrix
+///
+/// reference:
+/// <https://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.371.6578>
+pub fn euler_to_rotation_matrix(rot: &glm::DVec3, mode: RotationModes) -> glm::DMat3 {
+    let (psi, theta, phi) = (rot[0], rot[1], rot[2]);
+
+    let cos_psi = psi.cos();
+    let sin_psi = psi.sin();
+    let rx = glm::mat3(1.0, 0.0, 0.0, 0.0, cos_psi, -sin_psi, 0.0, sin_psi, cos_psi);
+
+    let cos_theta = theta.cos();
+    let sin_theta = theta.sin();
+    let ry = glm::mat3(
+        cos_theta, 0.0, sin_theta, 0.0, 1.0, 0.0, -sin_theta, 0.0, cos_theta,
+    );
+
+    let cos_phi = phi.cos();
+    let sin_phi = phi.sin();
+    let rz = glm::mat3(cos_phi, -sin_phi, 0.0, sin_phi, cos_phi, 0.0, 0.0, 0.0, 1.0);
+
+    match mode {
+        RotationModes::Quaternion => todo!(),
+        RotationModes::EulerXYZ => rx * ry * rz,
+        RotationModes::EulerXZY => rx * rz * ry,
+        RotationModes::EulerYXZ => ry * rx * rz,
+        RotationModes::EulerYZX => ry * rz * rx,
+        RotationModes::EulerZXY => rz * rx * ry,
+        RotationModes::EulerZYX => rz * ry * rx,
+        RotationModes::AxisAngle => todo!(),
+    }
+}
+
+/// Convert the given rotation matrix to a Euler rotation for the given mode
+///
+/// reference: <https://www.andre-gaschler.com/rotationconverter/>
+/// <https://threejs.org/docs/index.html?q=eule#api/en/math/Euler>
+/// <https://github.com/mrdoob/three.js/blob/master/src/math/Euler.js>
+pub fn rotation_matrix_to_euler(mat: &glm::DMat3, mode: RotationModes) -> glm::DVec3 {
+    let very_close_to_one = 0.99999999999;
+    match mode {
+        RotationModes::Quaternion => todo!(),
+        RotationModes::EulerXYZ => {
+            let y = mat.index((0, 2)).clamp(-1.0, 1.0).asin();
+            let (x, z) = if *mat.index((0, 2)) < very_close_to_one {
+                (
+                    (-mat.index((1, 2))).atan2(*mat.index((2, 2))),
+                    (-mat.index((0, 1))).atan2(*mat.index((0, 0))),
+                )
+            } else {
+                (mat.index((2, 1)).atan2(*mat.index((1, 1))), 0.0)
+            };
+            glm::vec3(x, y, z)
+        }
+        RotationModes::EulerXZY => {
+            let z = (-mat.index((0, 1)).clamp(-1.0, 1.0)).asin();
+            let (x, y) = if *mat.index((0, 1)) < very_close_to_one {
+                (
+                    mat.index((2, 1)).atan2(*mat.index((1, 1))),
+                    mat.index((0, 2)).atan2(*mat.index((0, 0))),
+                )
+            } else {
+                ((-mat.index((1, 2))).atan2(*mat.index((2, 2))), 0.0)
+            };
+            glm::vec3(x, y, z)
+        }
+        RotationModes::EulerYXZ => {
+            let x = (-mat.index((1, 2)).clamp(-1.0, 1.0)).asin();
+            let (y, z) = if *mat.index((1, 2)) < very_close_to_one {
+                (
+                    mat.index((0, 2)).atan2(*mat.index((2, 2))),
+                    mat.index((1, 0)).atan2(*mat.index((1, 1))),
+                )
+            } else {
+                ((-mat.index((2, 0))).atan2(*mat.index((0, 0))), 0.0)
+            };
+            glm::vec3(x, y, z)
+        }
+        RotationModes::EulerYZX => {
+            let z = mat.index((1, 0)).clamp(-1.0, 1.0).asin();
+            let (x, y) = if *mat.index((1, 0)) < very_close_to_one {
+                (
+                    (-mat.index((1, 2))).atan2(*mat.index((1, 1))),
+                    (-mat.index((2, 0))).atan2(*mat.index((0, 0))),
+                )
+            } else {
+                (0.0, mat.index((0, 2)).atan2(*mat.index((2, 2))))
+            };
+            glm::vec3(x, y, z)
+        }
+        RotationModes::EulerZXY => {
+            let x = mat.index((2, 1)).clamp(-1.0, 1.0).asin();
+            let (y, z) = if *mat.index((2, 1)) < very_close_to_one {
+                (
+                    (-mat.index((2, 0))).atan2(*mat.index((2, 2))),
+                    (-mat.index((0, 1))).atan2(*mat.index((1, 1))),
+                )
+            } else {
+                (0.0, mat.index((1, 0)).atan2(*mat.index((0, 0))))
+            };
+            glm::vec3(x, y, z)
+        }
+        RotationModes::EulerZYX => {
+            let y = (-mat.index((2, 0))).clamp(-1.0, 1.0).asin();
+            let (x, z) = if *mat.index((2, 0)) < very_close_to_one {
+                (
+                    mat.index((2, 1)).atan2(*mat.index((2, 2))),
+                    mat.index((1, 0)).atan2(*mat.index((0, 0))),
+                )
+            } else {
+                (0.0, (-mat.index((2, 0))).atan2(*mat.index((0, 0))))
+            };
+            glm::vec3(x, y, z)
+        }
+        RotationModes::AxisAngle => todo!(),
+    }
+}
+
+#[macro_export]
+macro_rules! assert_vec_relative_eq {
+    ($left:expr, $right:expr, $epsilon:expr $(,)?) => {
+        match (&$left, &$right, &$epsilon) {
+            (left_val, right_val, epsilon) => {
+                assert_eq!(left_val.len(), right_val.len());
+                for i in 0..left_val.len() {
+                    if (left_val[i] - right_val[i]).abs() >= *epsilon {
+                        panic!("{:?} != {:?}", left_val, right_val);
+                    }
+                }
+            }
+        }
+    };
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -408,4 +543,180 @@ mod tests {
 
         assert_eq!(identity_mat4, conversion_matrix);
     }
+
+    #[test]
+    fn euler_to_rotation_matrix_test_xyz() {
+        let rot_mat = euler_to_rotation_matrix(
+            &glm::vec3(
+                50.0_f64.to_radians(),
+                20.0_f64.to_radians(),
+                -30.0_f64.to_radians(),
+            ),
+            RotationModes::EulerXYZ,
+        );
+
+        // expected value found from https://www.andre-gaschler.com/rotationconverter/
+        assert_vec_relative_eq!(
+            rot_mat,
+            glm::mat3(
+                0.8137977, 0.4698463, 0.3420202, -0.0944929, 0.6876717, -0.7198463, -0.5734147,
+                0.5534908, 0.6040228
+            ),
+            1e-6
+        );
+    }
+
+    #[test]
+    fn euler_to_rotation_matrix_test_xzy() {
+        let rot_mat = euler_to_rotation_matrix(
+            &glm::vec3(
+                50.0_f64.to_radians(),
+                20.0_f64.to_radians(),
+                -30.0_f64.to_radians(),
+            ),
+            RotationModes::EulerXZY,
+        );
+
+        // expected value found from https://www.andre-gaschler.com/rotationconverter/
+        assert_vec_relative_eq!(
+            rot_mat,
+            glm::mat3(
+                0.8137977, 0.5000000, 0.2961981, -0.0400088, 0.5566704, -0.8297695, -0.5797695,
+                0.6634139, 0.4730214
+            ),
+            1e-6
+        );
+    }
+
+    #[test]
+    fn euler_to_rotation_matrix_test_yxz() {
+        let rot_mat = euler_to_rotation_matrix(
+            &glm::vec3(
+                50.0_f64.to_radians(),
+                20.0_f64.to_radians(),
+                -30.0_f64.to_radians(),
+            ),
+            RotationModes::EulerYXZ,
+        );
+
+        // expected value found from https://www.andre-gaschler.com/rotationconverter/
+        assert_vec_relative_eq!(
+            rot_mat,
+            glm::mat3(
+                0.6827964, 0.6967472, 0.2198463, -0.3213938, 0.5566704, -0.7660444, -0.6561213,
+                0.4523951, 0.6040228
+            ),
+            1e-6
+        );
+    }
+
+    #[test]
+    fn euler_to_rotation_matrix_test_yzx() {
+        let rot_mat = euler_to_rotation_matrix(
+            &glm::vec3(
+                50.0_f64.to_radians(),
+                20.0_f64.to_radians(),
+                -30.0_f64.to_radians(),
+            ),
+            RotationModes::EulerYZX,
+        );
+
+        // expected value found from https://www.andre-gaschler.com/rotationconverter/
+        assert_vec_relative_eq!(
+            rot_mat,
+            glm::mat3(
+                0.8137977, 0.5640140, -0.1400768, -0.5000000, 0.5566704, -0.6634139, -0.2961981,
+                0.6099232, 0.7350241
+            ),
+            1e-6
+        );
+    }
+
+    #[test]
+    fn euler_to_rotation_matrix_test_zxy() {
+        let rot_mat = euler_to_rotation_matrix(
+            &glm::vec3(
+                50.0_f64.to_radians(),
+                20.0_f64.to_radians(),
+                -30.0_f64.to_radians(),
+            ),
+            RotationModes::EulerZXY,
+        );
+
+        // expected value found from https://www.andre-gaschler.com/rotationconverter/
+        assert_vec_relative_eq!(
+            rot_mat,
+            glm::mat3(
+                0.9447990, 0.3213938, -0.0637250, -0.2429454, 0.5566704, -0.7944152, -0.2198463,
+                0.7660444, 0.6040228
+            ),
+            1e-6
+        );
+    }
+
+    #[test]
+    fn euler_to_rotation_matrix_test_zyx() {
+        let rot_mat = euler_to_rotation_matrix(
+            &glm::vec3(
+                50.0_f64.to_radians(),
+                20.0_f64.to_radians(),
+                -30.0_f64.to_radians(),
+            ),
+            RotationModes::EulerZYX,
+        );
+
+        // expected value found from https://www.andre-gaschler.com/rotationconverter/
+        assert_vec_relative_eq!(
+            rot_mat,
+            glm::mat3(
+                0.8137977, 0.5482947, -0.1926297, -0.4698463, 0.4256691, -0.7733371, -0.3420202,
+                0.7198463, 0.6040228
+            ),
+            1e-6
+        );
+    }
+
+    macro_rules! test_rotation_matrix_to_euler_01 {
+        ($test_name:ident , $rotation_mode:ident) => {
+            #[test]
+            fn $test_name() {
+                let initial_euler = glm::vec3(
+                    50.0_f64.to_radians(),
+                    20.0_f64.to_radians(),
+                    -30.0_f64.to_radians(),
+                );
+                let rot_mat =
+                    euler_to_rotation_matrix(&initial_euler, RotationModes::$rotation_mode);
+
+                let res = rotation_matrix_to_euler(&rot_mat, RotationModes::$rotation_mode);
+
+                assert_vec_relative_eq!(res, initial_euler, 1e-6);
+            }
+        };
+    }
+
+    test_rotation_matrix_to_euler_01!(rotation_matrix_to_euler_test_xyz_01, EulerXYZ);
+    test_rotation_matrix_to_euler_01!(rotation_matrix_to_euler_test_xzy_01, EulerXZY);
+    test_rotation_matrix_to_euler_01!(rotation_matrix_to_euler_test_yxz_01, EulerYXZ);
+    test_rotation_matrix_to_euler_01!(rotation_matrix_to_euler_test_yzx_01, EulerYZX);
+    test_rotation_matrix_to_euler_01!(rotation_matrix_to_euler_test_zxy_01, EulerZXY);
+    test_rotation_matrix_to_euler_01!(rotation_matrix_to_euler_test_zyx_01, EulerZYX);
+
+    macro_rules! test_rotation_matrix_to_euler_02 {
+        ($test_name:ident , $rotation_mode:ident) => {
+            #[test]
+            fn $test_name() {
+                let res = rotation_matrix_to_euler(&glm::identity(), RotationModes::$rotation_mode);
+
+                assert_vec_relative_eq!(res, glm::vec3(0.0, 0.0, 0.0), 1e-6);
+            }
+        };
+    }
+
+    test_rotation_matrix_to_euler_02!(rotation_matrix_to_euler_test_xyz_02, EulerXYZ);
+    test_rotation_matrix_to_euler_02!(rotation_matrix_to_euler_test_xzy_02, EulerXZY);
+    test_rotation_matrix_to_euler_02!(rotation_matrix_to_euler_test_yxz_02, EulerYXZ);
+    test_rotation_matrix_to_euler_02!(rotation_matrix_to_euler_test_yzx_02, EulerYZX);
+    test_rotation_matrix_to_euler_02!(rotation_matrix_to_euler_test_zxy_02, EulerZXY);
+    test_rotation_matrix_to_euler_02!(rotation_matrix_to_euler_test_zyx_02, EulerZYX);
 }
