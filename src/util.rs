@@ -1,9 +1,10 @@
+use egui_glfw::egui;
 use lazy_static::lazy_static;
 
-use std::convert::TryFrom;
+use std::{convert::TryFrom, fmt::Display};
 
 pub use crate::blend::object::RotationModes;
-use crate::glm;
+use crate::{glm, ui::DrawUI};
 
 /// str to CStr
 pub fn str_to_cstr(string: &str) -> &std::ffi::CStr {
@@ -340,6 +341,44 @@ impl From<Axis> for usize {
             Axis::NegY => 4,
             Axis::NegZ => 5,
         }
+    }
+}
+
+impl Display for Axis {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Axis::X => write!(f, "X"),
+            Axis::Y => write!(f, "Y"),
+            Axis::Z => write!(f, "Z"),
+            Axis::NegX => write!(f, "-X"),
+            Axis::NegY => write!(f, "-Y"),
+            Axis::NegZ => write!(f, "-Z"),
+        }
+    }
+}
+
+impl Axis {
+    pub fn all() -> impl Iterator<Item = Self> {
+        use Axis::*;
+        [X, Y, Z, NegX, NegY, NegZ].iter().copied()
+    }
+}
+
+impl DrawUI for Axis {
+    type ExtraData = egui::Id;
+
+    fn draw_ui(&self, _ui: &mut egui::Ui, _extra_data: &Self::ExtraData) {
+        unreachable!("no non mut draw ui for InfoType")
+    }
+
+    fn draw_ui_mut(&mut self, ui: &mut egui::Ui, id: &Self::ExtraData) {
+        egui::ComboBox::from_id_source(id.with("Axis"))
+            .selected_text(format!("{}", self))
+            .show_ui(ui, |ui| {
+                Self::all().for_each(|info| {
+                    ui.selectable_value(self, info, format!("{}", info));
+                });
+            });
     }
 }
 
