@@ -515,6 +515,16 @@ pub fn rotation_matrix_to_euler(mat: &glm::DMat3, mode: RotationModes) -> glm::D
     }
 }
 
+/// Convert from one rotation mode to another
+pub fn euler_rotation_change_mode(
+    rot: &glm::DVec3,
+    from: RotationModes,
+    to: RotationModes,
+) -> glm::DVec3 {
+    let mat = euler_to_rotation_matrix(rot, from);
+    rotation_matrix_to_euler(&mat, to)
+}
+
 #[macro_export]
 macro_rules! assert_vec_relative_eq {
     ($left:expr, $right:expr, $epsilon:expr $(,)?) => {
