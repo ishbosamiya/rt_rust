@@ -382,7 +382,8 @@ impl DrawUI for Axis {
     }
 }
 
-/// Convert between different axis setups
+/// Convert between different axis setups, returns None if conversion
+/// not possible.
 ///
 /// Forward and Up vectors are enough to determine the entire
 /// coordinate axis system. So given forward and up vectors to convert
@@ -397,18 +398,22 @@ impl DrawUI for Axis {
 /// Y: into the screen is positive
 ///
 /// Z: screen bottom to top is positive
+///
+/// Conversion not possible when `from_forward == from_up` or
+/// `to_forward` == `to_up`.
 pub fn axis_conversion_matrix(
     from_forward: Axis,
     from_up: Axis,
     to_forward: Axis,
     to_up: Axis,
-) -> glm::DMat4 {
+) -> Option<glm::DMat4> {
     if from_forward == to_forward && from_up == to_up {
-        return glm::identity();
+        return Some(glm::identity());
     }
 
-    assert_ne!(from_forward, from_up);
-    assert_ne!(to_forward, to_up);
+    if from_forward == from_up || to_forward == to_up {
+        return None;
+    }
 
     let from_to: [usize; 4] = [
         from_forward.into(),
@@ -424,16 +429,18 @@ pub fn axis_conversion_matrix(
 
     for (i, axis_lut) in AXIS_CONVERT_LUT.iter().enumerate() {
         if axis_lut.contains(&value) {
-            return glm::mat3_to_mat4(&AXIS_CONVERT_MATRIX[i]);
+            return Some(glm::mat3_to_mat4(&AXIS_CONVERT_MATRIX[i]));
         }
     }
-    unreachable!();
+    // any configuration that is not valid, the forward and up axis
+    // are not perpendicular to each other
+    None
 }
 
 /// Axis conversion matrix to convert axis from Blender to X as right,
 /// Y as up with right hand thumb rule (OpenGL axis).
 pub fn axis_conversion_matrix_from_blender() -> glm::DMat4 {
-    axis_conversion_matrix(Axis::Y, Axis::Z, Axis::NegZ, Axis::Y)
+    axis_conversion_matrix(Axis::Y, Axis::Z, Axis::NegZ, Axis::Y).unwrap()
 }
 
 /// Convert the given euler rotation to a rotation matrix
@@ -586,7 +593,7 @@ mod tests {
 
     #[test]
     fn axis_conversion_matrix_test_01() {
-        let conversion_matrix = axis_conversion_matrix(Axis::X, Axis::Y, Axis::X, Axis::Y);
+        let conversion_matrix = axis_conversion_matrix(Axis::X, Axis::Y, Axis::X, Axis::Y).unwrap();
 
         let identity_mat4: glm::DMat4 = glm::identity();
 
