@@ -20,6 +20,7 @@ macro_rules! load_builtin_mesh {
         pub fn $get_str_name() -> &'static str {
             include_str!($location)
         }
+
         pub fn $get_name() -> &'static Mesh {
             &$static_name
         }
@@ -49,3 +50,6 @@ load_builtin_mesh_easy!(monkey_subd_01_triangulated; "../../models/monkey_subd_0
 
 load_builtin_mesh_easy!(plane_subd_00; "../../models/plane_subd_00.obj");
 load_builtin_mesh_easy!(plane_subd_00_triangulated; "../../models/plane_subd_00_triangulated.obj");
+
+load_builtin_mesh_easy!(axis_blender; "../../models/axis_blender.obj");
+load_builtin_mesh_easy!(axis_opengl; "../../models/axis_opengl.obj");
