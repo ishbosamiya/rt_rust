@@ -3,7 +3,6 @@ use lazy_static::lazy_static;
 
 use std::{convert::TryFrom, fmt::Display};
 
-pub use crate::blend::object::RotationModes;
 use crate::{glm, ui::DrawUI};
 
 /// str to CStr
@@ -443,6 +442,78 @@ pub fn axis_conversion_matrix_from_blender() -> glm::DMat4 {
     axis_conversion_matrix(Axis::Y, Axis::Z, Axis::NegZ, Axis::Y).unwrap()
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RotationModes {
+    Quaternion,
+    EulerXYZ,
+    EulerXZY,
+    EulerYXZ,
+    EulerYZX,
+    EulerZXY,
+    EulerZYX,
+    AxisAngle,
+    // TODO: need to finalize the axis by which roll, pitch and yaw
+    // are defined, right now it is based on
+    // https://learnopengl.com/Getting-started/Camera which considers
+    // camera pitch to be up down (x axis) and camera yaw to be left
+    // right (y axis). No roll is defined so until finalized, roll is
+    // always zero :(
+    RollPitchYaw,
+}
+
+impl RotationModes {
+    pub fn all() -> impl Iterator<Item = Self> {
+        use RotationModes::*;
+        [
+            Quaternion,
+            EulerXYZ,
+            EulerXZY,
+            EulerYXZ,
+            EulerYZX,
+            EulerZXY,
+            EulerZYX,
+            AxisAngle,
+            RollPitchYaw,
+        ]
+        .iter()
+        .copied()
+    }
+}
+
+impl Display for RotationModes {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RotationModes::Quaternion => write!(f, "Quaternion"),
+            RotationModes::EulerXYZ => write!(f, "Euler XYZ"),
+            RotationModes::EulerXZY => write!(f, "Euler XZY"),
+            RotationModes::EulerYXZ => write!(f, "Euler YXZ"),
+            RotationModes::EulerYZX => write!(f, "Euler YZX"),
+            RotationModes::EulerZXY => write!(f, "Euler ZXY"),
+            RotationModes::EulerZYX => write!(f, "Euler ZYX"),
+            RotationModes::AxisAngle => write!(f, "Axis Angle"),
+            RotationModes::RollPitchYaw => write!(f, "Roll Pitch Yaw"),
+        }
+    }
+}
+
+impl DrawUI for RotationModes {
+    type ExtraData = egui::Id;
+
+    fn draw_ui(&self, _ui: &mut egui::Ui, _extra_data: &Self::ExtraData) {
+        unreachable!("no non mut draw ui for InfoType")
+    }
+
+    fn draw_ui_mut(&mut self, ui: &mut egui::Ui, id: &Self::ExtraData) {
+        egui::ComboBox::from_id_source(id.with("Rotation Mode"))
+            .selected_text(format!("{}", self))
+            .show_ui(ui, |ui| {
+                Self::all().for_each(|info| {
+                    ui.selectable_value(self, info, format!("{}", info));
+                });
+            });
+    }
+}
+
 /// Convert the given euler rotation to a rotation matrix
 ///
 /// reference:
@@ -473,6 +544,7 @@ pub fn euler_to_rotation_matrix(rot: &glm::DVec3, mode: RotationModes) -> glm::D
         RotationModes::EulerZXY => rz * rx * ry,
         RotationModes::EulerZYX => rz * ry * rx,
         RotationModes::AxisAngle => todo!(),
+        RotationModes::RollPitchYaw => todo!(),
     }
 }
 
@@ -558,6 +630,20 @@ pub fn rotation_matrix_to_euler(mat: &glm::DMat3, mode: RotationModes) -> glm::D
             glm::vec3(x, y, z)
         }
         RotationModes::AxisAngle => todo!(),
+        RotationModes::RollPitchYaw => {
+            // TODO: need to calculate roll, right now it is just
+            // returning pitch and yaw which is based on
+            // https://learnopengl.com/Getting-started/Camera
+
+            // The weird thing about this is that there is no exact
+            // notation, it is all very arbitrary. This considers the
+            // pitch to be camera up down (x axis), yaw to be camera
+            // left right (y axis).
+
+            let pitch = mat.index((2, 1)).asin();
+            let yaw = -(mat.index((2, 2))).atan2(*mat.index((2, 0)));
+            glm::vec3(0.0, pitch, yaw)
+        }
     }
 }
 

@@ -21,6 +21,8 @@ pub mod id;
 pub mod mesh;
 pub mod object;
 
+pub use crate::util::RotationModes;
+
 pub trait FromBlend {
     fn from_blend_instance(instance: &Instance) -> Option<Self>
     where
