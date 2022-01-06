@@ -1,8 +1,10 @@
+use std::convert::{TryFrom, TryInto};
+
 use blend::Instance;
 
 use super::{
     id::{IDObject, ID},
-    FromBlend,
+    FromBlend, RotationModes,
 };
 
 #[derive(Debug)]
@@ -26,6 +28,10 @@ pub struct Object {
     /// For simplicity reasons, the 4x4 matrix is stored in a single
     /// 16 element array. Stored column wise.
     obmat: [f32; 16],
+
+    /// Rotation mode - uses defines set out in DNA_action_types.h for
+    /// PoseChannel rotations....
+    rotmode: RotationModes,
 }
 
 impl Object {
@@ -63,6 +69,11 @@ impl Object {
     pub fn get_obmat(&self) -> &[f32; 16] {
         &self.obmat
     }
+
+    /// Get object's rotmode.
+    pub fn get_rotmode(&self) -> RotationModes {
+        self.rotmode
+    }
 }
 
 impl FromBlend for Object {
@@ -70,9 +81,11 @@ impl FromBlend for Object {
         if !instance.is_valid("data")
             || !instance.is_valid("loc")
             || !instance.is_valid("rot")
-            // must use size and not scale
+            // must use size and not scale, see struct member renaming
+            // in module level docs
             || !instance.is_valid("size")
             || !instance.is_valid("obmat")
+            || !instance.is_valid("rotmode")
         {
             println!("something not available");
             return None;
@@ -96,7 +109,26 @@ impl FromBlend for Object {
                 obmat[8], obmat[9], obmat[10], obmat[11], obmat[12], obmat[13], obmat[14],
                 obmat[15],
             ],
+            rotmode: instance.get_i16("rotmode").try_into().unwrap(),
         })
+    }
+}
+
+impl TryFrom<i16> for RotationModes {
+    type Error = ();
+
+    fn try_from(value: i16) -> Result<Self, Self::Error> {
+        match value {
+            -1 => Ok(Self::AxisAngle),
+            0 => Ok(Self::Quaternion),
+            1 => Ok(Self::EulerXYZ),
+            2 => Ok(Self::EulerXZY),
+            3 => Ok(Self::EulerYXZ),
+            4 => Ok(Self::EulerYZX),
+            5 => Ok(Self::EulerZXY),
+            6 => Ok(Self::EulerZYX),
+            _ => Err(()),
+        }
     }
 }
 
