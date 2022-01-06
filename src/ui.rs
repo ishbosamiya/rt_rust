@@ -50,3 +50,15 @@ pub fn color_edit_button_dvec3(ui: &mut egui::Ui, text: &str, color: &mut glm::D
         color_edit_dvec3(ui, color);
     });
 }
+
+impl DrawUI for String {
+    type ExtraData = ();
+
+    fn draw_ui(&self, ui: &mut egui::Ui, _extra_data: &Self::ExtraData) {
+        ui.label(self);
+    }
+
+    fn draw_ui_mut(&mut self, ui: &mut egui::Ui, _extra_data: &Self::ExtraData) {
+        ui.text_edit_singleline(self);
+    }
+}
