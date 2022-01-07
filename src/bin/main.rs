@@ -558,7 +558,7 @@ fn main_gui(
                                         .set_directory(".")
                                         .pick_file()
                                     {
-                                        rt::load_meshes(path).drain(0..).for_each(|object| {
+                                        rt::load_meshes(&path).drain(0..).for_each(|object| {
                                             scene.write().unwrap().add_object(Box::new(object));
                                         });
                                         // update scene bvh
@@ -569,6 +569,28 @@ fn main_gui(
                                             scene.build_bvh(0.01);
 
                                             scene.unapply_model_matrices();
+                                        }
+
+                                        if let Ok(objects) =
+                                            rt::blend::get_all_objects_from_path(path)
+                                        {
+                                            if let Some(blend_camera) =
+                                                objects.iter().find(|object| {
+                                                    matches!(
+                                                        object.get_data(),
+                                                        Some(rt::blend::id::IDObject::Camera(_))
+                                                    )
+                                                })
+                                            {
+                                                *path_trace_camera.write().unwrap() =
+                                                    Camera::from_blend(blend_camera).unwrap();
+                                            } else {
+                                                eprintln!("no camera in given blend file");
+                                            }
+                                        } else {
+                                            eprintln!(
+                                                "could not load objects from given blend file"
+                                            );
                                         }
                                     }
                                 }
