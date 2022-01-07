@@ -6,10 +6,12 @@ use egui_glfw::{
 };
 use glfw::{Action, Context, Key};
 
+use glm::Scalar;
 use rt::{
     camera::Camera,
     fps::FPS,
     glm,
+    mesh::{self, MeshDrawData},
     rasterize::{
         drawable::Drawable,
         gpu_immediate::GPUImmediate,
@@ -17,7 +19,8 @@ use rt::{
         infinite_grid::{InfiniteGrid, InfiniteGridDrawData},
         shader,
     },
-    ui,
+    ui::{self, DrawUI},
+    util::{self, Axis, RotationModes},
     viewport::Viewport,
 };
 
@@ -86,6 +89,8 @@ fn main() {
 
     let infinite_grid = InfiniteGrid::default();
 
+    let axis_mesh = mesh::builtins::get_axis_opengl();
+
     let mut use_top_panel = false;
     let mut use_bottom_panel = false;
     let mut use_left_panel = true;
@@ -104,6 +109,15 @@ fn main() {
     let mut refract_invert_output = false;
     let mut refract_invert_ior = false;
     let mut refract_invert_normal = false;
+
+    let mut rotation_location = glm::vec3(3.0, 3.0, -3.0);
+    let mut rotation_input = glm::vec3(32.0, 0.0, 159.0);
+    let mut rotation_input_mode = RotationModes::EulerXYZ;
+    let mut rotation_apply_axis_conversion_matrix = true;
+    let mut rotation_from_forward = Axis::Y;
+    let mut rotation_from_up = Axis::Z;
+    let mut rotation_to_forward = Axis::NegZ;
+    let mut rotation_to_up = Axis::Y;
 
     while !window.should_close() {
         glfw.poll_events();
@@ -251,6 +265,114 @@ fn main() {
                     glm::vec2(viewport_top_left_x, viewport_top_left_y),
                 )
             };
+
+            egui::Window::new("rotation testing")
+                .scroll(true)
+                .show(egui.get_egui_ctx(), |ui| {
+                    vec3_gui_edit(ui, "Location", &mut rotation_location);
+                    vec3_degrees_gui_edit(ui, "Rotation", &mut rotation_input);
+
+                    ui.horizontal(|ui| {
+                        ui.label("Input Mode");
+                        rotation_input_mode.draw_ui_mut(ui, &egui::Id::new("rotation_input_mode"));
+                    });
+
+                    ui.horizontal(|ui| {
+                        ui.label("Axis From Forward");
+                        rotation_from_forward
+                            .draw_ui_mut(ui, &egui::Id::new("rotation_from_forward"));
+                    });
+
+                    ui.horizontal(|ui| {
+                        ui.label("Axis From Up");
+                        rotation_from_up.draw_ui_mut(ui, &egui::Id::new("rotation_from_up"));
+                    });
+
+                    ui.horizontal(|ui| {
+                        ui.label("Axis To Forward");
+                        rotation_to_forward.draw_ui_mut(ui, &egui::Id::new("rotation_to_forward"));
+                    });
+
+                    ui.horizontal(|ui| {
+                        ui.label("Axis To Up");
+                        rotation_to_up.draw_ui_mut(ui, &egui::Id::new("rotation_to_up"));
+                    });
+
+                    ui.checkbox(
+                        &mut rotation_apply_axis_conversion_matrix,
+                        "Apply Axis Conversion",
+                    );
+
+                    let rotation = glm::vec3(
+                        rotation_input[0].to_radians(),
+                        rotation_input[1].to_radians(),
+                        rotation_input[2].to_radians(),
+                    );
+
+                    let rotation = if rotation_apply_axis_conversion_matrix {
+                        util::vec3_apply_model_matrix(
+                            &rotation,
+                            &util::axis_conversion_matrix(
+                                rotation_from_forward,
+                                rotation_from_up,
+                                rotation_to_forward,
+                                rotation_to_up,
+                            )
+                            .unwrap_or_else(glm::identity),
+                        )
+                    } else {
+                        rotation
+                    };
+
+                    let mut rotation_ui = |to: RotationModes| {
+                        let rotation =
+                            util::euler_rotation_change_mode(&rotation, rotation_input_mode, to);
+                        let rotation = glm::vec3(
+                            rotation[0].to_degrees(),
+                            rotation[1].to_degrees(),
+                            rotation[2].to_degrees(),
+                        );
+                        ui.label(format!("rotation {}: {}", to, vec_to_string(&rotation)));
+                    };
+
+                    rotation_ui(RotationModes::EulerXYZ);
+                    rotation_ui(RotationModes::EulerXZY);
+                    rotation_ui(RotationModes::EulerYXZ);
+                    rotation_ui(RotationModes::EulerYZX);
+                    rotation_ui(RotationModes::EulerZXY);
+                    rotation_ui(RotationModes::EulerZYX);
+                    // rotation_ui(RotationModes::RollPitchYaw);
+
+                    {
+                        let mat = util::euler_to_rotation_matrix(&rotation, rotation_input_mode);
+
+                        // let pitch_pre = (mat.index((2, 1)).asin() - std::f64::consts::FRAC_PI_2)
+                        //     .sin()
+                        //     .asin();
+                        let pitch_pre = mat.index((2, 1)).asin();
+                        let pitch = pitch_pre;
+                        let yaw_tan = -(mat.index((2, 2))).atan2(*mat.index((2, 0)));
+                        let yaw_cos = (mat.index((2, 0)) / pitch.cos()).acos();
+                        let yaw_sin = (mat.index((2, 2)) / pitch.cos()).asin();
+                        let yaw = yaw_tan;
+                        let pitch = (mat.index((2, 1)) * yaw.sin()).atan2(*mat.index((2, 2)));
+
+                        let pitch_pre = pitch_pre.to_degrees();
+                        let pitch = pitch.to_degrees();
+                        let yaw_tan = yaw_tan.to_degrees();
+                        let yaw_cos = yaw_cos.to_degrees();
+                        let yaw_sin = yaw_sin.to_degrees();
+                        let yaw = yaw.to_degrees();
+
+                        ui.label(mat_to_string(&mat));
+                        ui.label(format!("pitch_pre: {:.2}", pitch_pre));
+                        ui.label(format!("pitch: {:.2}", pitch));
+                        ui.label(format!("yaw_tan: {:.2}", yaw_tan));
+                        ui.label(format!("yaw_cos: {:.2}", yaw_cos));
+                        ui.label(format!("yaw_sin: {:.2}", yaw_sin));
+                        ui.label(format!("yaw: {:.2}", yaw));
+                    }
+                });
         }
         // GUI Ends
 
@@ -324,6 +446,51 @@ fn main() {
                         &mut imm.borrow_mut(),
                     );
                 }
+            }
+
+            // axis with rotation
+            {
+                let directional_light_shader = shader::builtins::get_directional_light_shader()
+                    .as_ref()
+                    .unwrap();
+                let rotation = glm::vec3(
+                    rotation_input[0].to_radians(),
+                    rotation_input[1].to_radians(),
+                    rotation_input[2].to_radians(),
+                );
+                let rotation = if rotation_apply_axis_conversion_matrix {
+                    util::vec3_apply_model_matrix(
+                        &rotation,
+                        &util::axis_conversion_matrix(
+                            rotation_from_forward,
+                            rotation_from_up,
+                            rotation_to_forward,
+                            rotation_to_up,
+                        )
+                        .unwrap_or_else(glm::identity),
+                    )
+                } else {
+                    rotation
+                };
+                let translation_matrix = glm::translation(&rotation_location);
+                let model_matrix = glm::convert(
+                    translation_matrix
+                        * glm::mat3_to_mat4(&util::euler_to_rotation_matrix(
+                            &rotation,
+                            rotation_input_mode,
+                        )),
+                );
+                directional_light_shader.use_shader();
+                directional_light_shader.set_mat4("model\0", &model_matrix);
+                axis_mesh
+                    .draw(&mut MeshDrawData::new(
+                        imm.clone(),
+                        mesh::MeshUseShader::DirectionalLight {
+                            color: glm::vec3(0.6, 0.6, 0.6),
+                        },
+                        None,
+                    ))
+                    .unwrap();
             }
         }
         // END: Draw all opaque objects
@@ -561,11 +728,55 @@ fn draw_arrow(p1: glm::DVec3, p2: glm::DVec3, color: glm::DVec4, imm: &mut GPUIm
     imm.end();
 }
 
-fn _vec3_gui_edit(ui: &mut egui::Ui, text: &str, data: &mut glm::DVec3) {
+fn vec3_gui_edit(ui: &mut egui::Ui, text: &str, data: &mut glm::DVec3) {
     ui.label(text);
     ui.add(egui::Slider::new(&mut data[0], -5.0..=5.0));
     ui.add(egui::Slider::new(&mut data[1], -5.0..=5.0));
     ui.add(egui::Slider::new(&mut data[2], -5.0..=5.0));
+}
+
+fn vec3_degrees_gui_edit(ui: &mut egui::Ui, text: &str, data: &mut glm::DVec3) {
+    ui.label(text);
+    ui.add(egui::Slider::new(&mut data[0], -360.0..=360.0));
+    ui.add(egui::Slider::new(&mut data[1], -360.0..=360.0));
+    ui.add(egui::Slider::new(&mut data[2], -360.0..=360.0));
+}
+
+fn vec_to_string<T: Scalar + std::fmt::Display, const R: usize>(vec: &glm::TVec<T, R>) -> String {
+    let mut res = "[".to_string();
+    for i in 0..vec.len() {
+        if res == "[" {
+            res = format!("{}{:.2}", res, vec[i]);
+        } else {
+            res = format!("{}, {:.2}", res, vec[i]);
+        }
+    }
+    format!("{}]", res)
+}
+
+fn mat_to_string<T: Scalar + std::fmt::Display + glm::Number, const R: usize, const C: usize>(
+    mat: &glm::TMat<T, R, C>,
+) -> String {
+    let mut res = "".to_string();
+    mat.row_iter().for_each(|row| {
+        res = format!("{}\n|{}|", res, {
+            let mut res = "".to_string();
+            for i in 0..row.len() {
+                let val = if row[i] > T::zero() {
+                    format!(" {:.2}", row[i])
+                } else {
+                    format!("{:.2}", row[i])
+                };
+                if res.is_empty() {
+                    res = format!("{}{}", res, val);
+                } else {
+                    res = format!("{}, {}", res, val);
+                }
+            }
+            res
+        })
+    });
+    res
 }
 
 fn point_on_sphere_gui(ui: &mut egui::Ui, text: &str, spherical: &mut glm::DVec2) {
