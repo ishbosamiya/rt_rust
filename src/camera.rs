@@ -3,7 +3,7 @@ use std::{cell::RefCell, rc::Rc};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    glm,
+    blend, glm,
     path_trace::ray::Ray,
     rasterize::{
         drawable::Drawable,
@@ -139,6 +139,79 @@ impl Camera {
         camera.update_camera_vectors();
 
         camera
+    }
+
+    /// Create new camera from camera data available in the Camera
+    /// Object of a Blend file
+    ///
+    /// The camera roll is not taken into account, is not supported
+    /// yet.
+    ///
+    /// If the given object is not a camera, [`None`] is returned.
+    pub fn from_blend(camera: &blend::object::Object) -> Option<Self> {
+        let camera_data = match camera.get_data()? {
+            blend::id::IDObject::Camera(data) => data,
+            _ => return None,
+        };
+
+        let camera_sensor_size = match camera_data.get_sensor_fit() {
+            blend::camera::SensorFit::Auto => {
+                if camera_data.get_sensor_x() > camera_data.get_sensor_y() {
+                    camera_data.get_sensor_x()
+                } else {
+                    camera_data.get_sensor_y()
+                }
+            }
+            blend::camera::SensorFit::Horizontal => camera_data.get_sensor_x(),
+            blend::camera::SensorFit::Vertical => camera_data.get_sensor_y(),
+        }
+        .into();
+
+        let position = util::vec3_apply_model_matrix(
+            &glm::convert(glm::make_vec3(camera.get_loc())),
+            &util::axis_conversion_matrix_from_blender(),
+        );
+
+        let rotation = util::vec3_apply_model_matrix(
+            &glm::convert(glm::make_vec3(camera.get_rot())),
+            &util::axis_conversion_matrix_from_blender(),
+        );
+
+        let roll_pitch_yaw = {
+            let roll_pitch_yaw = util::euler_rotation_change_mode(
+                &rotation,
+                camera.get_rotmode(),
+                util::RotationModes::RollPitchYaw,
+            );
+            glm::vec3(
+                roll_pitch_yaw[0].to_degrees(),
+                roll_pitch_yaw[1].to_degrees(),
+                roll_pitch_yaw[2].to_degrees(),
+            )
+        };
+
+        let mut res = Self {
+            position,
+            // front, up and right will be set from update_camera_vectors
+            front: glm::zero(),
+            up: glm::zero(),
+            right: glm::zero(),
+            world_up: glm::vec3(0.0, 1.0, 0.0),
+            yaw: roll_pitch_yaw[2],
+            pitch: roll_pitch_yaw[1],
+            fov: util::focal_length_to_fov(camera_data.get_lens().into(), camera_sensor_size)
+                .to_degrees(),
+            near_plane: camera_data.get_clip_start().into(),
+            far_plane: camera_data.get_clip_end().into(),
+            sensor: Some(Sensor::new(
+                camera_data.get_sensor_x().into(),
+                camera_data.get_sensor_y().into(),
+            )),
+        };
+
+        res.update_camera_vectors();
+
+        Some(res)
     }
 
     fn update_camera_vectors(&mut self) {
