@@ -154,14 +154,14 @@ fn main_headless(
         .unwrap_or_else(rt::default_samples_per_pixel);
 
     ray_trace_thread_sender
-        .send(RayTraceMessage::StartRender(RayTraceParams::new(
+        .send(RayTraceMessage::StartRender(Box::new(RayTraceParams::new(
             image_width,
             image_height,
             trace_max_depth,
             samples_per_pixel,
             path_trace_camera,
             rendered_image.clone(),
-        )))
+        ))))
         .unwrap();
 
     // setup progress sender if required and must send the total
@@ -920,13 +920,15 @@ fn main_gui(
                             ui.horizontal(|ui| {
                                 if ui.button("Ray Trace Scene").clicked() {
                                     ray_trace_thread_sender
-                                        .send(RayTraceMessage::StartRender(RayTraceParams::new(
-                                            image_width,
-                                            image_height,
-                                            trace_max_depth,
-                                            samples_per_pixel,
-                                            path_trace_camera.read().unwrap().clone(),
-                                            rendered_image.clone(),
+                                        .send(RayTraceMessage::StartRender(Box::new(
+                                            RayTraceParams::new(
+                                                image_width,
+                                                image_height,
+                                                trace_max_depth,
+                                                samples_per_pixel,
+                                                path_trace_camera.read().unwrap().clone(),
+                                                rendered_image.clone(),
+                                            ),
                                         )))
                                         .unwrap();
                                 }

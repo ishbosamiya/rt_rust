@@ -46,7 +46,7 @@ impl RenderData {
 
 #[derive(Debug)]
 enum ViewportRenderMessage {
-    Restart(RenderData),
+    Restart(Box<RenderData>),
     Stop,
     KillThread,
 }
@@ -140,14 +140,14 @@ impl ViewportRenderer {
             let starting_dimensions = get_dimensions(render_data.frame_count);
 
             ray_trace_thread_sender
-                .send(RayTraceMessage::StartRender(RayTraceParams::new(
+                .send(RayTraceMessage::StartRender(Box::new(RayTraceParams::new(
                     starting_dimensions.0.floor() as usize,
                     starting_dimensions.1.floor() as usize,
                     render_data.trace_max_depth,
                     samples_per_pixel,
                     render_data.camera.clone(),
                     rendered_image.clone(),
-                )))
+                ))))
                 .unwrap();
 
             render_data.frame_count += 1;
@@ -180,14 +180,14 @@ impl ViewportRenderer {
                         };
 
                         ray_trace_thread_sender
-                            .send(RayTraceMessage::StartRender(RayTraceParams::new(
+                            .send(RayTraceMessage::StartRender(Box::new(RayTraceParams::new(
                                 dimensions.0.floor() as usize,
                                 dimensions.1.floor() as usize,
                                 render_data.trace_max_depth,
                                 samples_per_pixel,
                                 render_data.camera.clone(),
                                 rendered_image.clone(),
-                            )))
+                            ))))
                             .unwrap();
 
                         path_trace_progress.write().unwrap().reset();
@@ -227,7 +227,7 @@ impl ViewportRenderer {
                     thread_handle = Self::stop_job(stop_render.clone(), thread_handle);
                     assert!(thread_handle.is_none(), "ensure no job is running");
                     thread_handle = Some(Self::spawn_job(
-                        render_data,
+                        *render_data,
                         stop_render.clone(),
                         path_trace_progress.clone(),
                         ray_trace_thread_sender.clone(),
@@ -275,12 +275,12 @@ impl ViewportRenderer {
             target_viewport.get_height() as _,
         ));
         self.message_sender
-            .send(ViewportRenderMessage::Restart(RenderData::new(
+            .send(ViewportRenderMessage::Restart(Box::new(RenderData::new(
                 target_viewport,
                 trace_max_depth,
                 samples_per_pixel,
                 camera,
-            )))
+            ))))
             .unwrap();
     }
 

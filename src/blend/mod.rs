@@ -63,6 +63,6 @@ pub fn get_all_objects(data: impl Read) -> Vec<Object> {
     blend
         .get_by_code(*b"OB")
         .iter()
-        .filter_map(|instance| Object::from_blend_instance(instance))
+        .filter_map(Object::from_blend_instance)
         .collect()
 }

@@ -259,7 +259,7 @@ pub fn ray_trace_scene(
 }
 
 pub enum RayTraceMessage {
-    StartRender(RayTraceParams),
+    StartRender(Box<RayTraceParams>),
     FinishSampleAndStopRender,
     StopRenderImmediately,
     KillThread,
@@ -308,7 +308,7 @@ pub fn ray_trace_main(
                 let stop_render_immediate = stop_render_immediate.clone();
                 render_thread_handle = Some(thread::spawn(move || {
                     ray_trace_scene(
-                        params,
+                        *params,
                         scene,
                         shader_list,
                         texture_list,
