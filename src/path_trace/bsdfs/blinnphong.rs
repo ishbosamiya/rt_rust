@@ -115,7 +115,11 @@ impl DrawUI for Blinnphong {
                 ),
             );
         });
-        ui.add(egui::Slider::new(&mut self.n, 1.0..=1000.0).text("n"));
+        ui.add(
+            egui::Slider::new(&mut self.n, 1.0..=1000.0)
+                .clamp_to_range(false)
+                .text("n"),
+        );
         ui.checkbox(&mut self.divide_by_n_dot_l, "Divide by N.L");
     }
 }

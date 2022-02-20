@@ -227,7 +227,11 @@ fn main() {
                         ui.checkbox(&mut refract_invert_output, "Refract invert output");
                         ui.checkbox(&mut refract_invert_ior, "Refract invert ior");
                         ui.checkbox(&mut refract_invert_normal, "Refract invert normal");
-                        ui.add(egui::Slider::new(&mut ior, 0.0..=3.0).text("ior"));
+                        ui.add(
+                            egui::Slider::new(&mut ior, 0.0..=3.0)
+                                .clamp_to_range(false)
+                                .text("ior"),
+                        );
 
                         ui::color_edit_button_dvec4(ui, "Reflect Color", &mut reflect_color);
                     })
@@ -267,7 +271,7 @@ fn main() {
             };
 
             egui::Window::new("rotation testing")
-                .scroll(true)
+                .vscroll(true)
                 .show(egui.get_egui_ctx(), |ui| {
                     vec3_gui_edit(ui, "Location", &mut rotation_location);
                     vec3_degrees_gui_edit(ui, "Rotation", &mut rotation_input);
@@ -730,16 +734,16 @@ fn draw_arrow(p1: glm::DVec3, p2: glm::DVec3, color: glm::DVec4, imm: &mut GPUIm
 
 fn vec3_gui_edit(ui: &mut egui::Ui, text: &str, data: &mut glm::DVec3) {
     ui.label(text);
-    ui.add(egui::Slider::new(&mut data[0], -5.0..=5.0));
-    ui.add(egui::Slider::new(&mut data[1], -5.0..=5.0));
-    ui.add(egui::Slider::new(&mut data[2], -5.0..=5.0));
+    ui.add(egui::Slider::new(&mut data[0], -5.0..=5.0).clamp_to_range(false));
+    ui.add(egui::Slider::new(&mut data[1], -5.0..=5.0).clamp_to_range(false));
+    ui.add(egui::Slider::new(&mut data[2], -5.0..=5.0).clamp_to_range(false));
 }
 
 fn vec3_degrees_gui_edit(ui: &mut egui::Ui, text: &str, data: &mut glm::DVec3) {
     ui.label(text);
-    ui.add(egui::Slider::new(&mut data[0], -360.0..=360.0));
-    ui.add(egui::Slider::new(&mut data[1], -360.0..=360.0));
-    ui.add(egui::Slider::new(&mut data[2], -360.0..=360.0));
+    ui.add(egui::Slider::new(&mut data[0], -360.0..=360.0).clamp_to_range(false));
+    ui.add(egui::Slider::new(&mut data[1], -360.0..=360.0).clamp_to_range(false));
+    ui.add(egui::Slider::new(&mut data[2], -360.0..=360.0).clamp_to_range(false));
 }
 
 fn vec_to_string<T: Scalar + std::fmt::Display, const R: usize>(vec: &glm::TVec<T, R>) -> String {

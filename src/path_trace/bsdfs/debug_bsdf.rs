@@ -211,11 +211,16 @@ impl DrawUI for DebugBSDF {
             InfoType::T => {
                 ui.add(
                     egui::Slider::new(&mut self.distance_factor, 0.00001..=25.0)
+                        .clamp_to_range(false)
                         .text("Distance Factor"),
                 );
             }
             InfoType::Fresnel => {
-                ui.add(egui::Slider::new(&mut self.ior, 0.0..=3.0).text("ior"));
+                ui.add(
+                    egui::Slider::new(&mut self.ior, 0.0..=3.0)
+                        .clamp_to_range(false)
+                        .text("ior"),
+                );
             }
             _ => {}
         }

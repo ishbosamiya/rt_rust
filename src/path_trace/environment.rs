@@ -94,7 +94,11 @@ impl DrawUI for Environment {
     fn draw_ui(&self, _ui: &mut egui::Ui, _extra_data: &Self::ExtraData) {}
 
     fn draw_ui_mut(&mut self, ui: &mut egui::Ui, extra_data: &Self::ExtraData) {
-        ui.add(egui::Slider::new(&mut self.strength, 0.0..=5.0).text("Environment Strength"));
+        ui.add(
+            egui::Slider::new(&mut self.strength, 0.0..=5.0)
+                .clamp_to_range(false)
+                .text("Environment Strength"),
+        );
 
         if ui.button("Load Environment Image").clicked() {
             self.load_hdr_file_dialog();

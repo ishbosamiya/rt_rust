@@ -457,7 +457,7 @@ fn main_gui(
                     .resizable(true)
                     .show(egui.get_egui_ctx(), |ui| {
                         egui::menu::bar(ui, |ui| {
-                            egui::menu::menu(ui, "File", |ui| {
+                            ui.menu_button("File", |ui| {
                                 if ui.button("Open").clicked() {
                                     if let Some(path) = FileDialog::new()
                                         .add_filter("RT", &["rt"])
@@ -621,7 +621,7 @@ fn main_gui(
                     .min_width(0.1 * window_viewport.get_width() as f32)
                     .resizable(true)
                     .show(egui.get_egui_ctx(), |ui| {
-                        egui::ScrollArea::auto_sized().show(ui, |ui| {
+                        egui::ScrollArea::vertical().show(ui, |ui| {
                             environment.read().unwrap().draw_ui(ui, &ui_data);
                             if let Ok(mut environment) = environment.try_write() {
                                 environment.draw_ui_mut(ui, &ui_data);
@@ -698,7 +698,7 @@ fn main_gui(
                     .min_width(0.1 * window_viewport.get_width() as f32)
                     .resizable(true)
                     .show(egui.get_egui_ctx(), |ui| {
-                        egui::ScrollArea::auto_sized().show(ui, |ui| {
+                        egui::ScrollArea::vertical().show(ui, |ui| {
                             ui.label(format!("fps: {:.2}", fps.update_and_get(Some(60.0))));
                             ui.add({
                                 let path_trace_progress = &*path_trace_progress.read().unwrap();
@@ -743,6 +743,7 @@ fn main_gui(
                                             &mut mesh_draw_vert_normals_len,
                                             0.0..=1.0,
                                         )
+                                        .clamp_to_range(false)
                                         .text("Vert Normals Len"),
                                     );
                                     ui::color_edit_button_dvec4(
@@ -778,6 +779,7 @@ fn main_gui(
                                         .get_width();
                                     ui.add(
                                         egui::Slider::new(&mut camera_sensor_width, 0.0..=36.0)
+                                            .clamp_to_range(false)
                                             .text("Camera Sensor Width"),
                                     );
                                     camera_sensor_width
@@ -791,6 +793,7 @@ fn main_gui(
                                         .unwrap();
                                     ui.add(
                                         egui::Slider::new(&mut camera_focal_length, 0.0..=100.0)
+                                            .clamp_to_range(false)
                                             .text("Camera Focal Length"),
                                     );
                                     camera_focal_length
@@ -802,14 +805,17 @@ fn main_gui(
                                     ui.label("Camera Position");
                                     ui.add(
                                         egui::Slider::new(&mut camera_position[0], -10.0..=10.0)
+                                            .clamp_to_range(false)
                                             .text("x"),
                                     );
                                     ui.add(
                                         egui::Slider::new(&mut camera_position[1], -10.0..=10.0)
+                                            .clamp_to_range(false)
                                             .text("y"),
                                     );
                                     ui.add(
                                         egui::Slider::new(&mut camera_position[2], -10.0..=10.0)
+                                            .clamp_to_range(false)
                                             .text("z"),
                                     );
                                     camera_position
@@ -820,7 +826,9 @@ fn main_gui(
                                     let mut camera_yaw =
                                         path_trace_camera.read().unwrap().get_yaw();
                                     ui.add(
-                                        egui::Slider::new(&mut camera_yaw, 0.0..=360.0).text("yaw"),
+                                        egui::Slider::new(&mut camera_yaw, 0.0..=360.0)
+                                            .clamp_to_range(false)
+                                            .text("yaw"),
                                     );
                                     camera_yaw
                                 };
@@ -829,6 +837,7 @@ fn main_gui(
                                         path_trace_camera.read().unwrap().get_pitch();
                                     ui.add(
                                         egui::Slider::new(&mut camera_pitch, 0.0..=360.0)
+                                            .clamp_to_range(false)
                                             .text("pitch"),
                                     );
                                     camera_pitch
@@ -873,19 +882,24 @@ fn main_gui(
                             ui.separator();
 
                             ui.add(
-                                egui::Slider::new(&mut image_width, 1..=1000).text("Image Width"),
+                                egui::Slider::new(&mut image_width, 1..=1000)
+                                    .clamp_to_range(false)
+                                    .text("Image Width"),
                             );
                             if image_width == 0 {
                                 image_width = 1;
                             }
                             ui.add(
-                                egui::Slider::new(&mut image_height, 1..=1000).text("Image Height"),
+                                egui::Slider::new(&mut image_height, 1..=1000)
+                                    .clamp_to_range(false)
+                                    .text("Image Height"),
                             );
                             if image_height == 0 {
                                 image_height = 1;
                             }
                             let trace_max_depth_response = ui.add(
                                 egui::Slider::new(&mut trace_max_depth, 1..=10)
+                                    .clamp_to_range(false)
                                     .text("Trace Max Depth"),
                             );
                             if trace_max_depth_response.changed() {
@@ -893,6 +907,7 @@ fn main_gui(
                             }
                             let samples_per_pixel_response = ui.add(
                                 egui::Slider::new(&mut samples_per_pixel, 1..=10)
+                                    .clamp_to_range(false)
                                     .text("Samples Per Pixel"),
                             );
                             if samples_per_pixel_response.changed() {
@@ -996,6 +1011,7 @@ fn main_gui(
                                 );
                                 ui.add(
                                     egui::Slider::new(&mut normals_size, 0.0..=2.0)
+                                        .clamp_to_range(false)
                                         .text("Normals Size"),
                                 );
                                 ui::color_edit_button_dvec4(
@@ -1193,7 +1209,7 @@ fn main_gui(
                         scene_viewport.get_height() as f32,
                     ))
                 })
-                .scroll(true)
+                .vscroll(true)
                 .show(egui.get_egui_ctx(), |ui| {
                     let mut rendered_texture = rendered_texture.borrow_mut();
                     ui.image(
@@ -1208,7 +1224,7 @@ fn main_gui(
             egui::Window::new("Camera Data")
                 .open(&mut false)
                 .collapsible(true)
-                .scroll(true)
+                .vscroll(true)
                 .show(egui.get_egui_ctx(), |ui| {
                     // let camera = &camera;
                     let camera = &path_trace_camera.read().unwrap();

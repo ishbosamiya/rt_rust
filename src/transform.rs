@@ -31,23 +31,59 @@ impl DrawUI for Transform {
     fn draw_ui_mut(&mut self, ui: &mut egui::Ui, _extra_data: &Self::ExtraData) {
         // For Location
         ui.collapsing("Location", |ui| {
-            ui.add(egui::Slider::new(&mut self.location[0], -10.0..=10.0).text("X"));
-            ui.add(egui::Slider::new(&mut self.location[1], -10.0..=10.0).text("Y"));
-            ui.add(egui::Slider::new(&mut self.location[2], -10.0..=10.0).text("Z"));
+            ui.add(
+                egui::Slider::new(&mut self.location[0], -10.0..=10.0)
+                    .clamp_to_range(false)
+                    .text("X"),
+            );
+            ui.add(
+                egui::Slider::new(&mut self.location[1], -10.0..=10.0)
+                    .clamp_to_range(false)
+                    .text("Y"),
+            );
+            ui.add(
+                egui::Slider::new(&mut self.location[2], -10.0..=10.0)
+                    .clamp_to_range(false)
+                    .text("Z"),
+            );
         });
 
         // For Rotation
         ui.collapsing("Rotation", |ui| {
-            ui.add(egui::Slider::new(&mut self.rotation[0], 0.0..=360.0).text("X"));
-            ui.add(egui::Slider::new(&mut self.rotation[1], 0.0..=360.0).text("Y"));
-            ui.add(egui::Slider::new(&mut self.rotation[2], 0.0..=360.0).text("Z"));
+            ui.add(
+                egui::Slider::new(&mut self.rotation[0], 0.0..=360.0)
+                    .clamp_to_range(false)
+                    .text("X"),
+            );
+            ui.add(
+                egui::Slider::new(&mut self.rotation[1], 0.0..=360.0)
+                    .clamp_to_range(false)
+                    .text("Y"),
+            );
+            ui.add(
+                egui::Slider::new(&mut self.rotation[2], 0.0..=360.0)
+                    .clamp_to_range(false)
+                    .text("Z"),
+            );
         });
 
         // For Scale
         ui.collapsing("Scaling", |ui| {
-            ui.add(egui::Slider::new(&mut self.scale[0], 0.0..=10.0).text("X"));
-            ui.add(egui::Slider::new(&mut self.scale[1], 0.0..=10.0).text("Y"));
-            ui.add(egui::Slider::new(&mut self.scale[2], 0.0..=10.0).text("Z"));
+            ui.add(
+                egui::Slider::new(&mut self.scale[0], 0.0..=10.0)
+                    .clamp_to_range(false)
+                    .text("X"),
+            );
+            ui.add(
+                egui::Slider::new(&mut self.scale[1], 0.0..=10.0)
+                    .clamp_to_range(false)
+                    .text("Y"),
+            );
+            ui.add(
+                egui::Slider::new(&mut self.scale[2], 0.0..=10.0)
+                    .clamp_to_range(false)
+                    .text("Z"),
+            );
         });
     }
 }

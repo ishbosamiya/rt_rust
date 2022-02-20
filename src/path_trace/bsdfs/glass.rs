@@ -209,7 +209,15 @@ impl DrawUI for Glass {
                 ),
             );
         });
-        ui.add(egui::Slider::new(&mut self.ior, 1.0..=2.0).text("ior"));
-        ui.add(egui::Slider::new(&mut self.roughness, 0.0..=1.0).text("Roughness"));
+        ui.add(
+            egui::Slider::new(&mut self.ior, 1.0..=2.0)
+                .clamp_to_range(false)
+                .text("ior"),
+        );
+        ui.add(
+            egui::Slider::new(&mut self.roughness, 0.0..=1.0)
+                .clamp_to_range(false)
+                .text("Roughness"),
+        );
     }
 }

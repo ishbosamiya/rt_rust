@@ -100,6 +100,10 @@ impl DrawUI for Emissive {
                 ),
             );
         });
-        ui.add(egui::Slider::new(&mut self.power, 0.0..=10.0).text("Power"));
+        ui.add(
+            egui::Slider::new(&mut self.power, 0.0..=10.0)
+                .clamp_to_range(false)
+                .text("Power"),
+        );
     }
 }

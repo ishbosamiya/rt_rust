@@ -262,7 +262,7 @@ fn main() {
             };
 
             egui::Window::new("Matrix Multiplier")
-                .scroll(true)
+                .vscroll(true)
                 .show(egui.get_egui_ctx(), |ui| {
                     let mut delete_matrix = None;
                     matrices.iter_mut().enumerate().for_each(|(i, matrix)| {
@@ -281,8 +281,16 @@ fn main() {
 
                     ui.collapsing("Add Matrix", |ui| {
                         ui.horizontal(|ui| {
-                            ui.add(egui::Slider::new(&mut matrix_num_rows, 0..=5).text("Num Rows"));
-                            ui.add(egui::Slider::new(&mut matrix_num_cols, 0..=5).text("Num Cols"));
+                            ui.add(
+                                egui::Slider::new(&mut matrix_num_rows, 0..=5)
+                                    .clamp_to_range(false)
+                                    .text("Num Rows"),
+                            );
+                            ui.add(
+                                egui::Slider::new(&mut matrix_num_cols, 0..=5)
+                                    .clamp_to_range(false)
+                                    .text("Num Cols"),
+                            );
                         });
                         if ui.button("Add").clicked() {
                             matrices.push(Matrix::new(

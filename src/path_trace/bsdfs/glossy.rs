@@ -133,6 +133,10 @@ impl DrawUI for Glossy {
                 ),
             );
         });
-        ui.add(egui::Slider::new(&mut self.roughness, 0.0..=1.0).text("Roughness"));
+        ui.add(
+            egui::Slider::new(&mut self.roughness, 0.0..=1.0)
+                .clamp_to_range(false)
+                .text("Roughness"),
+        );
     }
 }
