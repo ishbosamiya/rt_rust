@@ -10,39 +10,42 @@ pub mod texture_list;
 pub mod traversal_info;
 pub mod viewport_renderer;
 
-use std::sync::atomic::AtomicUsize;
-use std::sync::atomic::Ordering;
-use std::sync::mpsc::Receiver;
-use std::sync::Arc;
-use std::sync::RwLock;
-use std::thread;
-use std::thread::JoinHandle;
-use std::time::Instant;
-
 use enumflags2::BitFlags;
 use lazy_static::lazy_static;
+use quick_renderer::camera::Camera;
 use rayon::prelude::*;
 
-use crate::camera::Camera;
-use crate::glm;
-use crate::image::Image;
-use crate::path_trace::bsdf::SamplingTypes;
-use crate::path_trace::intersectable::IntersectInfo;
-use crate::path_trace::intersectable::Intersectable;
-use crate::path_trace::ray::Ray;
-use crate::progress::Progress;
-use crate::scene::Scene;
-use crate::util;
+use std::{
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        mpsc::Receiver,
+        Arc, RwLock,
+    },
+    thread::{self, JoinHandle},
+    time::Instant,
+};
 
-use self::environment::Environment;
-use self::environment::EnvironmentShadingData;
+use crate::{
+    camera::CameraExtension,
+    glm,
+    image::Image,
+    path_trace::{
+        bsdf::SamplingTypes,
+        intersectable::{IntersectInfo, Intersectable},
+        ray::Ray,
+    },
+    progress::Progress,
+    scene::Scene,
+    util,
+};
 
-use self::medium::Mediums;
-use self::shader_list::Shader;
-use self::shader_list::ShaderList;
-use self::texture_list::TextureList;
-use self::traversal_info::SingleRayInfo;
-use self::traversal_info::TraversalInfo;
+use self::{
+    environment::{Environment, EnvironmentShadingData},
+    medium::Mediums,
+    shader_list::{Shader, ShaderList},
+    texture_list::TextureList,
+    traversal_info::{SingleRayInfo, TraversalInfo},
+};
 
 lazy_static! {
     static ref DEFAULT_SHADER: self::shaders::Lambert =

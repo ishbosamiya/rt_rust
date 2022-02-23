@@ -6,19 +6,13 @@ use egui_glfw::{
 };
 use glfw::{Action, Context, Key};
 
-use rt::{
+use quick_renderer::{
     camera::Camera,
-    fps::FPS,
-    glm,
-    rasterize::{
-        drawable::Drawable,
-        gpu_immediate::GPUImmediate,
-        infinite_grid::{InfiniteGrid, InfiniteGridDrawData},
-        shader,
-    },
-    ui,
-    viewport::Viewport,
+    drawable::Drawable,
+    gpu_immediate::GPUImmediate,
+    infinite_grid::{InfiniteGrid, InfiniteGridDrawData},
 };
+use rt::{fps::FPS, glm, rasterize::shader, ui, viewport::Viewport};
 
 fn main() {
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
@@ -258,7 +252,7 @@ fn main() {
 
             // drawing the infinite grid
             infinite_grid
-                .draw(&mut InfiniteGridDrawData::new(
+                .draw(&InfiniteGridDrawData::new(
                     imm.clone(),
                     glm::vec4(0.2, 0.2, 0.2, 1.0),
                 ))

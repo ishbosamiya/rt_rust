@@ -1,3 +1,11 @@
+use quick_renderer::{
+    camera::{self, Camera},
+    drawable::{Drawable, NoSpecificDrawError},
+    gpu_immediate::GPUImmediate,
+    gpu_utils,
+    texture::TextureRGBAFloat,
+};
+
 use std::{
     cell::RefCell,
     rc::Rc,
@@ -6,13 +14,7 @@ use std::{
 };
 
 use crate::{
-    camera::{self, Camera},
-    image::Image,
-    progress::Progress,
-    rasterize::{
-        drawable::Drawable, gpu_immediate::GPUImmediate, gpu_utils, shader,
-        texture::TextureRGBAFloat,
-    },
+    image::Image, progress::Progress, rasterize::shader, texture::TextureRGBAFloatExtension,
     viewport::Viewport,
 };
 
@@ -312,9 +314,9 @@ impl ViewportRendererDrawData {
 impl Drawable for ViewportRenderer {
     type ExtraData = ViewportRendererDrawData;
 
-    type Error = ();
+    type Error = NoSpecificDrawError;
 
-    fn draw(&self, extra_data: &mut Self::ExtraData) -> Result<(), Self::Error> {
+    fn draw(&self, extra_data: &Self::ExtraData) -> Result<(), Self::Error> {
         let screen_texture_shader = shader::builtins::get_screen_texture_shader()
             .as_ref()
             .unwrap();
@@ -332,7 +334,7 @@ impl Drawable for ViewportRenderer {
             gl::Disable(gl::DEPTH_TEST);
         }
 
-        gpu_utils::draw_screen_quad_with_uvs(
+        gpu_utils::draw_screen_quad_with_uv(
             &mut extra_data.imm.borrow_mut(),
             screen_texture_shader,
         );
@@ -344,7 +346,7 @@ impl Drawable for ViewportRenderer {
         Ok(())
     }
 
-    fn draw_wireframe(&self, _extra_data: &mut Self::ExtraData) -> Result<(), Self::Error> {
+    fn draw_wireframe(&self, _extra_data: &Self::ExtraData) -> Result<(), Self::Error> {
         unreachable!("wireframe drawing is not supported")
     }
 }

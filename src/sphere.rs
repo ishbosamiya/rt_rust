@@ -1,14 +1,16 @@
+use quick_renderer::drawable::NoSpecificDrawError;
+use quick_renderer::{
+    drawable::Drawable, gpu_immediate::GPUImmediate, gpu_utils::draw_smooth_sphere_at,
+};
+use serde::{Deserialize, Serialize};
+
 use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::glm;
 use crate::path_trace::intersectable::{IntersectInfo, Intersectable};
 use crate::path_trace::ray::Ray;
-use crate::rasterize::gpu_utils::draw_smooth_sphere_at;
-use crate::rasterize::{drawable::Drawable, gpu_immediate::GPUImmediate};
 use crate::util::vec3_apply_model_matrix;
-
-use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Sphere {
@@ -97,9 +99,9 @@ impl SphereDrawData {
 
 impl Drawable for Sphere {
     type ExtraData = SphereDrawData;
-    type Error = ();
+    type Error = NoSpecificDrawError;
 
-    fn draw(&self, extra_data: &mut SphereDrawData) -> Result<(), ()> {
+    fn draw(&self, extra_data: &SphereDrawData) -> Result<(), NoSpecificDrawError> {
         draw_smooth_sphere_at(
             vec3_apply_model_matrix(&self.center, &extra_data.model_matrix),
             self.radius,
@@ -110,7 +112,7 @@ impl Drawable for Sphere {
         Ok(())
     }
 
-    fn draw_wireframe(&self, _extra_data: &mut SphereDrawData) -> Result<(), ()> {
+    fn draw_wireframe(&self, _extra_data: &SphereDrawData) -> Result<(), NoSpecificDrawError> {
         unreachable!("No Wireframe drawing for Sphere");
     }
 }

@@ -7,18 +7,18 @@ use egui_glfw::{
 use glfw::{Action, Context, Key};
 
 use glm::Scalar;
-use rt::{
+use quick_renderer::{
     camera::Camera,
+    drawable::Drawable,
+    gpu_immediate::{self, GPUImmediate},
+    gpu_utils,
+    infinite_grid::{InfiniteGrid, InfiniteGridDrawData},
+};
+use rt::{
     fps::FPS,
     glm,
     mesh::{self, MeshDrawData},
-    rasterize::{
-        drawable::Drawable,
-        gpu_immediate::GPUImmediate,
-        gpu_utils,
-        infinite_grid::{InfiniteGrid, InfiniteGridDrawData},
-        shader,
-    },
+    rasterize::shader,
     ui::{self, DrawUI},
     util::{self, Axis, RotationModes},
     viewport::Viewport,
@@ -487,7 +487,7 @@ fn main() {
                 directional_light_shader.use_shader();
                 directional_light_shader.set_mat4("model\0", &model_matrix);
                 axis_mesh
-                    .draw(&mut MeshDrawData::new(
+                    .draw(&MeshDrawData::new(
                         imm.clone(),
                         mesh::MeshUseShader::DirectionalLight {
                             color: glm::vec3(0.6, 0.6, 0.6),
@@ -509,7 +509,7 @@ fn main() {
 
             // drawing the infinite grid
             infinite_grid
-                .draw(&mut InfiniteGridDrawData::new(
+                .draw(&InfiniteGridDrawData::new(
                     imm.clone(),
                     glm::vec4(0.2, 0.2, 0.2, 1.0),
                 ))
@@ -706,22 +706,18 @@ fn draw_arrow(p1: glm::DVec3, p2: glm::DVec3, color: glm::DVec4, imm: &mut GPUIm
     let format = imm.get_cleared_vertex_format();
     let pos_attr = format.add_attribute(
         "in_pos\0".to_string(),
-        rt::rasterize::gpu_immediate::GPUVertCompType::F32,
+        gpu_immediate::GPUVertCompType::F32,
         3,
-        rt::rasterize::gpu_immediate::GPUVertFetchMode::Float,
+        gpu_immediate::GPUVertFetchMode::Float,
     );
     let color_attr = format.add_attribute(
         "in_color\0".to_string(),
-        rt::rasterize::gpu_immediate::GPUVertCompType::F32,
+        gpu_immediate::GPUVertCompType::F32,
         4,
-        rt::rasterize::gpu_immediate::GPUVertFetchMode::Float,
+        gpu_immediate::GPUVertFetchMode::Float,
     );
 
-    imm.begin(
-        rt::rasterize::gpu_immediate::GPUPrimType::Lines,
-        2,
-        smooth_color_3d_shader,
-    );
+    imm.begin(gpu_immediate::GPUPrimType::Lines, 2, smooth_color_3d_shader);
 
     imm.attr_4f(color_attr, color[0], color[1], color[2], 1.0);
     imm.vertex_3f(pos_attr, p1[0], p1[1], p1[2]);

@@ -1,4 +1,17 @@
-use std::{cell::RefCell, fmt::Debug, rc::Rc, sync::Mutex};
+use lazy_static::lazy_static;
+use quick_renderer::{
+    drawable::{Drawable, NoSpecificDrawError},
+    gpu_immediate::GPUImmediate,
+    rasterize::Rasterize,
+};
+use serde::{Deserialize, Serialize};
+
+use std::{
+    cell::RefCell,
+    fmt::{Debug, Display},
+    rc::Rc,
+    sync::Mutex,
+};
 
 #[cfg(feature = "use_embree")]
 use crate::embree::Embree;
@@ -7,11 +20,7 @@ use crate::{
     mesh::MeshDrawError,
     namegen::NameGen,
     path_trace::{intersectable::Intersectable, shader_list::ShaderID as PathTraceShaderID},
-    rasterize::{drawable::Drawable, gpu_immediate::GPUImmediate, Rasterize},
 };
-
-use lazy_static::lazy_static;
-use serde::{Deserialize, Serialize};
 
 lazy_static! {
     static ref SPHERE_NAME_GEN: Mutex<NameGen> = Mutex::new(NameGen::new("sphere".to_string()));
@@ -34,11 +43,22 @@ impl ObjectID {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug)]
 pub enum DrawError {
     Mesh(MeshDrawError),
-    Sphere(()),
+    Sphere(NoSpecificDrawError),
 }
+
+impl Display for DrawError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DrawError::Mesh(err) => write!(f, "DrawError: Mesh: {}", err),
+            DrawError::Sphere(err) => write!(f, "DrawError: Sphere: {}", err),
+        }
+    }
+}
+
+impl std::error::Error for DrawError {}
 
 #[derive(Debug, Clone)]
 pub struct ObjectDrawData {
@@ -196,6 +216,12 @@ pub mod objects {
     pub use sphere::Sphere;
 
     mod sphere {
+        use quick_renderer::{
+            drawable::{Drawable, NoSpecificDrawError},
+            rasterize::Rasterize,
+        };
+        use serde::{Deserialize, Serialize};
+
         #[cfg(feature = "use_embree")]
         use crate::embree::Embree;
         use crate::{
@@ -207,13 +233,10 @@ pub mod objects {
                 ray::Ray,
                 shader_list::ShaderID,
             },
-            rasterize::{drawable::Drawable, Rasterize},
             sphere::{Sphere as SphereData, SphereDrawData},
         };
 
         use super::super::{DrawError, Object, ObjectDrawData, SPHERE_NAME_GEN};
-
-        use serde::{Deserialize, Serialize};
 
         #[derive(Debug, Serialize, Deserialize)]
         pub struct Sphere {
@@ -267,7 +290,7 @@ pub mod objects {
             type ExtraData = ObjectDrawData;
             type Error = DrawError;
 
-            fn draw(&self, extra_data: &mut ObjectDrawData) -> Result<(), DrawError> {
+            fn draw(&self, extra_data: &ObjectDrawData) -> Result<(), DrawError> {
                 let model = if extra_data.use_model_matrix {
                     self.get_model_matrix().unwrap()
                 } else {
@@ -275,18 +298,18 @@ pub mod objects {
                 };
 
                 self.data
-                    .draw(&mut SphereDrawData::new(
+                    .draw(&SphereDrawData::new(
                         extra_data.imm.clone(),
                         model,
                         glm::convert(extra_data.viewport_color),
                         self.inside_color,
                     ))
-                    .map_err(|_error| DrawError::Sphere(()))?;
+                    .map_err(|_error| DrawError::Sphere(NoSpecificDrawError))?;
 
                 Ok(())
             }
 
-            fn draw_wireframe(&self, extra_data: &mut ObjectDrawData) -> Result<(), DrawError> {
+            fn draw_wireframe(&self, extra_data: &ObjectDrawData) -> Result<(), DrawError> {
                 let model = if extra_data.use_model_matrix {
                     self.get_model_matrix().unwrap()
                 } else {
@@ -294,13 +317,13 @@ pub mod objects {
                 };
 
                 self.data
-                    .draw_wireframe(&mut SphereDrawData::new(
+                    .draw_wireframe(&SphereDrawData::new(
                         extra_data.imm.clone(),
                         model,
                         self.outside_color,
                         self.inside_color,
                     ))
-                    .map_err(|_error| DrawError::Sphere(()))
+                    .map_err(|_error| DrawError::Sphere(NoSpecificDrawError))
             }
         }
 
@@ -394,6 +417,8 @@ pub mod objects {
     }
 
     mod mesh {
+        use quick_renderer::{drawable::Drawable, rasterize::Rasterize, shader};
+
         #[cfg(feature = "use_embree")]
         use crate::embree::Embree;
         use crate::{
@@ -405,7 +430,6 @@ pub mod objects {
                 ray::Ray,
                 shader_list::ShaderID,
             },
-            rasterize::{drawable::Drawable, shader, Rasterize},
             util,
         };
 
@@ -490,7 +514,7 @@ pub mod objects {
             type ExtraData = ObjectDrawData;
             type Error = DrawError;
 
-            fn draw(&self, extra_data: &mut ObjectDrawData) -> Result<(), DrawError> {
+            fn draw(&self, extra_data: &ObjectDrawData) -> Result<(), DrawError> {
                 let shader = match self.use_shader {
                     MeshUseShader::DirectionalLight { color: _ } => {
                         let shader = shader::builtins::get_directional_light_shader()
@@ -511,7 +535,7 @@ pub mod objects {
                 shader.set_mat4("model\0", &glm::convert(model));
 
                 self.data
-                    .draw(&mut MeshDrawData::new(
+                    .draw(&MeshDrawData::new(
                         extra_data.imm.clone(),
                         MeshUseShader::DirectionalLight {
                             color: glm::vec4_to_vec3(&extra_data.viewport_color),
@@ -521,7 +545,7 @@ pub mod objects {
                     .map_err(DrawError::Mesh)
             }
 
-            fn draw_wireframe(&self, _extra_data: &mut ObjectDrawData) -> Result<(), DrawError> {
+            fn draw_wireframe(&self, _extra_data: &ObjectDrawData) -> Result<(), DrawError> {
                 todo!()
             }
         }

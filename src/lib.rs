@@ -1,5 +1,4 @@
 pub mod blend;
-pub mod bvh;
 pub mod camera;
 #[cfg(feature = "use_embree")]
 pub mod embree;
@@ -18,6 +17,7 @@ pub mod progress;
 pub mod rasterize;
 pub mod scene;
 pub mod sphere;
+pub mod texture;
 pub mod transform;
 pub mod ui;
 pub mod util;
@@ -27,18 +27,19 @@ pub(crate) use egui_glfw::egui;
 
 extern crate image as external_image;
 
-use mesh::MeshUseShader;
-use meshio::MeshIO;
 pub use nalgebra_glm as glm;
+use quick_renderer::camera::Camera;
 
-use camera::Camera;
-use object::Object;
-use path_trace::{environment::Environment, shader_list::ShaderList, texture_list::TextureList};
-use scene::Scene;
 use std::{
     convert::TryInto,
     sync::{Arc, RwLock},
 };
+
+use mesh::MeshUseShader;
+use meshio::MeshIO;
+use object::Object;
+use path_trace::{environment::Environment, shader_list::ShaderList, texture_list::TextureList};
+use scene::Scene;
 
 pub struct UiData {
     scene: Arc<RwLock<Scene>>,

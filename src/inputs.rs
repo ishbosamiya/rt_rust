@@ -1,19 +1,24 @@
-use crate::camera::{self, Camera};
-use crate::image::Image;
-use crate::path_trace::bsdfs::utils::ColorPicker;
-use crate::path_trace::environment::Environment;
-use crate::path_trace::shader_list::ShaderList;
-use crate::path_trace::texture_list::TextureList;
-use crate::path_trace::RayTraceParams;
-use crate::rasterize::texture::TextureRGBAFloat;
-use crate::scene::Scene;
-use crate::transform::Transform;
-use crate::{file, glm, path_trace};
 use clap::{value_t, values_t};
 use clap::{App, Arg};
 use itertools::Itertools;
+use quick_renderer::{
+    camera::{self, Camera},
+    texture::TextureRGBAFloat,
+};
+
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
+
+use crate::{
+    file, glm,
+    image::Image,
+    path_trace::{
+        self, bsdfs::utils::ColorPicker, environment::Environment, shader_list::ShaderList,
+        texture_list::TextureList, RayTraceParams,
+    },
+    scene::Scene,
+    transform::Transform,
+};
 
 #[derive(Debug)]
 pub struct InputArguments {

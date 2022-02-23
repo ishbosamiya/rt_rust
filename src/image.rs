@@ -1,8 +1,8 @@
 use image::Pixel;
+use quick_renderer::texture::TextureRGBAFloat;
 use serde::{Deserialize, Serialize};
 
 use crate::glm;
-use crate::rasterize::texture::TextureRGBAFloat;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Image {

@@ -1,13 +1,12 @@
+use quick_renderer::{
+    drawable::{Drawable, NoSpecificDrawError},
+    gpu_immediate::{GPUImmediate, GPUPrimType, GPUVertCompType, GPUVertFetchMode},
+    shader,
+};
+
 use std::{cell::RefCell, rc::Rc};
 
-use crate::{
-    glm,
-    rasterize::{
-        drawable::Drawable,
-        gpu_immediate::{GPUImmediate, GPUPrimType, GPUVertCompType, GPUVertFetchMode},
-        shader,
-    },
-};
+use crate::glm;
 
 use super::ray::Ray;
 
@@ -126,9 +125,9 @@ impl TraversalInfoDrawData {
 impl Drawable for TraversalInfo {
     type ExtraData = TraversalInfoDrawData;
 
-    type Error = ();
+    type Error = NoSpecificDrawError;
 
-    fn draw(&self, extra_data: &mut Self::ExtraData) -> Result<(), Self::Error> {
+    fn draw(&self, extra_data: &Self::ExtraData) -> Result<(), Self::Error> {
         let mut imm = extra_data.imm.borrow_mut();
 
         let smooth_color_3d_shader = shader::builtins::get_smooth_color_3d_shader()

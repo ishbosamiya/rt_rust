@@ -1,47 +1,65 @@
 use glm::Scalar;
 use ipc_channel::ipc;
+use rand::prelude::IteratorRandom;
 use rfd::FileDialog;
-use rt::camera::{Camera, CameraDrawData};
-use rt::image::Image;
-use rt::inputs::InputArguments;
-use rt::object::objects::Mesh as MeshObject;
-use rt::path_trace::environment::Environment;
-use rt::path_trace::intersectable::Intersectable;
-use rt::path_trace::medium::Mediums;
-use rt::path_trace::ray::Ray;
-use rt::path_trace::shader_list::{ShaderID, ShaderList};
-use rt::path_trace::texture_list::TextureList;
-use rt::path_trace::traversal_info::{TraversalInfo, TraversalInfoDrawData};
-use rt::path_trace::viewport_renderer::{ViewportRenderer, ViewportRendererDrawData};
-use rt::path_trace::{self, RayTraceMessage, RayTraceParams};
-use rt::progress::Progress;
-use rt::rasterize::gpu_utils::{self, draw_plane_with_image};
-use rt::rasterize::texture::TextureRGBAFloat;
-use rt::scene::{Scene, SceneDrawData};
-use rt::ui::DrawUI;
-use rt::viewport::Viewport;
-use rt::{file, glm, icons, ui, util, UiData};
 
-use std::cell::RefCell;
-use std::convert::TryInto;
-use std::path::PathBuf;
-use std::rc::Rc;
-use std::sync::atomic::{self, AtomicBool};
-use std::sync::{mpsc, Arc, RwLock};
-use std::thread;
+use quick_renderer::{
+    camera::{Camera, CameraDrawData},
+    drawable::Drawable,
+    gpu_immediate::GPUImmediate,
+    gpu_utils::{self, draw_plane_with_image},
+    infinite_grid::{InfiniteGrid, InfiniteGridDrawData},
+    rasterize::Rasterize,
+    texture::TextureRGBAFloat,
+};
+
+use rt::{
+    camera::CameraExtension,
+    file,
+    fps::FPS,
+    glm, icons,
+    image::Image,
+    inputs::InputArguments,
+    object::objects::Mesh as MeshObject,
+    path_trace::{
+        self,
+        environment::Environment,
+        intersectable::Intersectable,
+        medium::Mediums,
+        ray::Ray,
+        shader_list::{ShaderID, ShaderList},
+        texture_list::TextureList,
+        traversal_info::{TraversalInfo, TraversalInfoDrawData},
+        viewport_renderer::{ViewportRenderer, ViewportRendererDrawData},
+        RayTraceMessage, RayTraceParams,
+    },
+    progress::Progress,
+    rasterize::shader,
+    scene::{Scene, SceneDrawData},
+    texture::TextureRGBAFloatExtension,
+    ui::{self, DrawUI},
+    util,
+    viewport::Viewport,
+    UiData,
+};
+
+use std::{
+    cell::RefCell,
+    convert::TryInto,
+    path::PathBuf,
+    rc::Rc,
+    sync::{
+        atomic::{self, AtomicBool},
+        mpsc, Arc, RwLock,
+    },
+    thread,
+};
 
 use egui_glfw::{
     egui::{self, FontDefinitions, FontFamily, TextStyle},
     EguiBackend,
 };
 use glfw::{Action, Context, Key};
-use rand::seq::IteratorRandom;
-
-use rt::fps::FPS;
-use rt::rasterize::drawable::Drawable;
-use rt::rasterize::gpu_immediate::GPUImmediate;
-use rt::rasterize::infinite_grid::{InfiniteGrid, InfiniteGridDrawData};
-use rt::rasterize::{shader, Rasterize};
 
 fn print_active_feature_list() {
     print!("active_features: ");
@@ -1326,7 +1344,7 @@ fn main_gui(
         scene
             .read()
             .unwrap()
-            .draw(&mut SceneDrawData::new(imm.clone(), shader_list.clone()))
+            .draw(&SceneDrawData::new(imm.clone(), shader_list.clone()))
             .unwrap();
 
         // extra visualizations of the scene
@@ -1347,7 +1365,7 @@ fn main_gui(
         // drawing ray traversal info if needed
         if show_ray_traversal_info {
             ray_traversal_info.iter().for_each(|info| {
-                info.draw(&mut TraversalInfoDrawData::new(
+                info.draw(&TraversalInfoDrawData::new(
                     imm.clone(),
                     draw_normal_at_hit_points,
                     normals_size,
@@ -1488,7 +1506,7 @@ fn main_gui(
 
             if let Some(viewport_renderer) = viewport_rendered_shading.as_ref() {
                 viewport_renderer
-                    .draw(&mut ViewportRendererDrawData::new(imm.clone()))
+                    .draw(&ViewportRendererDrawData::new(imm.clone()))
                     .unwrap();
             }
 
@@ -1496,7 +1514,7 @@ fn main_gui(
             path_trace_camera
                 .read()
                 .unwrap()
-                .draw(&mut CameraDrawData::new(
+                .draw(&CameraDrawData::new(
                     imm.clone(),
                     Some(rendered_texture.clone()),
                     camera_image_alpha_value,
@@ -1506,10 +1524,7 @@ fn main_gui(
 
             // drawing the infinite grid
             infinite_grid
-                .draw(&mut InfiniteGridDrawData::new(
-                    imm.clone(),
-                    infinite_grid_color,
-                ))
+                .draw(&InfiniteGridDrawData::new(imm.clone(), infinite_grid_color))
                 .unwrap();
 
             // Draw GUI

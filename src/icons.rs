@@ -1,12 +1,11 @@
 use lazy_static::lazy_static;
 use paste::paste;
+use quick_renderer::texture::TextureRGBAFloat;
 
 use std::{
     io::Cursor,
     sync::{Arc, RwLock},
 };
-
-use crate::rasterize::texture::TextureRGBAFloat;
 
 macro_rules! define_icon {
     ( $name:ident , $location:tt ) => {

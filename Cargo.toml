@@ -38,6 +38,7 @@ zstd = "0.9"
 # to use bitflags in comparison to enumflags2, there does not seem to
 # be a clear reason to have used enumflags in the first place
 bitflags = "1.3"
+quick_renderer = { git = "ssh://git@github.com/ishbosamiya/quick_renderer.git", branch = "v0.3.0-release" }
 
 [dev-dependencies]
 criterion = "0.3"

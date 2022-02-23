@@ -1,30 +1,27 @@
 pub mod builtins;
 
 use itertools::Itertools;
+use quick_renderer::{
+    bvh::{BVHDrawData, BVHTree, RayHitData, RayHitOptionalData},
+    drawable::Drawable,
+    gl_mesh::{self, GLMesh, GLVert},
+    gpu_immediate::{GPUImmediate, GPUPrimType, GPUVertCompType, GPUVertFetchMode},
+    shader,
+};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use std::cell::RefCell;
-use std::convert::TryInto;
-use std::fmt::Display;
-use std::path::Path;
-use std::rc::Rc;
-use std::sync::Mutex;
+use std::{cell::RefCell, convert::TryInto, fmt::Display, path::Path, rc::Rc, sync::Mutex};
 
-use crate::bvh::{RayHitData, RayHitOptionalData};
-use crate::path_trace::intersectable::{IntersectInfo, Intersectable};
-use crate::path_trace::ray::Ray;
-use crate::rasterize::gl_mesh::{self, GLMesh, GLVert};
-use crate::rasterize::gpu_immediate::{
-    GPUImmediate, GPUPrimType, GPUVertCompType, GPUVertFetchMode,
-};
-use crate::rasterize::Rasterize;
-use crate::util::{self, normal_apply_model_matrix, vec3_apply_model_matrix};
 use crate::{
-    bvh::{BVHDrawData, BVHTree},
     glm,
     meshio::{self, MeshIO},
-    rasterize::{drawable::Drawable, shader},
+    path_trace::{
+        intersectable::{IntersectInfo, Intersectable},
+        ray::Ray,
+    },
+    rasterize::Rasterize,
+    util::{self, normal_apply_model_matrix, vec3_apply_model_matrix},
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -255,7 +252,7 @@ impl Mesh {
             gl_mesh
                 .as_ref()
                 .unwrap()
-                .draw(&mut ())
+                .draw(&())
                 .map_err(|_| MeshDrawError::ErrorWhileDrawing)?;
         }
 
@@ -388,6 +385,9 @@ impl Mesh {
 pub enum MeshDrawError {
     ErrorWhileDrawing,
     NoColorButSmoothColorShader,
+    // Current decision is to not store the actual error since no
+    // specific error is anyway propagated.
+    ErrorWhileDrawingMeshBVH,
 }
 
 impl std::error::Error for MeshDrawError {}
@@ -402,6 +402,7 @@ impl std::fmt::Display for MeshDrawError {
                 f,
                 "No color provided in draw data but asking to use smooth color 3D shader"
             ),
+            MeshDrawError::ErrorWhileDrawingMeshBVH => write!(f, "Error while drawing mesh BVH"),
         }
     }
 }
@@ -473,7 +474,7 @@ impl Drawable for Mesh {
     type ExtraData = MeshDrawData;
     type Error = MeshDrawError;
 
-    fn draw(&self, draw_data: &mut MeshDrawData) -> Result<(), MeshDrawError> {
+    fn draw(&self, draw_data: &MeshDrawData) -> Result<(), MeshDrawError> {
         match draw_data.use_shader {
             MeshUseShader::DirectionalLight { color } => {
                 self.draw_directional_light_shader(color)?
@@ -484,11 +485,12 @@ impl Drawable for Mesh {
         if let Some(bvh_draw_data) = draw_data.bvh_draw_data {
             if bvh_draw_data.draw_bvh {
                 if let Some(bvh) = &self.bvh {
-                    bvh.draw(&mut BVHDrawData::new(
+                    bvh.draw(&BVHDrawData::new(
                         draw_data.imm.clone(),
                         bvh_draw_data.bvh_draw_level,
                         bvh_draw_data.bvh_color,
-                    ))?
+                    ))
+                    .map_err(|_| MeshDrawError::ErrorWhileDrawingMeshBVH)?
                 }
             }
         }
@@ -496,7 +498,7 @@ impl Drawable for Mesh {
         Ok(())
     }
 
-    fn draw_wireframe(&self, _draw_data: &mut MeshDrawData) -> Result<(), MeshDrawError> {
+    fn draw_wireframe(&self, _draw_data: &MeshDrawData) -> Result<(), MeshDrawError> {
         todo!()
     }
 }

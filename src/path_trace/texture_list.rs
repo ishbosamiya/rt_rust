@@ -1,14 +1,10 @@
 use std::collections::{hash_map, HashMap};
 
+use quick_renderer::{rasterize::Rasterize, texture::TextureRGBAFloat};
 use rfd::FileDialog;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    egui,
-    rasterize::{texture::TextureRGBAFloat, Rasterize},
-    ui::DrawUI,
-    UiData,
-};
+use crate::{egui, ui::DrawUI, UiData};
 
 /// A unique identifier given to each `Texture` during its
 /// initialization.

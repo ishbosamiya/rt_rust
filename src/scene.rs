@@ -1,9 +1,14 @@
+use itertools::Itertools;
+use quick_renderer::{
+    bvh::BVHTree, drawable::Drawable, gpu_immediate::GPUImmediate, rasterize::Rasterize,
+};
+use serde::{Deserialize, Serialize};
+
 use std::cell::RefCell;
 use std::collections::{hash_map, HashMap};
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
 
-use crate::bvh::BVHTree;
 #[cfg(all(not(feature = "scene_no_bvh"), not(feature = "use_embree")))]
 use crate::bvh::{RayHitData, RayHitOptionalData};
 use crate::egui;
@@ -14,9 +19,6 @@ use crate::path_trace::bsdfs::BSDFUiData;
 use crate::path_trace::intersectable::{IntersectInfo, Intersectable};
 use crate::path_trace::ray::Ray;
 use crate::path_trace::shader_list::ShaderList;
-use crate::rasterize::drawable::Drawable;
-use crate::rasterize::gpu_immediate::GPUImmediate;
-use crate::rasterize::Rasterize;
 use crate::ui::DrawUI;
 use crate::UiData;
 #[cfg(feature = "use_embree")]
@@ -24,9 +26,6 @@ use crate::{
     embree::Embree,
     object::{DataForInterpolation, PrimitiveType},
 };
-
-use itertools::Itertools;
-use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(from = "SceneShadow")]
@@ -426,7 +425,7 @@ impl Drawable for Scene {
     type ExtraData = SceneDrawData;
     type Error = DrawError;
 
-    fn draw(&self, extra_data: &mut Self::ExtraData) -> Result<(), DrawError> {
+    fn draw(&self, extra_data: &Self::ExtraData) -> Result<(), DrawError> {
         let shader_list = extra_data.shader_list.read().unwrap();
         let mut object_draw_data = ObjectDrawData::new(extra_data.imm.clone(), glm::zero());
         unsafe {
@@ -443,7 +442,7 @@ impl Drawable for Scene {
                 viewport_color[2],
                 1.0,
             ));
-            object.draw(&mut object_draw_data)
+            object.draw(&object_draw_data)
         })?;
         Ok(())
     }

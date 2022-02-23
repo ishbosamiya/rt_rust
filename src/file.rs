@@ -1,9 +1,9 @@
-use std::sync::{Arc, RwLock};
-
+use quick_renderer::camera::{Camera, Sensor};
 use serde::{Deserialize, Serialize};
 
+use std::sync::{Arc, RwLock};
+
 use crate::{
-    camera::{Camera, Sensor},
     glm,
     path_trace::{environment::Environment, shader_list::ShaderList},
     scene::Scene,
